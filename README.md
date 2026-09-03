@@ -105,13 +105,22 @@ It also asserts that its own targeted text fix-ups still match upstream. If Micr
 
 Verified on Windows 11 against upstream v1.0.2:
 
+**Build**
 - builds clean with all verification passing
-- Claude Code discovers all seven skills from `.claude/skills/` with no plugin install
-- the patched path guard correctly blocks writes into the kit and outside the project, and allows writes to agent source
+- the patched path guard blocks writes into the kit and outside the project, and allows writes to agent source
 - stop validators run and correctly report an un-instrumented project
 - Copilot wiring creates the instructions file, and appends to a pre-existing one without data loss
 
-Not yet exercised: a full live onboarding run driven end to end through the kit, and the `.agents/skills/` path under VS Code agent mode.
+**Claude Code**
+- discovers all seven skills from `.claude/skills/` with no plugin install
+
+**GitHub Copilot CLI 1.0.81**
+- `copilot skill list` shows all seven under *Project skills* from `.agents/skills/`
+- a dry run loaded `.a365-kit/skills/a365-setup/SKILL.md` **by relative path**, confirming the path-rewrite strategy works outside Claude Code
+- correctly detected Python + OpenAI Agents SDK + non-AI-Teammate, and routed to `make-a365-agent`
+- produced the full question sequence and step plan, with zero file changes
+
+Not yet exercised: a full live onboarding run that actually provisions in a tenant, and the `.agents/skills/` path under the other CLIs (Cursor, Codex, Gemini CLI, Amp, Cline, OpenCode, Warp, Antigravity).
 
 ## Licence
 
