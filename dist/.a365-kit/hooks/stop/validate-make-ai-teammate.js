@@ -48,7 +48,11 @@ const issues = [];
 const allFiles      = scanProject(cwd);
 const csprojFiles   = filterByName(allFiles, '.csproj');
 const hasCsproj     = csprojFiles.length > 0;
-const hasPyproject  = fs.existsSync(path.join(cwd, 'pyproject.toml'));
+// Agent 365 Onboarding Kit fix-up: upstream keys Python detection on pyproject.toml
+// only, but the skills' stack detection and every sibling validator also accept
+// requirements.txt. See NOTICE.md in the kit repository.
+const hasPyproject  = fs.existsSync(path.join(cwd, 'pyproject.toml'))
+                   || fs.existsSync(path.join(cwd, 'requirements.txt'));
 const hasPackageJson = fs.existsSync(path.join(cwd, 'package.json'));
 
 let language = 'nodejs'; // default
@@ -264,8 +268,13 @@ if (language === 'python') {
   }
 
   // Check 2: agent.py — agent interface implementation
-  const agentFile = path.join(cwd, 'agent.py');
-  if (fs.existsSync(agentFile)) {
+  // Kit fix-up: accept agent.py anywhere in the scanned tree (e.g. src/agent.py),
+  // not only at the project root. See NOTICE.md in the kit repository.
+  const agentFileAtRoot = path.join(cwd, 'agent.py');
+  const agentFile = fs.existsSync(agentFileAtRoot)
+    ? agentFileAtRoot
+    : pyFiles.find(f => path.basename(f) === 'agent.py');
+  if (agentFile && fs.existsSync(agentFile)) {
     if (!fileContains(agentFile, 'AgentInterface') && !fileContains(agentFile, 'process_user_message')) {
       issues.push('agent.py does not implement AgentInterface / process_user_message — agent class incomplete');
     }
@@ -282,16 +291,23 @@ if (language === 'python') {
     issues.push('agent_interface.py not found — AgentInterface ABC is required');
   }
 
-  // Check 4: Required packages in pyproject.toml — tooling/observability added by separate skills
-  if (hasPyproject) {
+  // Check 4: Required packages — tooling/observability added by separate skills
+  // Kit fix-up: read pyproject.toml or requirements.txt, whichever exists, and accept
+  // hyphen/underscore package-name forms (pip treats them as equivalent).
+  // See NOTICE.md in the kit repository.
+  const depFile = ['pyproject.toml', 'requirements.txt']
+    .map(f => path.join(cwd, f))
+    .find(f => fs.existsSync(f));
+  if (depFile) {
+    const depText = fs.readFileSync(depFile, 'utf8').toLowerCase().replace(/_/g, '-');
     const required = [
       'microsoft_agents_a365_notifications',
       'microsoft_agents_a365_runtime',
       'microsoft-agents-hosting-aiohttp',
     ];
     for (const pkg of required) {
-      if (!fileContains(path.join(cwd, 'pyproject.toml'), pkg)) {
-        issues.push(`${pkg} not found in pyproject.toml dependencies`);
+      if (!depText.includes(pkg.toLowerCase().replace(/_/g, '-'))) {
+        issues.push(`${pkg} not found in ${path.basename(depFile)} dependencies`);
       }
     }
   }

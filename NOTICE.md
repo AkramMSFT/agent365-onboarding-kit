@@ -74,13 +74,37 @@ Staged at `.a365-kit/copilot-instructions.md` rather than shipped at `.github/co
 
 The build asserts this passage still matches upstream before patching it, so an upstream rewording fails the build rather than shipping a broken instruction.
 
+### 8. `validate-make-ai-teammate.js` — one bug fix
+
+This is the only modification that changes behaviour rather than paths, and it is called out here for that reason.
+
+Upstream's `validate-make-ai-teammate.js` detects a Python project **only** by the presence of `pyproject.toml`:
+
+```js
+const hasPyproject  = fs.existsSync(path.join(cwd, 'pyproject.toml'));
+```
+
+Every sibling validator (`validate-instrument-observability.js`, `validate-add-workiq-tools.js`, `validate-test-local.js`, `validate-a365-code-validator.js`) accepts `requirements.txt` as well, and so does the skills' own stack detection. The result is that a `requirements.txt`-only Python project falls through to the Node.js default and fails eight TypeScript checks that do not apply to it — `src/index.ts not found`, `package.json not found`, `tsconfig.json not found`, and so on.
+
+In Claude Code this validator runs as a **stop hook that refuses to end the session** until it passes, so a false negative is not cosmetic: it blocks the session. Three checks in this one file assume a layout that upstream's own `make-ai-teammate` skill does not enforce when it edits an existing project:
+
+| Check | Upstream assumption | What the kit accepts instead |
+|---|---|---|
+| Language detection | Python ⇔ `pyproject.toml` exists | `pyproject.toml` **or** `requirements.txt`, matching every sibling validator |
+| Check 2, `agent.py` | Must be at the project root | Root, or anywhere in the scanned tree (e.g. `src/agent.py`) |
+| Check 4, dependencies | Read from `pyproject.toml` only, underscore-only names | `pyproject.toml` or `requirements.txt`, whichever exists; hyphen and underscore forms compared as equal, as pip treats them |
+
+Without the first fix a `requirements.txt` project falls through to the Node.js default and fails eight TypeScript checks. With only the first fix, Check 4 would then read a `pyproject.toml` that does not exist. So the three are applied together. The *content* of each check — what must be present in `agent.py`, which packages are required — is unchanged.
+
+Found 2026-09-03 while onboarding an existing Python / OpenAI Agents SDK project (`src/` layout, `requirements.txt`) through the kit: the skill adapted to the layout correctly and the validator then reported it as a failed Node.js project. Reported upstream.
+
 ---
 
 ## What is *not* changed
 
 - No skill logic, phase ordering, or decision matrix.
 - No code patterns in `references/`.
-- No validator check logic — the validators enforce exactly what upstream enforces.
+- No validator check logic, with the single exception of the language-detection fix in section 8 — the validators otherwise enforce exactly what upstream enforces.
 - No trigger phrases.
 - Nothing added to the skills. This kit contains no Purview, hosting, or hardening content; it is a packaging change only.
 

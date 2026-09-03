@@ -197,6 +197,91 @@ Ok "rewrote $nsCount /agent365: command references across $nsRewritten files"
 
 $fixups = @(
     @{
+        # BUG FIX, not a path rewrite -- disclosed in NOTICE.md section 8.
+        # Upstream detects Python only via pyproject.toml. The skills' own stack detection
+        # and every sibling validator also accept requirements.txt, so a requirements.txt-
+        # only Python project falls through to the Node.js default and fails eight
+        # TypeScript checks that do not apply. As a Claude Code stop hook that blocks the
+        # session from ending, which is a bad outcome for a false negative.
+        File = 'hooks\stop\validate-make-ai-teammate.js'
+        Find = @'
+const hasPyproject  = fs.existsSync(path.join(cwd, 'pyproject.toml'));
+'@
+        Replace = @'
+// Agent 365 Onboarding Kit fix-up: upstream keys Python detection on pyproject.toml
+// only, but the skills' stack detection and every sibling validator also accept
+// requirements.txt. See NOTICE.md in the kit repository.
+const hasPyproject  = fs.existsSync(path.join(cwd, 'pyproject.toml'))
+                   || fs.existsSync(path.join(cwd, 'requirements.txt'));
+'@
+    }
+    @{
+        # BUG FIX -- NOTICE.md section 8. Upstream only looks for agent.py at the project
+        # root; existing Python projects commonly keep it under src/. The skill itself
+        # adapts to that layout, the validator did not.
+        File = 'hooks\stop\validate-make-ai-teammate.js'
+        Find = @'
+  // Check 2: agent.py — agent interface implementation
+  const agentFile = path.join(cwd, 'agent.py');
+  if (fs.existsSync(agentFile)) {
+'@
+        Replace = @'
+  // Check 2: agent.py — agent interface implementation
+  // Kit fix-up: accept agent.py anywhere in the scanned tree (e.g. src/agent.py),
+  // not only at the project root. See NOTICE.md in the kit repository.
+  const agentFileAtRoot = path.join(cwd, 'agent.py');
+  const agentFile = fs.existsSync(agentFileAtRoot)
+    ? agentFileAtRoot
+    : pyFiles.find(f => path.basename(f) === 'agent.py');
+  if (agentFile && fs.existsSync(agentFile)) {
+'@
+    }
+    @{
+        # BUG FIX -- NOTICE.md section 8. Upstream reads dependencies from pyproject.toml
+        # only, with underscore-only package names. requirements.txt projects were never
+        # checked at all, and after the language fix-up above they would be checked
+        # against a file that does not exist. pip treats hyphen and underscore forms as
+        # the same package, so the comparison normalises both sides.
+        File = 'hooks\stop\validate-make-ai-teammate.js'
+        Find = @'
+  // Check 4: Required packages in pyproject.toml — tooling/observability added by separate skills
+  if (hasPyproject) {
+    const required = [
+      'microsoft_agents_a365_notifications',
+      'microsoft_agents_a365_runtime',
+      'microsoft-agents-hosting-aiohttp',
+    ];
+    for (const pkg of required) {
+      if (!fileContains(path.join(cwd, 'pyproject.toml'), pkg)) {
+        issues.push(`${pkg} not found in pyproject.toml dependencies`);
+      }
+    }
+  }
+'@
+        Replace = @'
+  // Check 4: Required packages — tooling/observability added by separate skills
+  // Kit fix-up: read pyproject.toml or requirements.txt, whichever exists, and accept
+  // hyphen/underscore package-name forms (pip treats them as equivalent).
+  // See NOTICE.md in the kit repository.
+  const depFile = ['pyproject.toml', 'requirements.txt']
+    .map(f => path.join(cwd, f))
+    .find(f => fs.existsSync(f));
+  if (depFile) {
+    const depText = fs.readFileSync(depFile, 'utf8').toLowerCase().replace(/_/g, '-');
+    const required = [
+      'microsoft_agents_a365_notifications',
+      'microsoft_agents_a365_runtime',
+      'microsoft-agents-hosting-aiohttp',
+    ];
+    for (const pkg of required) {
+      if (!depText.includes(pkg.toLowerCase().replace(/_/g, '-'))) {
+        issues.push(`${pkg} not found in ${path.basename(depFile)} dependencies`);
+      }
+    }
+  }
+'@
+    }
+    @{
         File = 'skills\a365-code-validator\SKILL.md'
         Find = @'
 When running from the plugin source (Claude Code / marketplace plugin), use:
