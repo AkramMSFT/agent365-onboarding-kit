@@ -144,6 +144,7 @@ When your CLI reaches that command: **copy it exactly from the approval prompt, 
 Two things the skills leave for you — check both before calling it done:
 
 1. **Install the packages.** The skill edits `requirements.txt` but doesn't always run the install. `pip install -r requirements.txt`, then confirm your agent module still imports.
+   - **Python + WorkIQ:** if the import then fails with `No module named 'microsoft_agents_a365.runtime'`, add `microsoft-agents-a365-runtime>=1.0.0` to `requirements.txt` and install again. The `microsoft-agents-a365-tooling` wheel (1.0.0) imports it but doesn't declare it, so pip never pulls it in.
 2. **Check observability is complete.** `node .a365-kit/hooks/stop/validate-instrument-observability.js` — if it reports no `InvokeAgentScope`, ask your CLI to *"Add observability to this agent"* and re-run the validator. The skill is idempotent; it adds only what's missing.
 
 ---

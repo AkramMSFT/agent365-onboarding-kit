@@ -288,6 +288,14 @@ python -m pip install -r requirements.txt
 python -c "import src.agent"        # or wherever your agent module lives
 ```
 
+**Python + WorkIQ: one package the skill can't know about.** If the import then fails with `No module named 'microsoft_agents_a365.runtime'`, that's a packaging gap in Microsoft's `microsoft-agents-a365-tooling` wheel (1.0.0): it imports that module at load time but doesn't declare the dependency, so pip never installs it. Add one line and install again:
+
+```
+microsoft-agents-a365-runtime>=1.0.0
+```
+
+Verified: that single package is the entire difference between `ModuleNotFoundError` and a clean import. The `add-workiq-tools` validator passes either way — it checks the wiring, not whether the code runs — so don't take a green validator as proof the agent imports.
+
 **Observability may be half-wired.** Run the validator; if it reports the exporter, token resolver and baggage present but no `InvokeAgentScope`, re-invoke the skill — it's idempotent and adds only what's missing:
 
 ```bash
