@@ -20,10 +20,13 @@ The kit ships the skills into the two directories that coding agents actually re
 
 Anything not listed still works — see [Any other agentic CLI](#any-other-agentic-cli).
 
-> **Verified so far:** Claude Code, end to end (all seven skills discovered, validators firing).
-> The `.agents/skills/` placement is confirmed correct by `gh skill install`, but a full
-> onboarding run has not yet been driven through a non-Claude CLI. Treat those paths as
-> correct-by-construction rather than field-tested.
+> **Verified:** **Claude Code** (all seven skills discovered, validators firing) and
+> **GitHub Copilot CLI 1.0.81** (all seven listed as project skills; a dry run loaded
+> `.a365-kit/skills/a365-setup/SKILL.md`, correctly detected Python + OpenAI Agents SDK +
+> non-AI-Teammate, and routed to `make-a365-agent`).
+>
+> The other `.agents/skills/` CLIs are correct-by-construction — the directory is confirmed
+> right by `gh skill install`, but no onboarding has been driven through them yet.
 
 ---
 
@@ -147,16 +150,44 @@ It creates `.claude/settings.json` only if you don't already have one. If you do
 
 ### GitHub Copilot CLI
 
-`gh copilot` launches the agentic Copilot CLI, downloading it on first use if needed. It reads `.agents/skills/`, which the kit already populated.
+Copilot CLI discovers project skills from `.github/skills/`, `.agents/skills/`, **or** `.claude/skills/` — confirmed by `copilot skill --help`. The kit populates the last two, so there is nothing to install.
+
+**1. Install the CLI** if you don't have it. `gh copilot` will not fetch it on `--help` or `--version`, so install it directly:
+
+```bash
+npm install -g @github/copilot
+```
+
+Then `copilot` is on your PATH, and `gh copilot` will use it too.
+
+**2. Confirm the skills are visible** from your project root:
 
 ```bash
 cd your-agent-project
-gh copilot
+copilot skill list
 ```
 
-Then type the trigger phrase.
+You should see all seven under **Project skills**. This is the fastest way to prove the kit landed correctly.
 
-Requires **gh 2.98 or newer** (`gh --version`). On older gh, `gh copilot` was a separate extension that only suggested shell commands and could not edit files — that version cannot drive onboarding. Upgrade gh, or use the standalone `copilot` CLI.
+**3. Start onboarding:**
+
+```bash
+copilot
+```
+
+Then type the trigger phrase. Or in one line:
+
+```bash
+copilot -p "Onboard this agent to Agent 365." --allow-all-tools
+```
+
+`--allow-all-tools` is required for non-interactive mode. Prefer the interactive form for a real run so you can approve each step.
+
+**Dry run first.** Denying the shell tool lets Copilot read your project and explain its plan without touching your tenant:
+
+```bash
+copilot -p "Onboard this agent to Agent 365. DRY RUN - do not run commands or modify files. Report which skill you selected, what you detected, and the steps you would perform." --allow-all-tools --deny-tool shell
+```
 
 Optionally add the instructions file for extra grounding. Not required — it repeats the skill catalogue and trigger phrases in the format Copilot reads by default:
 
@@ -166,6 +197,9 @@ Optionally add the instructions file for extra grounding. Not required — it re
 ```
 
 This **creates `.github/copilot-instructions.md`, or appends to yours if you already have one.** It never overwrites project-owned instructions.
+
+> Older `gh` shipped a `gh copilot` extension that only suggested shell commands and could not
+> edit files — it cannot drive onboarding. Use `gh` 2.98+ or the standalone `copilot` CLI above.
 
 ---
 

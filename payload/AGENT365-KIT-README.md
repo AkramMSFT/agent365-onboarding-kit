@@ -78,13 +78,27 @@ Claude Code is the only CLI that runs the bundled **validator hooks**: after a s
 
 ### GitHub Copilot CLI
 
-Reads `.agents/skills/`, which is already populated. From your project root:
+Reads `.agents/skills/`, which is already populated. Install the CLI if you don't have it — `gh copilot` won't fetch it for you:
 
 ```bash
-gh copilot
+npm install -g @github/copilot
 ```
 
-Then type the trigger phrase. Needs **gh 2.98+** — older versions shipped a `gh copilot` that only suggested shell commands and cannot edit files.
+Confirm the kit landed, then start:
+
+```bash
+cd your-agent-project
+copilot skill list     # all seven should appear under "Project skills"
+copilot                # then type the trigger phrase
+```
+
+To see what it would do without touching your tenant:
+
+```bash
+copilot -p "Onboard this agent to Agent 365. DRY RUN - do not run commands or modify files. Report which skill you selected, what you detected, and the steps you would perform." --allow-all-tools --deny-tool shell
+```
+
+Needs **gh 2.98+** if you launch via `gh copilot` — older versions shipped an extension that only suggested shell commands and cannot edit files.
 
 Optionally add the instructions file for extra grounding (not required):
 
