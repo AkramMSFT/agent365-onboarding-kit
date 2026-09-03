@@ -254,6 +254,54 @@ Run `gh skill install --help` for the full list of supported agents (about 40).
 
 ---
 
+## The one command you must run yourself
+
+**`a365 setup all` cannot authenticate from inside any agentic CLI** — not Copilot, not Claude Code, not any of the others. This is a property of the a365 CLI, not the kit.
+
+The CLI signs in through WAM, the Windows account broker, which needs an interactive desktop session with a window to attach its prompt to. A shell spawned by a coding agent's tool harness has neither. The failure looks like this, and no amount of re-authenticating elsewhere fixes it:
+
+```
+Connect-MgGraph: Authentication timed out after 120 seconds due to inactivity.
+ERROR: MSAL authentication failed: Unknown Status: 17
+Error: 0x80080300
+```
+
+Pre-authenticating with `Connect-MgGraph` or `az login` does **not** help — those populate different token caches. The a365 CLI has its own, and as of 1.1.221 it has no device-code or headless flag.
+
+**What to do.** When your CLI reaches the point of running `a365 setup all`:
+
+1. Copy the exact command from its approval prompt — the flags depend on the capabilities and auth mode you chose, so don't retype it from memory.
+2. Decline it in the CLI.
+3. Open a second, normal (non-elevated) terminal in the same project folder, paste the command, and answer its prompts — including the broker pop-up.
+4. Back in your CLI: *"`a365 setup all` completed in a separate terminal. Read `a365.generated.config.json` and continue."*
+
+It picks up the blueprint ID and carries on. The step takes under a minute once the prompt has a window to appear in.
+
+## After a first run — two things to check
+
+Verified on a real onboarding: the skills get the tenant side and the code scaffolding right, and leave two things for you.
+
+**The packages aren't installed.** The skill edits `requirements.txt` (or `pyproject.toml`) but doesn't always run the install, so the new imports break the module until you do:
+
+```bash
+python -m pip install -r requirements.txt
+python -c "import src.agent"        # or wherever your agent module lives
+```
+
+**Observability may be half-wired.** Run the validator; if it reports the exporter, token resolver and baggage present but no `InvokeAgentScope`, re-invoke the skill — it's idempotent and adds only what's missing:
+
+```bash
+node .a365-kit/hooks/stop/validate-instrument-observability.js
+```
+
+```
+Add observability to this agent.
+```
+
+Then re-run the validator and the import check. Both must pass.
+
+---
+
 ## What happens next
 
 `a365-setup` runs first regardless of CLI. It verifies prerequisites, asks which capabilities you want, then delegates:
