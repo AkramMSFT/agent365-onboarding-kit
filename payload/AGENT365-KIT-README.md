@@ -57,41 +57,65 @@ The trigger phrase is the same everywhere:
 
 > **Onboard this agent to Agent 365.**
 
+Which CLIs work is determined by where they look for skills — the kit ships into both standard locations:
+
+| Directory | CLIs that read it |
+|---|---|
+| `.claude/skills/` | **Claude Code** |
+| `.agents/skills/` | **GitHub Copilot** (CLI, VS Code agent mode, coding agent), **Cursor**, **Codex**, **Gemini CLI**, **Amp**, **Cline**, **OpenCode**, **Warp**, **Antigravity** |
+
 ### Claude Code
 
-Project skills in `.claude/skills/` load automatically. From your project root:
+Skills in `.claude/skills/` load automatically — no `/plugin`, no `--plugin-dir`. From your project root:
 
 ```bash
 claude
 ```
 
-Then type the trigger phrase. The validator hooks bundled with the kit run here too, checking the wiring before the session ends.
+Then type the trigger phrase, or `claude "Onboard this agent to Agent 365."` in one go.
 
-### VS Code agent mode / Copilot cloud agent
-
-Skills in `.agents/skills/` follow the open agent-skills convention and are discovered automatically. Open the project in VS Code, switch Copilot Chat to **Agent** mode, confirm with `/skills list`, then ask using the trigger phrase.
+Claude Code is the only CLI that runs the bundled **validator hooks**: after a skill finishes, a check confirms the wiring actually landed and refuses to end the session if something is missing. Elsewhere the skills still work — you just lose that final check.
 
 ### GitHub Copilot CLI
 
-Copilot reads `.github/copilot-instructions.md`. Wire it once:
+Reads `.agents/skills/`, which is already populated. From your project root:
 
 ```bash
-# Windows
-.\agent365-kit.ps1 -WireCopilot
-
-# macOS / Linux
-./agent365-kit.sh --wire-copilot
+gh copilot
 ```
 
-This **creates the file, or appends to it** if you already have one — it never overwrites your project's instructions. Then:
+Then type the trigger phrase. Needs **gh 2.98+** — older versions shipped a `gh copilot` that only suggested shell commands and cannot edit files.
+
+Optionally add the instructions file for extra grounding (not required):
 
 ```bash
-gh copilot suggest "Onboard this agent to Agent 365."
+.\agent365-kit.ps1 -WireCopilot       # Windows
+./agent365-kit.sh --wire-copilot      # macOS / Linux
 ```
+
+It **creates `.github/copilot-instructions.md`, or appends to yours** — it never overwrites project-owned instructions.
+
+### VS Code — Copilot agent mode
+
+Open this folder in VS Code, open Copilot Chat, switch the mode selector to **Agent**, confirm with `/skills list`, then ask using the trigger phrase.
+
+### Cursor, Codex, Gemini CLI, Amp, Cline, OpenCode, Warp, Antigravity
+
+These share `.agents/skills/` at project scope, so the skills are already where they look. Open the folder and use the trigger phrase — there is nothing to install.
 
 ### Any other agentic CLI
 
-The skills are plain Markdown. Point your tool at `.a365-kit/skills/a365-setup/SKILL.md` and tell it to follow that file. Everything except the optional validator hooks is CLI-neutral.
+The skills are plain Markdown with no runtime dependencies. Tell your tool:
+
+> Read `.a365-kit/skills/a365-setup/SKILL.md` and follow it exactly.
+
+Or let `gh skill` place them wherever your tool expects:
+
+```bash
+gh skill install --from-local .a365-kit --all --agent cursor --scope project
+```
+
+`gh skill install --help` lists around 40 supported agents.
 
 ---
 

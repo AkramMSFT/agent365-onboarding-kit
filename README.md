@@ -40,14 +40,20 @@ Skill files are byte-identical across all three locations, because every interna
 
 ## Supported CLIs
 
-| CLI | Discovery path | Validator hooks |
+Support is determined by where each CLI looks for skills, not by anything kit-specific:
+
+| Discovery path the kit ships | CLIs that read it | Validator hooks |
 |---|---|---|
-| Claude Code | `.claude/skills/` | Yes |
-| VS Code agent mode / Copilot cloud agent | `.agents/skills/` | No |
-| GitHub Copilot CLI | `.github/copilot-instructions.md` (opt-in) | No |
-| Anything else | point it at `.a365-kit/skills/a365-setup/SKILL.md` | No |
+| `.claude/skills/` | **Claude Code** | Yes |
+| `.agents/skills/` | **GitHub Copilot** (CLI, VS Code agent mode, coding agent), **Cursor**, **Codex**, **Gemini CLI**, **Amp**, **Cline**, **OpenCode**, **Warp**, **Antigravity** | No |
+| `.github/copilot-instructions.md` *(opt-in)* | GitHub Copilot — extra grounding, not required | No |
+| — | Anything else: point it at `.a365-kit/skills/a365-setup/SKILL.md` | No |
+
+`.agents/skills/` is the [Agent Skills specification](https://agentskills.io/specification) convention; the CLI list is GitHub's own project-scope mapping, confirmed against `gh skill install --help` on gh 2.98.
 
 The skills are plain Markdown. Only the Node validator hooks are Claude Code specific, and they are optional — the skills work without them, just without the end-of-session correctness check.
+
+**→ [`docs/USING-WITH-YOUR-CLI.md`](docs/USING-WITH-YOUR-CLI.md) is the full step-by-step walkthrough**, from downloading the zip to the moment onboarding starts, for each CLI.
 
 ---
 
@@ -92,6 +98,7 @@ It also asserts that its own targeted text fix-ups still match upstream. If Micr
 | `build/kit.version` | This kit's packaging version. |
 | `payload/` | Hand-written files copied into every build — launchers, doctor, README. |
 | `dist/` | Built output. Committed so the repo can be downloaded and used directly. |
+| `docs/USING-WITH-YOUR-CLI.md` | End-user walkthrough, step by step, per CLI. |
 | `docs/HOW-IT-WORKS.md` | The repackaging design and why each rewrite is needed. |
 
 ## Status

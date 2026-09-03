@@ -202,28 +202,45 @@ if ($WireClaudeHook) {
 
 # -- 5. Detect CLIs and print activation steps --------------------------------
 
-function Test-Cli { param([string] $Probe)
+# NOTE: the parameter is deliberately NOT called $Args -- that is a PowerShell
+# automatic variable, and using it as a parameter name silently breaks binding,
+# so `& gh @Args` runs gh with no arguments, prints help, and exits 0. That makes
+# every probe report success.
+function Test-Cli { param([string] $Exe, [string[]] $Arguments)
     try {
-        Invoke-Expression $Probe 2>&1 | Out-Null
+        & $Exe @Arguments *> $null
         return ($LASTEXITCODE -eq 0)
     } catch { return $false }
 }
 
-$hasClaude   = [bool](Get-Command claude -ErrorAction SilentlyContinue)
-$hasGh       = [bool](Get-Command gh -ErrorAction SilentlyContinue)
-$hasCode     = [bool](Get-Command code -ErrorAction SilentlyContinue)
-$hasGhSkill  = $false
-$hasGhCopilot = $false
+$hasClaude = [bool](Get-Command claude -ErrorAction SilentlyContinue)
+$hasGh     = [bool](Get-Command gh     -ErrorAction SilentlyContinue)
+$hasCode   = [bool](Get-Command code   -ErrorAction SilentlyContinue)
+
+# `gh skill` and `gh copilot` are built into gh 2.98+, not extensions, and neither
+# supports --version: `gh skill --version` errors with "unknown flag", and
+# `gh copilot --version` reports on the *downloaded Copilot CLI*, not on gh itself.
+# Probe --help for availability, and --version only to tell whether the Copilot CLI
+# binary is actually present.
+$hasGhSkill    = $false   # gh can install agent skills
+$hasGhCopilotL = $false   # gh can launch the Copilot CLI (downloads on first use)
 if ($hasGh) {
-    $hasGhSkill   = Test-Cli 'gh skill --version'
-    $hasGhCopilot = Test-Cli 'gh copilot --version'
+    $hasGhSkill    = Test-Cli 'gh' @('skill', '--help')
+    $hasGhCopilotL = Test-Cli 'gh' @('copilot', '--help')
+}
+# The agentic Copilot CLI itself, either standalone on PATH or already downloaded by gh.
+$hasCopilotCli = [bool](Get-Command copilot -ErrorAction SilentlyContinue)
+if (-not $hasCopilotCli -and $hasGhCopilotL) {
+    $hasCopilotCli = Test-Cli 'gh' @('copilot', '--version')
 }
 
 Write-Head 'Detected CLIs'
-if ($hasClaude)    { Write-Ok 'Claude Code' }         else { Write-Note '  --   Claude Code (not installed)' }
-if ($hasGhSkill)   { Write-Ok 'gh skill' }            else { Write-Note '  --   gh skill (not installed)' }
-if ($hasGhCopilot) { Write-Ok 'GitHub Copilot CLI' }  else { Write-Note '  --   GitHub Copilot CLI (not installed)' }
-if ($hasCode)      { Write-Ok 'VS Code' }             else { Write-Note '  --   VS Code (not installed)' }
+if ($hasClaude)     { Write-Ok 'Claude Code' }               else { Write-Note '  --   Claude Code (not installed)' }
+if ($hasCopilotCli) { Write-Ok 'GitHub Copilot CLI' }
+elseif ($hasGhCopilotL) { Write-Note '  ~    GitHub Copilot CLI (not installed; gh will fetch it on first use)' }
+else                { Write-Note '  --   GitHub Copilot CLI (not available)' }
+if ($hasGhSkill)    { Write-Ok 'gh skill (agent-skill installer)' } else { Write-Note '  --   gh skill (needs gh 2.98+)' }
+if ($hasCode)       { Write-Ok 'VS Code' }                   else { Write-Note '  --   VS Code (not installed)' }
 
 Write-Head 'How to start onboarding'
 Write-Host ''
@@ -237,23 +254,30 @@ Write-Note '    then type:'
 Write-Cmd "`"$TRIGGER`""
 Write-Host ''
 
-Write-Host '  VS Code agent mode / Copilot cloud agent' -ForegroundColor White
-Write-Note '    Skills in .agents/skills/ are picked up automatically. Open this folder in'
-Write-Note '    VS Code, switch Copilot Chat to Agent mode, confirm with /skills list, then ask:'
-Write-Cmd "`"$TRIGGER`""
+Write-Host '  GitHub Copilot CLI' -ForegroundColor White
+Write-Note '    Reads .agents/skills/ automatically. From this folder:'
+Write-Cmd 'gh copilot'
+Write-Note '    then type the phrase above. For extra grounding, also wire the'
+Write-Note '    instructions file once:'
+Write-Cmd '.\agent365-kit.ps1 -WireCopilot'
 Write-Host ''
 
-Write-Host '  GitHub Copilot CLI' -ForegroundColor White
-Write-Note '    Copilot reads .github/copilot-instructions.md. Wire it once:'
-Write-Cmd '.\agent365-kit.ps1 -WireCopilot'
-Write-Note '    then, from this folder:'
-Write-Cmd "gh copilot suggest `"$TRIGGER`""
+Write-Host '  VS Code (Copilot agent mode)' -ForegroundColor White
+Write-Note '    Open this folder in VS Code, switch Copilot Chat to Agent mode,'
+Write-Note '    confirm the skills with /skills list, then ask using the phrase above.'
+Write-Host ''
+
+Write-Host '  Cursor, Codex, Gemini CLI, Amp, Cline, OpenCode, Warp, Antigravity' -ForegroundColor White
+Write-Note '    All of these share the .agents/skills/ directory at project scope, so the'
+Write-Note '    skills are already where they look. Open this folder and use the phrase above.'
 Write-Host ''
 
 Write-Host '  Any other agentic CLI' -ForegroundColor White
 Write-Note '    Point it at .a365-kit/skills/a365-setup/SKILL.md and tell it to follow that file.'
 Write-Note '    The skills are plain Markdown -- nothing is Claude-specific except the'
 Write-Note '    validator hooks, which are optional.'
+Write-Host ''
+Write-Note 'Full per-CLI walkthrough: docs/USING-WITH-YOUR-CLI.md in the kit repository.'
 Write-Host ''
 
 Write-Host '  ---' -ForegroundColor DarkGray
