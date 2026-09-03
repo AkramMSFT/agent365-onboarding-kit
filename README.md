@@ -120,7 +120,14 @@ Verified on Windows 11 against upstream v1.0.2:
 - correctly detected Python + OpenAI Agents SDK + non-AI-Teammate, and routed to `make-a365-agent`
 - produced the full question sequence and step plan, with zero file changes
 
-Not yet exercised: a full live onboarding run that actually provisions in a tenant, and the `.agents/skills/` path under the other CLIs (Cursor, Codex, Gemini CLI, Amp, Cline, OpenCode, Warp, Antigravity).
+**Live onboarding through Copilot CLI, real tenant** (existing Python / OpenAI Agents SDK project, `src/` layout, `requirements.txt`, AI Teammate path)
+- blueprint and service principal created, all five resource consents granted
+- hosting layer, `AgentInterface` adapter, notification handler, `.env` and `requirements.txt` all written correctly
+- `validate-make-ai-teammate.js` passes — after the three fix-ups in `NOTICE.md` §8, which this run surfaced
+- two things a first run leaves for the user: `pip install` (the skill edits `requirements.txt` but doesn't install), and the observability scopes (re-invoke `instrument-observability`); both documented in the kit README
+- **`a365 setup all` must be run in the user's own terminal**, not through any agentic CLI — it authenticates via the Windows broker, which needs an interactive desktop session. This is a property of the a365 CLI, not the kit; see `docs/USING-WITH-YOUR-CLI.md`
+
+Not yet exercised: the post-provisioning half of the lifecycle (public hosting → messaging endpoint → `a365 publish` → admin-center instance), and the `.agents/skills/` path under the other CLIs (Cursor, Codex, Gemini CLI, Amp, Cline, OpenCode, Warp, Antigravity).
 
 ## Licence
 

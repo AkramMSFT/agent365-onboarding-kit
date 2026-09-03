@@ -133,6 +133,21 @@ gh skill install --from-local .a365-kit --all --agent cursor --scope project
 
 ---
 
+## The one command you must run yourself
+
+**`a365 setup all` cannot authenticate from inside any agentic CLI.** It signs in through the Windows account broker, which needs an interactive desktop session — a coding agent's shell doesn't have one. You'll see `Authentication timed out after 120 seconds` or `MSAL authentication failed: Unknown Status: 17`, and re-authenticating elsewhere won't help (different token cache).
+
+When your CLI reaches that command: **copy it exactly from the approval prompt, decline it, run it in a second normal terminal in the same folder, then tell your CLI to continue from `a365.generated.config.json`.** Under a minute once the prompt has a window to appear in.
+
+## After a first run
+
+Two things the skills leave for you — check both before calling it done:
+
+1. **Install the packages.** The skill edits `requirements.txt` but doesn't always run the install. `pip install -r requirements.txt`, then confirm your agent module still imports.
+2. **Check observability is complete.** `node .a365-kit/hooks/stop/validate-instrument-observability.js` — if it reports no `InvokeAgentScope`, ask your CLI to *"Add observability to this agent"* and re-run the validator. The skill is idempotent; it adds only what's missing.
+
+---
+
 ## What happens next
 
 `a365-setup` is the entry point. It verifies the CLI and Azure prerequisites, asks which capabilities you want, then hands off:
