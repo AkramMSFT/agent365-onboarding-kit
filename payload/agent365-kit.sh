@@ -149,19 +149,36 @@ fi
 
 # -- 4. Detect CLIs and print activation steps --------------------------------
 
-has_claude=0; has_gh_skill=0; has_gh_copilot=0; has_code=0
+has_claude=0; has_gh_skill=0; has_gh_copilot_launcher=0; has_copilot_cli=0; has_code=0
 command -v claude >/dev/null 2>&1 && has_claude=1
 command -v code   >/dev/null 2>&1 && has_code=1
+
+# `gh skill` and `gh copilot` are built into gh 2.98+, not extensions, and neither
+# supports --version: `gh skill --version` errors with "unknown flag", and
+# `gh copilot --version` reports on the *downloaded Copilot CLI*, not on gh itself.
+# Probe --help for availability, and --version only to tell whether the Copilot CLI
+# binary is actually present.
 if command -v gh >/dev/null 2>&1; then
-  gh skill --version   >/dev/null 2>&1 && has_gh_skill=1
-  gh copilot --version >/dev/null 2>&1 && has_gh_copilot=1
+  gh skill   --help >/dev/null 2>&1 && has_gh_skill=1
+  gh copilot --help >/dev/null 2>&1 && has_gh_copilot_launcher=1
+fi
+if command -v copilot >/dev/null 2>&1; then
+  has_copilot_cli=1
+elif [ "$has_gh_copilot_launcher" -eq 1 ] && gh copilot --version >/dev/null 2>&1; then
+  has_copilot_cli=1
 fi
 
 head_ 'Detected CLIs'
-[ "$has_claude" -eq 1 ]     && ok_ 'Claude Code'        || note_ '  --   Claude Code (not installed)'
-[ "$has_gh_skill" -eq 1 ]   && ok_ 'gh skill'           || note_ '  --   gh skill (not installed)'
-[ "$has_gh_copilot" -eq 1 ] && ok_ 'GitHub Copilot CLI' || note_ '  --   GitHub Copilot CLI (not installed)'
-[ "$has_code" -eq 1 ]       && ok_ 'VS Code'            || note_ '  --   VS Code (not installed)'
+[ "$has_claude" -eq 1 ] && ok_ 'Claude Code' || note_ '  --   Claude Code (not installed)'
+if [ "$has_copilot_cli" -eq 1 ]; then
+  ok_ 'GitHub Copilot CLI'
+elif [ "$has_gh_copilot_launcher" -eq 1 ]; then
+  note_ '  ~    GitHub Copilot CLI (not installed; gh will fetch it on first use)'
+else
+  note_ '  --   GitHub Copilot CLI (not available)'
+fi
+[ "$has_gh_skill" -eq 1 ] && ok_ 'gh skill (agent-skill installer)' || note_ '  --   gh skill (needs gh 2.98+)'
+[ "$has_code" -eq 1 ]     && ok_ 'VS Code' || note_ '  --   VS Code (not installed)'
 
 head_ 'How to start onboarding'
 echo ''
@@ -175,23 +192,30 @@ note_ '    then type:'
 cmd_ "\"$TRIGGER\""
 echo ''
 
-printf '  %sVS Code agent mode / Copilot cloud agent%s\n' "$C_BOLD" "$C_RESET"
-note_ '    Skills in .agents/skills/ are picked up automatically. Open this folder in'
-note_ '    VS Code, switch Copilot Chat to Agent mode, confirm with /skills list, then ask:'
-cmd_ "\"$TRIGGER\""
+printf '  %sGitHub Copilot CLI%s\n' "$C_BOLD" "$C_RESET"
+note_ '    Reads .agents/skills/ automatically. From this folder:'
+cmd_ 'gh copilot'
+note_ '    then type the phrase above. For extra grounding, also wire the'
+note_ '    instructions file once:'
+cmd_ './agent365-kit.sh --wire-copilot'
 echo ''
 
-printf '  %sGitHub Copilot CLI%s\n' "$C_BOLD" "$C_RESET"
-note_ '    Copilot reads .github/copilot-instructions.md. Wire it once:'
-cmd_ './agent365-kit.sh --wire-copilot'
-note_ '    then, from this folder:'
-cmd_ "gh copilot suggest \"$TRIGGER\""
+printf '  %sVS Code (Copilot agent mode)%s\n' "$C_BOLD" "$C_RESET"
+note_ '    Open this folder in VS Code, switch Copilot Chat to Agent mode,'
+note_ '    confirm the skills with /skills list, then ask using the phrase above.'
+echo ''
+
+printf '  %sCursor, Codex, Gemini CLI, Amp, Cline, OpenCode, Warp, Antigravity%s\n' "$C_BOLD" "$C_RESET"
+note_ '    All of these share the .agents/skills/ directory at project scope, so the'
+note_ '    skills are already where they look. Open this folder and use the phrase above.'
 echo ''
 
 printf '  %sAny other agentic CLI%s\n' "$C_BOLD" "$C_RESET"
 note_ '    Point it at .a365-kit/skills/a365-setup/SKILL.md and tell it to follow that file.'
 note_ '    The skills are plain Markdown -- nothing is Claude-specific except the'
 note_ '    validator hooks, which are optional.'
+echo ''
+note_ 'Full per-CLI walkthrough: docs/USING-WITH-YOUR-CLI.md in the kit repository.'
 echo ''
 
 printf '  %s---%s\n' "$C_DIM" "$C_RESET"
