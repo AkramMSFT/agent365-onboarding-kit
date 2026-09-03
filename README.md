@@ -127,6 +127,15 @@ Verified on Windows 11 against upstream v1.0.2:
 - two things a first run leaves for the user: `pip install` (the skill edits `requirements.txt` but doesn't install), and the observability scopes (re-invoke `instrument-observability`); both documented in the kit README
 - **`a365 setup all` must be run in the user's own terminal**, not through any agentic CLI — it authenticates via the Windows broker, which needs an interactive desktop session. This is a property of the a365 CLI, not the kit; see `docs/USING-WITH-YOUR-CLI.md`
 
+**Second live run, non-AI-Teammate path** (same project, fresh folder; Register + Observability + WorkIQ, OBO)
+- with the own-terminal instruction in place, the `a365 setup all` step that stalled for an hour in run 1 took about a minute
+- blueprint created **and an agent identity auto-created** — for the blueprint-only path `a365 setup all` provisions the identity service principal itself, so the agent is in the registry with an Entra identity without an admin-centre step
+- all 11 delegated OAuth2 grants materialised in the tenant (Graph, seven WorkIQ MCP servers, observability, connectivity)
+- `InvokeAgentScope`, the token cache and the WorkIQ `McpToolRegistrationService` all wired into the agent; `ToolingManifest.json` written
+- all four applicable validators pass: `a365-setup`, `make-a365-agent`, `instrument-observability`, `add-workiq-tools`
+- `completed: false` in the generated config on this path means the Azure hosting/endpoint step is outstanding, not that consent is — the validator's own warning says so
+- the one gap reproduced from run 1: the skill edits `requirements.txt` but does not run `pip`; documented in the kit README as a post-run check
+
 Not yet exercised: the post-provisioning half of the lifecycle (public hosting → messaging endpoint → `a365 publish` → admin-center instance), and the `.agents/skills/` path under the other CLIs (Cursor, Codex, Gemini CLI, Amp, Cline, OpenCode, Warp, Antigravity).
 
 ## Licence
