@@ -1,0 +1,91 @@
+# Attribution and modifications
+
+## Bundled third-party content
+
+This kit redistributes **[microsoft/agent365-skills](https://github.com/microsoft/agent365-skills)**.
+
+> Copyright (c) Microsoft Corporation.
+> Licensed under the MIT License.
+
+The bundled version and the exact upstream commit are recorded in `.a365-kit/KIT-VERSION.json` in every build.
+
+Everything under `.a365-kit/skills/`, `.a365-kit/shared/`, `.a365-kit/hooks/`, and `.a365-kit/copilot-instructions.md` originates upstream. The files added by this kit are `doctor.js`, `kit-version.js`, `settings-fragment.json`, `KIT-VERSION.json`, the two `agent365-kit` launchers, and `AGENT365-KIT-README.md`.
+
+---
+
+## Modifications made when repackaging
+
+The goal is a faithful repackage: **no skill logic, guidance, or code pattern is changed.** Every modification below exists because the upstream files assume they were installed as a plugin, and that assumption is false in a drop-in install. All are applied mechanically by `build/Build-Kit.ps1`.
+
+### 1. `${CLAUDE_PLUGIN_ROOT}` path tokens
+
+`${CLAUDE_PLUGIN_ROOT}` is set by the host only when skills load as a plugin. In a drop-in install it is unset, so every path built from it resolves to nothing.
+
+Because `.a365-kit/` mirrors the upstream layout exactly (`skills/`, `shared/`, `hooks/`), one substitution fixes every in-body reference:
+
+```
+${CLAUDE_PLUGIN_ROOT}/shared/agent-detection.md   ->   .a365-kit/shared/agent-detection.md
+```
+
+These are prose instructions the model resolves with its own file tools, and a project-relative path works regardless of whether the host expands variables in skill content.
+
+### 2. Hook commands
+
+Hook `command:` values are executed by the host, so they need an absolute path. These get `${CLAUDE_PROJECT_DIR}` instead, which Claude Code expands reliably, quoted so paths containing spaces survive:
+
+```yaml
+# before
+command: node ${CLAUDE_PLUGIN_ROOT}/hooks/stop/validate-a365-setup.js
+# after
+command: node "${CLAUDE_PROJECT_DIR}/.a365-kit/hooks/stop/validate-a365-setup.js"
+```
+
+### 3. `path-guard.js` — restoring a guard that would otherwise disable itself
+
+Upstream refuses writes inside `CLAUDE_PLUGIN_ROOT`, so skills cannot rewrite their own instructions. That check is conditional on the variable being set:
+
+```js
+const pluginRoot = process.env.CLAUDE_PLUGIN_ROOT
+  ? safeRealpath(path.resolve(process.env.CLAUDE_PLUGIN_ROOT))
+  : null;   // <- drop-in install lands here; the guard silently switches off
+```
+
+The kit adds a fallback to the kit folder inside the project. The environment variable is still honoured first, so the file behaves identically if it ever *is* loaded as a plugin. The block message was updated to name the kit folder rather than an environment variable the user never set.
+
+This is the one change with a security consequence, and it makes the drop-in install **more** protective than it would otherwise be, not less. Verified with four cases: writing into the kit blocks, writing outside the project blocks, writing to agent source is allowed, and non-write tools pass through.
+
+### 4. `/agent365:` command namespace
+
+Upstream instructs the user to re-run skills as `/agent365:<name>`. That namespace is created by installing the plugin. Project skills are invoked as `/<name>`, so `/agent365:make-ai-teammate` becomes `/make-ai-teammate`. CLIs other than Claude Code use trigger phrases and ignore slash commands entirely.
+
+This is applied to reference docs and validator scripts as well as `SKILL.md` files, because the validators print these strings back to the user in failure messages.
+
+### 5. `scripts/check-version.js` replaced
+
+Upstream's version check tells the user to run `gh skill add microsoft/agent365-skills` — the install path this kit exists to avoid. It is replaced by `kit-version.js`, which reports when Microsoft has published a newer skills release than the bundled one and points at re-downloading the kit. It is optional, silent when up to date or offline, and never blocks a session.
+
+### 6. `copilot-instructions.md` relocated
+
+Staged at `.a365-kit/copilot-instructions.md` rather than shipped at `.github/copilot-instructions.md`. That file is commonly project-owned, and an archive extraction would overwrite it with no warning. The launcher's `-WireCopilot` flag creates it, or appends to an existing one. Its relative links are repointed from `../plugins/agent365/...` to `../.a365-kit/...` so they resolve from `.github/`.
+
+### 7. One wording fix-up
+
+`a365-code-validator/SKILL.md` explains how to run its validator "from the plugin source", with a fallback for when the runtime cannot expand `${CLAUDE_PLUGIN_ROOT}`. After the substitution in (1) that passage no longer parses as English. It is rewritten to describe running from the project root, with an absolute-path fallback.
+
+The build asserts this passage still matches upstream before patching it, so an upstream rewording fails the build rather than shipping a broken instruction.
+
+---
+
+## What is *not* changed
+
+- No skill logic, phase ordering, or decision matrix.
+- No code patterns in `references/`.
+- No validator check logic — the validators enforce exactly what upstream enforces.
+- No trigger phrases.
+- Nothing added to the skills. This kit contains no Purview, hosting, or hardening content; it is a packaging change only.
+
+## Reporting issues
+
+Problems with the skills themselves — what they do, ask, or generate — belong upstream at
+[microsoft/agent365-skills](https://github.com/microsoft/agent365-skills/issues). Problems with the
+packaging, the launchers, the prerequisite doctor, or the build belong in this repository.

@@ -1,0 +1,12 @@
+# Release artifacts (attached to GitHub releases, not committed)
+*.zip
+
+# Local scratch
+scratchpad/
+tmp/
+
+# OS / editor
+Thumbs.db
+.DS_Store
+.vs/
+.idea/

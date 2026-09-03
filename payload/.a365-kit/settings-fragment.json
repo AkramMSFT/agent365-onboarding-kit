@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PROJECT_DIR}/.a365-kit/kit-version.js\"",
+            "timeout": 5000
+          }
+        ]
+      }
+    ]
+  }
+}
