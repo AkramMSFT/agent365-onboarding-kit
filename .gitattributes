@@ -1,0 +1,19 @@
+# Default: normalise to LF in the repo, let Git decide on checkout.
+* text=auto
+
+# Shell scripts MUST be LF. A CRLF checkout makes bash fail on the shebang
+# with "bad interpreter: /usr/bin/env bash^M", which is the kind of error that
+# costs someone an afternoon.
+*.sh text eol=lf
+
+# Node reads either, but the hooks are invoked cross-platform -- keep them LF.
+*.js text eol=lf
+
+# PowerShell is Windows-native; CRLF is the least surprising there.
+*.ps1 text eol=crlf
+
+# Markdown and JSON: leave to the platform default.
+*.md  text
+*.json text
+
+*.zip binary
