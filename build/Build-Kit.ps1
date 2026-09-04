@@ -37,6 +37,13 @@
 .PARAMETER KitVersion
     Version stamp for this kit. Default: read from build/kit.version, else 0.1.0.
 
+.PARAMETER UpdateSource
+    Where the launchers' -Update / --update fetch the kit from, baked into KIT-VERSION.json as
+    the build default. Override it when you host the kit yourself -- an internal GitHub, an
+    artifact server, or a file share (a path works as well as a URL). Users can still override
+    per project with `agent365-kit.ps1 -SetUpdateSource`, per shell with A365_KIT_UPDATE_SOURCE,
+    or per call with -UpdateFrom.
+
 .EXAMPLE
     .\build\Build-Kit.ps1 -UpstreamPath C:\src\agent365-skills
 
@@ -49,7 +56,8 @@ param(
     [string] $UpstreamRef = 'main',
     [string] $OutDir,
     [switch] $Zip,
-    [string] $KitVersion
+    [string] $KitVersion,
+    [string] $UpdateSource = 'https://github.com/AkramMSFT/agent365-onboarding-kit/releases/latest/download/agent365-onboarding-kit-latest.zip'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -416,6 +424,7 @@ $manifest = [ordered]@{
     upstreamVersion = $UpstreamVersion
     upstreamCommit  = $UpstreamCommit
     builtUtc        = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
+    updateSource    = $UpdateSource
     skills          = @(Get-ChildItem -Path (Join-Path $KitPath 'skills') -Directory | ForEach-Object { $_.Name })
     addons          = @(if (Test-Path -LiteralPath (Join-Path $KitPath 'addons')) {
                           Get-ChildItem -Path (Join-Path $KitPath 'addons') -Directory | ForEach-Object { $_.Name } })
