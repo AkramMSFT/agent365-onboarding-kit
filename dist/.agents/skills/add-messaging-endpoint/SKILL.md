@@ -139,9 +139,29 @@ Blueprint-based agents need the Messaging Bot API grant. **This half-completes f
 
 Wait for the user to confirm both before Phase 6.
 
-## Phase 6 -- Smoke test
+## Phase 6 -- Package for Teams and Copilot
 
-**AgentsPlayground** (no Teams needed; the npm package is `@microsoft/m365agentsplayground` -- the name some references give, `@microsoft/agentsplayground`, does not exist):
+**Verified on a real run: an endpoint alone does not make the agent visible in Teams.** It needs the app package uploaded and activated in the admin centre, on this path as much as for an AI Teammate. Plain `a365 publish` refuses here because `a365.config.json` says `useBlueprint: true`; the flag below selects the package format without changing the agent's kind (confirm afterwards that `aiTeammate` is still `false` in `a365.config.json`).
+
+`a365 publish` block-buffers under chat tools, so **hand it to the user** verbatim:
+
+> Package it, in your own terminal in this folder:
+>
+> ```
+> a365 publish --aiteammate true
+> ```
+>
+> It writes `manifest/manifest.json` and `manifest/manifest.zip`. If you want a better display name (`name.short`, 30 chars max), description or icons, edit `manifest/manifest.json` and run it again. Then paste the last lines of its output back here.
+
+When the user reports success, **Read** `manifest/manifest.json` and confirm: `id` equals `agentBlueprintId`, and `agenticUserTemplates[0]` points at `agenticUserTemplateManifest.json` whose `agentIdentityBlueprintId` is the same id. Report `name.short` and its length.
+
+Then hand off the upload:
+
+> An admin uploads `manifest/manifest.zip` at **Microsoft 365 admin center → Agents → All agents → Upload custom agent**, activates it for an audience (start with yourself), and creates the instance if offered. It can take a few minutes to appear in Teams.
+
+## Phase 7 -- Smoke test
+
+**AgentsPlayground** works before the upload (no Teams needed; the npm package is `@microsoft/m365agentsplayground` -- the name some references give, `@microsoft/agentsplayground`, does not exist):
 
 ```bash
 npm install -g @microsoft/m365agentsplayground
@@ -150,12 +170,12 @@ agentsplayground
 
 Connect to `http://localhost:<port>/api/messages`, send *Hello*. Watch the host log for `process_user_message called` (Python) or the equivalent.
 
-**Teams:** search for the agent by name and send *Hello*. If nothing reaches the host, the Notification URL does not match `messagingEndpoint` -- re-run Phase 4 and re-verify the portal.
+**Teams** (after the upload and activation): search for the agent by name and send *Hello*. If it is not listed, the package has not been uploaded or activated. If it is listed but nothing reaches the host, the Notification URL does not match `messagingEndpoint` -- re-run Phase 4 and re-verify the portal.
 
 ## What this add-on does not do
 
-- **No `a365 publish`, no manifest, no admin-centre upload.** For blueprint-based agents the CLI prints *"Nothing to publish for blueprint-based agents"* -- that path is AI-Teammate-only.
-- It does not change auth mode or identity. The agent keeps the OBO/S2S model `make-a365-agent` set up.
+- It does not run `a365 publish` or upload the package: the first block-buffers under chat tools and the second has no API. It prepares everything and hands both to the user with exact instructions.
+- It does not change auth mode or identity. The agent keeps the OBO/S2S model `make-a365-agent` set up; `--aiteammate true` on `publish` is a package-format switch only.
 - It does not stop other processes to free a port; it picks another port.
 
 ## Summary to show the user
@@ -164,6 +184,7 @@ Connect to `http://localhost:<port>/api/messages`, send *Hello*. Watch the host 
 Host          <file>  on port <n>   health 200 / anonymous POST 401
 Public URL    <url>                 (dev tunnel -- keep this session open | hosted)
 Endpoint      registered on blueprint <id>   completed: true
-Your step     a365 setup permissions bot  +  Dev Portal check
-Next          agentsplayground now; Teams after your step
+Your steps    1. a365 setup permissions bot      2. Dev Portal check
+              3. a365 publish --aiteammate true  4. admin centre: upload, activate
+Next          agentsplayground now; Teams after step 4
 ```
