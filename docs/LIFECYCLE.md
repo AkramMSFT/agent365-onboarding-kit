@@ -4,6 +4,8 @@ This is the end-to-end guide. It covers everything from an agent that nobody in 
 
 It is written for someone who has never done this before. Every step says who does it — the skills, you in your own terminal, or an admin in a portal — because that distinction is where first attempts go wrong.
 
+If you only want the sequence of phrases to type and the commands between them, **[STEP-BY-STEP.md](STEP-BY-STEP.md)** is that, on one page. This document is the *why* behind each of them.
+
 ---
 
 ## What "onboarded" actually means

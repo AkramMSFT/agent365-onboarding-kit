@@ -13,7 +13,11 @@
 #   ./agent365-kit.sh --wire-copilot  create/append .github/copilot-instructions.md
 #   ./agent365-kit.sh --launch claude launch Claude Code with the trigger phrase
 #   ./agent365-kit.sh --update        replace the kit with the latest release (kit paths only)
-#   ./agent365-kit.sh --update --update-from <zip|url>   ...from a local zip or another URL
+#   ./agent365-kit.sh --update --update-from <zip|url>   ...one-off, from a local zip or another URL
+#   ./agent365-kit.sh --set-update-source <zip|url>      persist the source for this project
+#                                     (a365-kit.config.json; commit it). Empty string clears it.
+#   Source resolution: --update-from > $A365_KIT_UPDATE_SOURCE > a365-kit.config.json
+#                      > build default in .a365-kit/KIT-VERSION.json > public GitHub release
 
 set -euo pipefail
 
@@ -27,22 +31,56 @@ WIRE_COPILOT=0
 WIRE_CLAUDE_HOOK=0
 LAUNCH=''
 UPDATE=0
-UPDATE_FROM='https://github.com/AkramMSFT/agent365-onboarding-kit/releases/latest/download/agent365-onboarding-kit-latest.zip'
+UPDATE_FROM=''
+SET_UPDATE_SOURCE=''
+SET_UPDATE_SOURCE_GIVEN=0
+PUBLIC_SOURCE='https://github.com/AkramMSFT/agent365-onboarding-kit/releases/latest/download/agent365-onboarding-kit-latest.zip'
+KIT_CONFIG="$KIT_ROOT/a365-kit.config.json"
 
 while [ $# -gt 0 ]; do
   case "$1" in
-    --doctor-only)      DOCTOR_ONLY=1 ;;
-    --skip-doctor)      SKIP_DOCTOR=1 ;;
-    --wire-copilot)     WIRE_COPILOT=1 ;;
-    --wire-claude-hook) WIRE_CLAUDE_HOOK=1 ;;
-    --launch)           shift; LAUNCH="${1:-}" ;;
-    --update)           UPDATE=1 ;;
-    --update-from)      shift; UPDATE_FROM="${1:-}" ;;
-    -h|--help)          sed -n '2,16p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    --doctor-only)        DOCTOR_ONLY=1 ;;
+    --skip-doctor)        SKIP_DOCTOR=1 ;;
+    --wire-copilot)       WIRE_COPILOT=1 ;;
+    --wire-claude-hook)   WIRE_CLAUDE_HOOK=1 ;;
+    --launch)             shift; LAUNCH="${1:-}" ;;
+    --update)             UPDATE=1 ;;
+    --update-from)        shift; UPDATE_FROM="${1:-}" ;;
+    --set-update-source)  shift; SET_UPDATE_SOURCE="${1:-}"; SET_UPDATE_SOURCE_GIVEN=1 ;;
+    -h|--help)            sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) echo "Unknown option: $1" >&2; exit 2 ;;
   esac
   shift
 done
+
+# -- Update source ------------------------------------------------------------
+# Resolved so an organisation that mirrors the kit internally can pin it once.
+resolve_update_source() {
+  if [ -n "$UPDATE_FROM" ]; then echo "$UPDATE_FROM|--update-from"; return; fi
+  if [ -n "${A365_KIT_UPDATE_SOURCE:-}" ]; then echo "$A365_KIT_UPDATE_SOURCE|A365_KIT_UPDATE_SOURCE"; return; fi
+  if [ -f "$KIT_CONFIG" ] && command -v node >/dev/null 2>&1; then
+    v="$(node -e 'try{const c=require(process.argv[1]);process.stdout.write(c.updateSource||"")}catch(e){}' "$KIT_CONFIG")"
+    if [ -n "$v" ]; then echo "$v|a365-kit.config.json"; return; fi
+  fi
+  if [ -f "$KIT_ROOT/.a365-kit/KIT-VERSION.json" ] && command -v node >/dev/null 2>&1; then
+    v="$(node -e 'try{const c=require(process.argv[1]);process.stdout.write(c.updateSource||"")}catch(e){}' "$KIT_ROOT/.a365-kit/KIT-VERSION.json")"
+    if [ -n "$v" ]; then echo "$v|kit build default"; return; fi
+  fi
+  echo "$PUBLIC_SOURCE|public GitHub release"
+}
+
+if [ "$SET_UPDATE_SOURCE_GIVEN" -eq 1 ]; then
+  command -v node >/dev/null 2>&1 || { echo "  node is required (it is a kit prerequisite)" >&2; exit 1; }
+  node -e '
+    const fs=require("fs"); const p=process.argv[1]; const v=process.argv[2];
+    let c={}; try{ c=JSON.parse(fs.readFileSync(p,"utf8")); }catch(e){}
+    if (v.trim()==="") delete c.updateSource; else c.updateSource=v;
+    fs.writeFileSync(p, JSON.stringify(c,null,2)+"\n");' "$KIT_CONFIG" "$SET_UPDATE_SOURCE"
+  if [ -z "${SET_UPDATE_SOURCE// }" ]; then echo "  cleared the project update source."; else echo "  project update source set to: $SET_UPDATE_SOURCE"; fi
+  echo "  written to a365-kit.config.json -- commit it so your whole team updates from the same place."
+  r="$(resolve_update_source)"; echo "  --update will now use: ${r%%|*}  [${r##*|}]"
+  exit 0
+fi
 
 # -- 0. Self-update -------------------------------------------------------------
 # Replaces kit paths only; the user's agent, .env, config and .claude/settings.json
@@ -54,6 +92,8 @@ if [ "$UPDATE" -eq 1 ]; then
   # one JSON reader we can rely on. python3 is deliberately NOT used: on Windows it
   # often resolves to the Store alias stub, which prints an error and returns nothing.
   command -v node >/dev/null 2>&1 || { echo "  node is required to read the kit manifest (it is a kit prerequisite)" >&2; exit 1; }
+  r="$(resolve_update_source)"; UPDATE_FROM="${r%%|*}"
+  echo "  source  : $UPDATE_FROM  [${r##*|}]"
   STAGE="$(mktemp -d)"
   trap 'rm -rf "$STAGE"' EXIT
   ZIP="$STAGE/kit.zip"

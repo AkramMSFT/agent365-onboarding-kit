@@ -41,8 +41,15 @@
     are never modified.
 
 .PARAMETER UpdateFrom
-    Where -Update fetches the kit from: a local .zip path, or an HTTPS URL. Default is the
-    kit repository's latest release. Useful offline or to test a build before releasing it.
+    One-off override of where -Update fetches the kit from: a .zip path (local or file share)
+    or an HTTPS URL. Without it the source is resolved, in order, from the environment
+    variable A365_KIT_UPDATE_SOURCE, this project's a365-kit.config.json, the default baked
+    into the kit at build time, and finally the public GitHub release.
+
+.PARAMETER SetUpdateSource
+    Persist an update source for this project in a365-kit.config.json (commit it so the whole
+    team updates from the same place) and exit. Use it when your organisation mirrors the kit
+    on its own server or share. Pass an empty string to clear it.
 
 .EXAMPLE
     .\agent365-kit.ps1
@@ -62,7 +69,8 @@ param(
     [ValidateSet('claude')]
     [string] $Launch,
     [switch] $Update,
-    [string] $UpdateFrom = 'https://github.com/AkramMSFT/agent365-onboarding-kit/releases/latest/download/agent365-onboarding-kit-latest.zip'
+    [string] $UpdateFrom,
+    [string] $SetUpdateSource
 )
 
 $ErrorActionPreference = 'Stop'
@@ -82,6 +90,58 @@ Write-Host ''
 Write-Host 'Agent 365 Onboarding Kit' -ForegroundColor White
 Write-Host '========================' -ForegroundColor DarkGray
 
+# -- Update source --------------------------------------------------------------
+# Resolved in this order so an organisation that mirrors the kit internally can pin
+# it once and forget it:
+#   1. -UpdateFrom                (this call)
+#   2. $env:A365_KIT_UPDATE_SOURCE (this shell / CI job)
+#   3. a365-kit.config.json       (this project -- lives OUTSIDE the paths -Update replaces)
+#   4. .a365-kit\KIT-VERSION.json (default baked in at build time)
+#   5. the public GitHub release
+
+$KitConfigPath = Join-Path $KitRoot 'a365-kit.config.json'
+$PublicSource  = 'https://github.com/AkramMSFT/agent365-onboarding-kit/releases/latest/download/agent365-onboarding-kit-latest.zip'
+
+function Get-UpdateSource {
+    if ($UpdateFrom) { return @{ Value = $UpdateFrom; Origin = '-UpdateFrom' } }
+    if ($env:A365_KIT_UPDATE_SOURCE) { return @{ Value = $env:A365_KIT_UPDATE_SOURCE; Origin = 'A365_KIT_UPDATE_SOURCE' } }
+    if (Test-Path -LiteralPath $KitConfigPath) {
+        try {
+            $c = Get-Content -LiteralPath $KitConfigPath -Raw | ConvertFrom-Json
+            if ($c.updateSource) { return @{ Value = [string]$c.updateSource; Origin = 'a365-kit.config.json' } }
+        } catch { Write-Warn "a365-kit.config.json is not valid JSON -- ignoring it" }
+    }
+    $m = Join-Path $KitRoot '.a365-kit\KIT-VERSION.json'
+    if (Test-Path -LiteralPath $m) {
+        try {
+            $mv = (Get-Content -LiteralPath $m -Raw | ConvertFrom-Json).updateSource
+            if ($mv) { return @{ Value = [string]$mv; Origin = 'kit build default' } }
+        } catch { }
+    }
+    return @{ Value = $PublicSource; Origin = 'public GitHub release' }
+}
+
+if ($PSBoundParameters.ContainsKey('SetUpdateSource')) {
+    Write-Head 'Kit update source'
+    $cfg = @{}
+    if (Test-Path -LiteralPath $KitConfigPath) {
+        try { $cfg = Get-Content -LiteralPath $KitConfigPath -Raw | ConvertFrom-Json -AsHashtable } catch { $cfg = @{} }
+    }
+    if ([string]::IsNullOrWhiteSpace($SetUpdateSource)) {
+        $cfg.Remove('updateSource')
+        Write-Ok 'Cleared the project update source.'
+    } else {
+        $cfg['updateSource'] = $SetUpdateSource
+        Write-Ok "Project update source set to: $SetUpdateSource"
+    }
+    ($cfg | ConvertTo-Json) | Set-Content -LiteralPath $KitConfigPath -Encoding UTF8
+    Write-Note 'Written to a365-kit.config.json -- commit it so your whole team updates from the same place.'
+    $r = Get-UpdateSource
+    Write-Note "-Update will now use: $($r.Value)  [$($r.Origin)]"
+    Write-Host ''
+    exit 0
+}
+
 # -- 0. Self-update ------------------------------------------------------------
 # Replaces kit paths only. Anything the user owns is left alone, and the set of
 # skill folders to replace is read from the NEW kit's manifest, so a skill that
@@ -89,6 +149,9 @@ Write-Host '========================' -ForegroundColor DarkGray
 
 if ($Update) {
     Write-Head 'Updating the kit'
+    $resolved = Get-UpdateSource
+    $UpdateFrom = $resolved.Value
+    Write-Note "Source  : $UpdateFrom  [$($resolved.Origin)]"
     $stage = Join-Path ([IO.Path]::GetTempPath()) ("a365-kit-update-" + [Guid]::NewGuid().ToString('N').Substring(0, 8))
     New-Item -ItemType Directory -Force -Path $stage | Out-Null
     $zip = Join-Path $stage 'kit.zip'

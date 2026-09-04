@@ -107,6 +107,7 @@ Everything under `.a365-kit/addons/` (and its copies in `.claude/skills/` and `.
 | Add-on | Fills this gap | Basis |
 |---|---|---|
 | `add-messaging-endpoint` | `make-a365-agent` asks for a messaging endpoint but never creates the HTTP host; blueprint-based agents built from a CLI or library end up registered but unreachable. Adds the host, the tunnel, and the endpoint registration; hands off the one broker-bound step. | Python host verified live on `microsoft-agents` 1.6.0 (2026-09-04). Node.js and .NET reference upstream's own hosting layers, which need no change for this path. |
+| `a365-kit` | Kit maintenance from inside the CLI: prerequisite check, versions, in-place update, and choosing the update source (public release or an internal mirror). Thin wrapper over the launchers. | Kit-authored. |
 | `add-purview-dlp` | Upstream has no Purview coverage. Evaluates every prompt and response against tenant DLP via two Graph calls; grants the scopes; hands off the portal policy. | Python adapted from the Agent 365 + Claude reference deployment's `purview_dlp.py`, which ran against a live tenant. The Node.js and .NET files are faithful ports of the same two REST calls, **not yet run against a tenant**; each marks the token-exchange line as the one to verify against the local SDK. |
 
 The seven Microsoft skills are untouched by the add-ons: they reference upstream files, never modify them.

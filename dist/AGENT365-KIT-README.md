@@ -53,7 +53,17 @@ Requires **Application Administrator** (lightest sufficient role), Cloud Applica
 
 ## 3. Start onboarding with your CLI
 
-The trigger phrase is the same everywhere:
+Three stages, each started by one phrase typed to your CLI. Stop at whichever finish line you need:
+
+| Stage | You say | Then you, in your own terminal |
+|---|---|---|
+| **1. Register** — blueprint, identity, permissions, telemetry | *Onboard this agent to Agent 365.* | `a365 setup all …` when it asks (copy from the prompt); then install packages |
+| **2. Chat** in Teams & Copilot | *Make this agent chattable in Teams.* (blueprint path) or *Make this agent an AI Teammate.* | `a365 setup permissions bot` (blueprint) or `a365 publish` + admin-centre upload (AI Teammate) |
+| **3. Govern** with Purview DLP | *Add DLP to this agent.* | the Purview policies, in the portal |
+
+Between stages: *Validate A365 code.*, *Add observability to this agent.*, *Test this agent locally.*, *Update the Agent 365 kit.* The full sequence with every question and hand-off is `docs/STEP-BY-STEP.md` in the kit repository.
+
+The Stage 1 phrase is the same everywhere:
 
 > **Onboard this agent to Agent 365.**
 
@@ -168,6 +178,10 @@ Like `a365 setup all`, run `a365 publish` and `a365 setup permissions bot` in yo
 > **If your generated Python host crashes on startup** with `AttributeError: ... 'MsalConnectionManager' has no attribute 'from_environment'`, the reference it was built from predates `microsoft-agents` 1.6. `docs/LIFECYCLE.md` C1 has the working 1.6 pattern.
 
 The full walkthrough with every choice explained — agent kinds, identity, dev tunnel vs cloud, Purview DLP, teardown — is **`docs/LIFECYCLE.md`** in the kit repository.
+
+## Keeping the kit current — from your CLI
+
+Say *"update the Agent 365 kit"* (or run `.\agent365-kit.ps1 -Update` / `./agent365-kit.sh --update`). Only the kit's own files are replaced; your agent, `.env`, config and your own skills are untouched. If your organisation hosts the kit on its own server or a file share, set that once for the project — *"set the kit update source to …"*, or `-SetUpdateSource <zip-or-url>` — and commit the `a365-kit.config.json` it writes. *"Check the kit prerequisites"* and *"which kit version is installed"* work the same way.
 
 ## What happens next
 

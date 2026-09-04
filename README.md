@@ -53,8 +53,9 @@ Support is determined by where each CLI looks for skills, not by anything kit-sp
 
 The skills are plain Markdown. Only the Node validator hooks are Claude Code specific, and they are optional — the skills work without them, just without the end-of-session correctness check.
 
-**Two guides, two questions:**
+**Three guides, three questions:**
 
+- **[`docs/STEP-BY-STEP.md`](docs/STEP-BY-STEP.md)** — *what do I say, in what order?* The phrase that starts each stage — register, chat in Teams and Copilot, Purview DLP — the questions each asks, and the four moments you run one command in your own terminal. Start here.
 - **[`docs/USING-WITH-YOUR-CLI.md`](docs/USING-WITH-YOUR-CLI.md)** — *how do I start?* From the zip to the moment onboarding begins, per CLI.
 - **[`docs/LIFECYCLE.md`](docs/LIFECYCLE.md)** — *how do I finish?* The complete path from a custom agent to one chatting in Teams and Copilot with Defender and Purview watching: agent kinds and identity, the two commands you always run yourself, hosting and the messaging endpoint, `a365 publish` and the manifest, admin-centre activation, DLP, teardown. Each step says whether the skills do it, you do it, or an admin does it in a portal.
 
@@ -95,7 +96,20 @@ Locally it is one command:
 
 The build re-derives everything from upstream; nothing is hand-maintained. Bump `build/kit.version` if the kit's own packaging changed.
 
-**Users update in place** with `.\agent365-kit.ps1 -Update` (or `./agent365-kit.sh --update`), which fetches the latest release and replaces only the kit's own paths — never the agent, `.env`, config, or `.claude/settings.json`. `-UpdateFrom <zip-or-url>` points it at a local build or another source; the Claude Code session-start notice tells users when upstream has moved.
+**Users update in place** with `.\agent365-kit.ps1 -Update` (or `./agent365-kit.sh --update`) — or, from inside their CLI, *"update the Agent 365 kit"* (the `a365-kit` add-on). It replaces only the kit's own paths — never the agent, `.env`, config, `.claude/settings.json`, or skills the user added. The Claude Code session-start notice tells users when upstream has moved.
+
+### Hosting the kit yourself
+
+The public GitHub release is only the default. Organisations that mirror the kit — internal GitHub, an artifact server, a file share — choose where updates come from at whichever level fits:
+
+| Level | How | Wins over |
+|---|---|---|
+| One call | `-UpdateFrom <zip-or-url>` / `--update-from` | everything below |
+| One shell or CI job | `A365_KIT_UPDATE_SOURCE=<zip-or-url>` | everything below |
+| One project, whole team | `.\agent365-kit.ps1 -SetUpdateSource <zip-or-url>` → writes `a365-kit.config.json` at the project root, outside the paths an update replaces; **commit it** | everything below |
+| Your own build of the kit | `.\build\Build-Kit.ps1 -UpdateSource <zip-or-url> -Zip` → baked into `KIT-VERSION.json` | the public default |
+
+A filesystem path is as valid as a URL, so a network share with `agent365-onboarding-kit-latest.zip` on it works with no web server at all.
 
 The build **fails loudly** rather than shipping something subtly broken. It verifies that:
 
