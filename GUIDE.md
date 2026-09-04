@@ -44,13 +44,25 @@ flowchart TD
 
 ## Before you start
 
-**On your machine:** Node.js 18+, .NET SDK 8+, the `a365` CLI, Azure CLI, Git, your chosen AI CLI, and Python 3.10+ or Node.js for your agent. The kit's launcher checks all of this.
+**On your machine:** Node.js 18+, .NET SDK 8+, the `a365` CLI, Azure CLI, Git, an AI coding CLI (below), and Python 3.10+ or Node.js for your agent. The kit's launcher checks all of this and prints the install command for anything missing.
 
 ```bash
+# .NET SDK 8+ first (the a365 CLI is a .NET tool), then the a365 CLI
+winget install --id Microsoft.DotNet.SDK.8 -e        # macOS: brew install --cask dotnet-sdk
 dotnet tool install -g Microsoft.Agents.A365.DevTools.Cli
+winget install --id Microsoft.AzureCLI -e            # macOS: brew install azure-cli
 ```
 
-**Windows:** use a normal terminal, never an elevated one — the per-user tools are invisible to an Administrator shell.
+**An AI coding CLI — install at least one.** This is the tool you drive the onboarding from. Pick whichever you use:
+
+```bash
+npm install -g @github/copilot            # GitHub Copilot CLI
+npm install -g @anthropic-ai/claude-code  # Claude Code
+```
+
+Cursor, Codex and Gemini CLI also work — install them from their own docs; the kit's skills are already in the `.agents/skills/` folder they read.
+
+**Windows:** use a normal terminal, never an elevated one — the per-user tools (the AI CLI, `a365`, `az`) are invisible to an Administrator shell.
 
 **Your tenant, once [admin]:** the `a365` CLI needs a one-time app registration. Any admin runs this and every developer inherits it:
 
@@ -107,7 +119,28 @@ You should see twelve: seven Microsoft skills plus five kit add-ons.
 
 ## Step 3 — Register the agent in Agent 365  [CLI] + [you]
 
-This is the step that puts the agent in the Agent 365 registry and gives it an Entra identity (its **Agent ID**). In your CLI, say:
+This is the step that puts the agent in the Agent 365 registry and gives it an Entra identity (its **Agent ID**).
+
+**Launch your CLI from the project folder** and give it the trigger phrase. Pick your CLI:
+
+```bash
+# GitHub Copilot CLI — interactive, so you approve each action
+copilot -i "Onboard this agent to Agent 365."
+
+# Claude Code
+claude "Onboard this agent to Agent 365."
+
+# Cursor / Codex / Gemini CLI — open the project and type the phrase in chat:
+#   Onboard this agent to Agent 365.
+```
+
+Prefer the interactive form over a one-shot `-p` run: registration writes to your tenant, and you want to approve each step. To rehearse first without touching anything, dry-run it:
+
+```bash
+copilot -p "Onboard this agent to Agent 365. DRY RUN - do not run commands or modify files. Report which skill you selected, what you detected, and the steps you would perform." --allow-all-tools --deny-tool shell
+```
+
+The trigger phrase is the same in every CLI:
 
 > **Onboard this agent to Agent 365.**
 
