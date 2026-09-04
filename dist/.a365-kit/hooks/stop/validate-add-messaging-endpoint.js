@@ -57,6 +57,31 @@ if (language === 'python') {
   issues.push('could not determine the project language (no detection cache, requirements.txt, pyproject.toml, package.json or .csproj)');
 }
 
+// Work IQ + Python: the tooling SDK defaults to a DEVELOPMENT environment when none of
+// PYTHON_ENVIRONMENT / ENVIRONMENT / ASPNETCORE_ENVIRONMENT / DOTNET_ENVIRONMENT is set,
+// which makes it read tokens from BEARER_TOKEN_* env vars instead of doing the OBO
+// exchange -- every MCP server then answers 401. Nothing in the CLI or skills sets it.
+if (language === 'python' && exists(path.join(cwd, 'ToolingManifest.json'))) {
+  const env = read(path.join(cwd, '.env'));
+  const envVar = /^\s*(PYTHON_ENVIRONMENT|ENVIRONMENT|ASPNETCORE_ENVIRONMENT|DOTNET_ENVIRONMENT)\s*=\s*(\S+)/im.exec(env);
+  if (!envVar) {
+    issues.push('WorkIQ is configured but no environment variable is set -- add PYTHON_ENVIRONMENT=Production to .env, or the tooling SDK runs in development mode and every MCP server returns 401');
+  } else if (/development/i.test(envVar[2])) {
+    issues.push(`${envVar[1]}=${envVar[2]} puts the tooling SDK in development mode; it will read BEARER_TOKEN_* env vars instead of exchanging tokens, and MCP servers will return 401`);
+  }
+  // Several WorkIQ servers publish colliding tool names (SharePoint and OneDrive both
+  // expose getFileOrFolderMetadataByUrl), which raises UserError and fails the turn.
+  const serverCount = (() => {
+    try {
+      const m = JSON.parse(read(path.join(cwd, 'ToolingManifest.json')));
+      return (m.mcpServers || m.servers || []).length;
+    } catch { return 0; }
+  })();
+  if (serverCount > 1 && !/include_server_in_tool_names/.test(all.filter(f => f.endsWith('.py')).map(read).join('\n'))) {
+    console.warn(`[validate-add-messaging-endpoint] Warning: ${serverCount} WorkIQ servers configured but include_server_in_tool_names is not set -- duplicate tool names across servers will raise UserError at turn time`);
+  }
+}
+
 // Endpoint registered on the blueprint.
 const gen = path.join(cwd, 'a365.generated.config.json');
 if (!exists(gen)) issues.push('a365.generated.config.json not found -- run a365-setup first');

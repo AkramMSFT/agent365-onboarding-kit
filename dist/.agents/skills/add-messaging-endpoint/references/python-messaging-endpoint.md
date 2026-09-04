@@ -291,6 +291,57 @@ devtunnel host <agent>-tunnel            # prints:  Connect via browser: https:/
 
 Use exactly the `Connect via browser` URL for `--update-endpoint`. The **cluster** (`aue`, `asse`, `usw3`, …) is assigned when the tunnel is created and a deleted-and-recreated tunnel can land in a different one, so a URL built from the tunnel *name* silently stops resolving. Seen on the verified run: the first tunnel was `…tunnel.aue`, the recreated one `…tunnel.asse`, and the registered `aue` endpoint went dark. **If the tunnel is ever recreated, re-run `a365 setup blueprint --update-endpoint <new url> --m365`.**
 
+## Work IQ tools: two things that silently break them
+
+Both verified on a live tenant, 2026-09-04. Neither is set by `a365 setup all` or by `add-workiq-tools`, and both fail in ways that look like a permissions problem when they are not.
+
+### 1. `PYTHON_ENVIRONMENT` must be set, or every MCP server returns 401
+
+Two modules in the same SDK disagree about the default environment:
+
+| Function | Default when no env var is set |
+|---|---|
+| `microsoft_agents_a365.runtime.…is_development_environment()` | **Production** |
+| `microsoft_agents_a365.tooling.utils.utility.is_development_environment()` | **Development** |
+
+The tooling module resolves `PYTHON_ENVIRONMENT` → `ENVIRONMENT` → `ASPNETCORE_ENVIRONMENT` → `DOTNET_ENVIRONMENT`, and falls back to `"Development"`. Nothing writes any of them, so a production agent takes the development path: it loads servers from the local manifest instead of the gateway, and acquires tokens from `BEARER_TOKEN_*` env vars that do not exist. No token is attached and **every** Work IQ server answers `401`.
+
+```
+PYTHON_ENVIRONMENT=Production
+```
+
+The symptom is maximally misleading: consent is correct, `a365 query-entra inheritance` reports OK, the OBO exchange returns a valid token when called directly, and the agent simply says it has no tools. Two tells in the log:
+
+```
+Listing MCP tool servers for agent            <- agent id EMPTY (dev mode sets it to "")
+Loading MCP servers from: ToolingManifest.json <- manifest, not the gateway
+```
+
+### 2. Several servers together collide on tool names
+
+SharePoint and OneDrive both publish `getFileOrFolderMetadataByUrl` and `getSensitivityLabels`. The OpenAI Agents SDK refuses duplicates and raises `UserError: Duplicate tool names found across MCP servers`, which fails the whole turn. Namespace them **after** attachment, because `add_tool_servers_to_agent` returns a fresh `Agent`:
+
+```python
+await core.setup_workiq_tools(context, auth, auth_handler_name or "AGENTIC")
+agent = core.expenses_agent
+if getattr(agent, "mcp_servers", None) and not (agent.mcp_config or {}).get("include_server_in_tool_names"):
+    cfg = dict(agent.mcp_config or {})
+    cfg["include_server_in_tool_names"] = True
+    core.expenses_agent = agent.clone(mcp_config=cfg)
+```
+
+Tools then appear as `mcp_MailTools_sendMail` and so on.
+
+### 3. The model will not use tools its instructions never mention
+
+With both fixes in place the tools attach, and the agent can still answer *"I'm only set up to help with expense reports"* — because its system prompt describes a narrow job. Tools are necessary, not sufficient. Say so in the instructions:
+
+> Work IQ tools are attached for mail, calendar, Teams, SharePoint, OneDrive and Excel. Tool names are prefixed with their server, e.g. `mcp_MailTools_*`. Use them when the user asks you to send an email, check a calendar, or look something up. Sending mail on request is expected — do it rather than telling the user to use Outlook.
+
+### Not every server will be healthy
+
+On the verified tenant seven of nine attached; `mcp_PlannerServer` returned `404` and `mcp_WordServer` `403`. That is per-tenant provisioning, not a code fault. The `400` and `405` responses in the log are part of the normal MCP handshake — judge success by the `Attached N WorkIQ MCP server(s)` line, not by absence of non-200s.
+
 ## Gotchas seen on the verified run
 
 | Symptom | Cause |
