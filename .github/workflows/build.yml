@@ -34,8 +34,9 @@ jobs:
           $env:VALIDATE_SKIP_EXEC = "1"
           Get-ChildItem dist/.a365-kit/hooks/stop/*.js | ForEach-Object {
             Push-Location dist
-            $out = node $_.FullName 2>$null
+            # Some validators pretty-print their verdict across several lines; join before matching.
+            $out = (node $_.FullName 2>$null) -join "`n"
             Pop-Location
-            if (-not ($out -match '"ok"')) { throw "validator produced no JSON verdict: $($_.Name)" }
+            if ($out -notmatch '"ok"\s*:\s*(true|false)') { throw "validator produced no JSON verdict: $($_.Name)" }
           }
           "all validators emit a verdict"
