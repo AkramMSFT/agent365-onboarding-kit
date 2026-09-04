@@ -42,6 +42,52 @@ flowchart TD
 
 ---
 
+## Which languages this covers
+
+Agent 365 ships SDKs for **Python, Node.js / TypeScript and .NET**, and this kit follows that boundary — there is no Java, Go or Rust SDK on any public registry today.
+
+That boundary is narrower than it sounds, because **most of onboarding never touches your code.** The blueprint, the Agent ID, the agentic user, the endpoint registration, the manifest, the upload and the instance are all Entra, CLI and portal operations. They work the same whatever your agent is written in.
+
+| Step | Python / Node / .NET | Any other language |
+|---|---|---|
+| 1–3 Register: blueprint, Agent ID, agentic user | yes | **yes** — never reads your source |
+| 4 Observability | SDK does it | raw OTLP, contract below |
+| 5 Work IQ tools | SDK does it | MCP over HTTP, wire it yourself |
+| 6 Messaging endpoint | host generated for you | implement the contract yourself |
+| 7–10 Publish, upload, instance, DLP | yes | **yes** — CLI and portal |
+
+So a Java or Go agent can be registered, given an identity, published, and made chattable in Teams. What it does not get is the in-process instrumentation and tool wiring.
+
+Within the three supported languages the *framework* coverage is broad and auto-detected: LangChain, OpenAI Agents SDK, Claude Agent SDK, Google ADK, Semantic Kernel and Microsoft Agent Framework.
+
+### Exporting telemetry without an SDK
+
+If you are outside the three languages, the observability API is plain OTLP over HTTPS and you can post to it directly:
+
+```
+POST https://agent365.svc.cloud.microsoft/observability/tenants/{tenantId}/otlp/agents/{agentId}/traces?api-version=1
+  authorization: Bearer <observability token>
+  content-type: application/json
+```
+
+S2S agents post to `/observabilityService/...` instead of `/observability/...`; everything else is identical.
+
+Every span must carry all three of these or it is **dropped without an error**:
+
+| Attribute | Value |
+|---|---|
+| `gen_ai.operation.name` | one of `invoke_agent`, `execute_tool`, `output_messages`, `chat`, `apply_guardrail` |
+| `microsoft.tenant.id` | your tenant GUID |
+| `gen_ai.agent.id` | the agent instance appId |
+
+`microsoft.agent.user.id` is optional and carries the agentic user id.
+
+Spans whose operation name is not in that set are filtered out by design — that is how the exporter ignores HTTP and database spans, and it is why a hand-rolled exporter that omits the attribute sends nothing while appearing to succeed.
+
+This contract is read from the shipped SDK source, and the same endpoint is confirmed working against a live tenant through the Python SDK. A hand-written client has not been tested end to end.
+
+---
+
 ## Before you start
 
 **On your machine:** Node.js 18+, .NET SDK 8+, the `a365` CLI, Azure CLI, Git, an AI coding CLI (below), and Python 3.10+ or Node.js for your agent. The kit's launcher checks all of this and prints the install command for anything missing.

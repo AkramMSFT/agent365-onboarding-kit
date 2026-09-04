@@ -22,7 +22,9 @@ The upstream skills are excellent, but every documented install path assumes a s
 
 Each is fine on its own; together they make "just try the skills" a support conversation. This kit removes the install step entirely: the skills travel **with the project**, in the locations each CLI already looks in.
 
-It is a **faithful repackage**. The skill content is Microsoft's, unmodified except for the mechanical rewrites in [`NOTICE.md`](NOTICE.md).
+It is a **faithful repackage**. The skill content is Microsoft's. Beyond the mechanical path rewrites, a small number of bugs found while onboarding real agents are fixed in place — mostly in the observability path, where several faults each caused an agent to trace every turn and export none of it. Every change, and why it was made, is listed in [`NOTICE.md`](NOTICE.md).
+
+**Languages:** Python, Node.js / TypeScript and .NET — the three Agent 365 ships SDKs for. Registration, identity, publishing and Teams reachability are language-agnostic and work for any agent; see [GUIDE.md](GUIDE.md#which-languages-this-covers) for what an agent outside those three can and cannot do.
 
 ## What a user gets
 
