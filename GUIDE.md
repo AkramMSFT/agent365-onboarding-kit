@@ -56,7 +56,9 @@ That boundary is narrower than it sounds, because **most of onboarding never tou
 | 6 Messaging endpoint | host generated for you | implement the contract yourself |
 | 7–10 Publish, upload, instance, DLP | yes | **yes** — CLI and portal |
 
-So a Java or Go agent can be registered, given an identity, published, and made chattable in Teams. What it does not get is the in-process instrumentation and tool wiring.
+So a Java or Go agent can be registered, given an identity, published, and made chattable in Teams. What it does not get from Microsoft is the in-process instrumentation and tool wiring.
+
+**For Java, the kit fills that in.** Say *Onboard this Java agent* and the `add-java-agent` add-on writes the HTTP host, the inbound token validation, the reply path and a direct OTLP exporter -- the pieces an SDK would otherwise provide. Go and Rust have no equivalent add-on; the wire contract below is what they would need to implement.
 
 Within the three supported languages the *framework* coverage is broad and auto-detected: LangChain, OpenAI Agents SDK, Claude Agent SDK, Google ADK, Semantic Kernel and Microsoft Agent Framework.
 
@@ -185,7 +187,7 @@ Confirm your CLI sees the skills:
 - **GitHub Copilot CLI:** `copilot skill list`
 - **Others:** open the project; the skills are in `.agents/skills/`.
 
-You should see twelve: seven Microsoft skills plus five kit add-ons.
+You should see thirteen: seven Microsoft skills plus six kit add-ons.
 
 <!-- ![Skills listed by the CLI](images/02-skills-list.png) -->
 

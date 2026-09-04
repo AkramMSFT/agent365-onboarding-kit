@@ -7,7 +7,7 @@ Capture at 1400–1600 px wide, light theme, and crop to the relevant panel. **R
 | File | Step | Capture |
 |---|---|---|
 | `01-launcher.png` | 2 | The launcher output: the prerequisite table and the detected-CLI list. |
-| `02-skills-list.png` | 2 | Your CLI listing the twelve skills (`copilot skill list`, or Claude Code's answer). |
+| `02-skills-list.png` | 2 | Your CLI listing the thirteen skills (`copilot skill list`, or Claude Code's answer). |
 | `03-setup-summary.png` | 3 | The `a365 setup all` summary table in your own terminal after it completes. |
 | `04-dev-portal.png` | 6 | Teams Developer Portal agent config: **Agent Type = API Based** and the **Notification URL**. |
 | `05-publish.png` | 8 | The `a365 publish` output showing `manifest.zip` created. |
