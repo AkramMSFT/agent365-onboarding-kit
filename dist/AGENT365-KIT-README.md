@@ -58,7 +58,7 @@ Three stages, each started by one phrase typed to your CLI. Stop at whichever fi
 | Stage | You say | Then you, in your own terminal |
 |---|---|---|
 | **1. Register** — blueprint, identity, permissions, telemetry | *Onboard this agent to Agent 365.* | `a365 setup all …` when it asks (copy from the prompt); then install packages |
-| **2. Chat** in Teams & Copilot | *Make this agent chattable in Teams.* (blueprint path) or *Make this agent an AI Teammate.* | `a365 setup permissions bot` (blueprint) or `a365 publish` + admin-centre upload (AI Teammate) |
+| **2. Chat** in Teams & Copilot | *Make this agent chattable in Teams.* (blueprint path) or *Make this agent an AI Teammate.* | `a365 setup permissions bot` (blueprint), then `a365 publish` (`--aiteammate true` on the blueprint path) and the admin-centre upload — both paths |
 | **3. Govern** with Purview DLP | *Add DLP to this agent.* | the Purview policies, in the portal |
 
 Between stages: *Validate A365 code.*, *Add observability to this agent.*, *Test this agent locally.*, *Update the Agent 365 kit.* The full sequence with every question and hand-off is `docs/STEP-BY-STEP.md` in the kit repository.
@@ -169,8 +169,8 @@ Onboarding gets the agent **registered**: blueprint, identity, permissions, inst
 | 2. Public HTTPS URL | `devtunnel` for dev, any HTTPS host for prod | you |
 | 3. Register the endpoint | `a365 setup blueprint --update-endpoint <url> --m365` — **`--m365` is required** or Teams routing is silently skipped. Works from your CLI agent's shell. | you |
 | 4. Bot API permissions *(blueprint-based / CEA)* | `a365 setup permissions bot` — creates the Messaging Bot API grant; needs the broker and a `y` | you, own terminal |
-| 5. Manifest + package *(AI Teammate only)* | `a365 publish` → `manifest.zip`. For blueprint-based agents it prints *"Nothing to publish"* — that path has no manifest. | you, own terminal |
-| 6. Upload, activate, create instance *(AI Teammate only)* | Microsoft 365 admin center → Agents → All agents → Upload custom agent → Activate → Instances → Create | admin |
+| 5. Manifest + package | `a365 publish` → `manifest/manifest.zip`. On the blueprint path plain `publish` refuses; use `a365 publish --aiteammate true` (it does not change your agent's kind). | you, own terminal |
+| 6. Upload, activate, create instance | Microsoft 365 admin center → Agents → All agents → Upload custom agent → Activate → Instances → Create. **Required on both paths for the agent to appear in Teams and Copilot.** | admin |
 | 7. Test | `agentsplayground` (`npm i -g @microsoft/m365agentsplayground`) against your host; Teams chat; Copilot agent picker | you |
 
 Like `a365 setup all`, run `a365 publish` and `a365 setup permissions bot` in your own terminal — the first block-buffers under chat tools, the second needs the Windows broker for its grant step.

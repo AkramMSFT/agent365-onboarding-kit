@@ -169,7 +169,11 @@ Verified on Windows 11 against upstream v1.0.2:
 - `completed: false` in the generated config on this path means the Azure hosting/endpoint step is outstanding, not that consent is — the validator's own warning says so
 - the one gap reproduced from run 1: the skill edits `requirements.txt` but does not run `pip`; documented in the kit README as a post-run check
 
-Not yet exercised: the post-provisioning half of the lifecycle (public hosting → messaging endpoint → `a365 publish` → admin-center instance), and the `.agents/skills/` path under the other CLIs (Cursor, Codex, Gemini CLI, Amp, Cline, OpenCode, Warp, Antigravity).
+**Reachability, on the same agent**
+- host, dev tunnel, endpoint registration and bot permissions all verified — and **the agent still did not appear in Teams**, which corrected a wrong assumption: the app package is required on the blueprint path too, not only for AI Teammates
+- plain `a365 publish` refuses on that path (`useBlueprint: true`); `a365 publish --aiteammate true` builds the package without changing the agent's kind — verified, and the docs and the endpoint add-on now say so
+
+Not yet exercised: the admin-centre upload and activation of that package, and the `.agents/skills/` path under the other CLIs (Cursor, Codex, Gemini CLI, Amp, Cline, OpenCode, Warp, Antigravity).
 
 ## Licence
 

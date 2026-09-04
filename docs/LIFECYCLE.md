@@ -221,20 +221,29 @@ with the ID from `a365.generated.config.json`. Confirm **Agent Type = API Based*
 
 ## Phase D — Publish and activate
 
-### D0. Which path are you on? It decides everything below
+### D0. Every path that wants Teams or Copilot goes through the package
 
-> **Verified on a real run:** for a **blueprint-based agent** (`aiTeammate: false` — the Register / Observability / Custom Engine Agent kinds), `a365 publish` prints
-> *"Nothing to publish for blueprint-based agents"* and exits. There is no manifest, no zip, no admin-centre upload on that path. Reachability comes from Phase C alone: the `--m365` endpoint registration plus one more grant step:
+> **Verified on a real run — and a correction to an earlier version of this page.** A blueprint-based agent (`aiTeammate: false`, OBO or S2S) is *registered* without any package: identity created at setup, endpoint registered in Phase C. But to **appear in Teams and Microsoft 365 Copilot** it needs the app package uploaded and activated in the admin centre, exactly like an AI Teammate. Testing an OBO agent proved it: endpoint registered, `completed: true`, bot permissions in place — and nothing in Teams until the package was uploaded.
+>
+> The trap: on the blueprint path plain `a365 publish` refuses with *"Nothing to publish for blueprint-based agents"*, because the onboarding skill writes `useBlueprint: true` into `a365.config.json`. The package is still one command away — the flag is just badly named:
+>
+> ```bash
+> a365 publish --aiteammate true
+> ```
+>
+> This does **not** change your agent's kind (`a365.config.json` keeps `aiTeammate: false`); it selects the agentic-user-template package format, which is what the admin centre's *Upload custom agent* accepts. The generated manifest carries the blueprint's appId as its `id` and links to the blueprint through `agenticUserTemplateManifest.json`.
+>
+> One more step the blueprint path needs before upload, from your own terminal:
 >
 > ```bash
 > a365 setup permissions bot
 > ```
 >
-> which grants the Messaging Bot API (`AgentData.ReadWrite`), the observability write scope, and Power Platform connectivity on the blueprint. Upstream's `make-a365-agent` skill requires it after `setup all` for any CEA. The agent identity already exists (created at setup), so there is no instance to request either.
+> which grants the Messaging Bot API (`AgentData.ReadWrite`), the observability write scope, and Power Platform connectivity on the blueprint. Upstream's `make-a365-agent` skill requires it after `setup all` for any CEA.
 >
-> **D1–D2 below apply to AI Teammates only.** If you are on the blueprint path, skip to D3.
+> **Stop at "registered" and none of D1–D2 applies.** Want it in Teams or Copilot, on either path, and D1–D2 are the way.
 
-### D1. Manifest and package — `a365 publish` (AI Teammate only)
+### D1. Manifest and package — `a365 publish`
 
 The manifest is the Teams app definition — the JSON that makes the agent an installable app, a bot, and (via `copilotAgents.customEngineAgents`) a **Microsoft 365 Copilot custom engine agent**. **The CLI owns it.** Do not hand-write it.
 
@@ -259,7 +268,7 @@ Two warnings you may see:
 | `name.short ... EXCEEDS 30 chars` | The CLI derives the app's short name from `<agent name> Blueprint`; long agent names overflow. Edit `agentBlueprintDisplayName` in `a365.generated.config.json` to ≤ 30 chars and re-run, or set `name.short` in the manifest and re-zip the `manifest/` folder. |
 | `Manifest validation failed` | Re-run `a365 setup all` (idempotent) so the CLI regenerates the fields, then publish again. |
 
-For a blueprint that was registered **without** `--m365` (Register-only), do C3 first — publish needs the Teams registration to exist.
+On the blueprint path the command is `a365 publish --aiteammate true` (see D0). For a blueprint that was registered **without** `--m365` (Register-only), do C3 first — the endpoint must exist before the package is worth uploading.
 
 ### D2. Upload and activate — admin centre
 
