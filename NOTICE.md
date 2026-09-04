@@ -100,6 +100,19 @@ Found 2026-09-03 while onboarding an existing Python / OpenAI Agents SDK project
 
 ---
 
+## Kit add-ons — not Microsoft's
+
+Everything under `.a365-kit/addons/` (and its copies in `.claude/skills/` and `.agents/skills/`) plus the two validators `validate-add-messaging-endpoint.js` and `validate-add-purview-dlp.js` is **written for this kit**, copyright Akram Eleyan, MIT. They follow upstream's skill format so every CLI discovers them the same way, but they are not part of `microsoft/agent365-skills` and should not be reported there.
+
+| Add-on | Fills this gap | Basis |
+|---|---|---|
+| `add-messaging-endpoint` | `make-a365-agent` asks for a messaging endpoint but never creates the HTTP host; blueprint-based agents built from a CLI or library end up registered but unreachable. Adds the host, the tunnel, and the endpoint registration; hands off the one broker-bound step. | Python host verified live on `microsoft-agents` 1.6.0 (2026-09-04). Node.js and .NET reference upstream's own hosting layers, which need no change for this path. |
+| `add-purview-dlp` | Upstream has no Purview coverage. Evaluates every prompt and response against tenant DLP via two Graph calls; grants the scopes; hands off the portal policy. | Python adapted from the Agent 365 + Claude reference deployment's `purview_dlp.py`, which ran against a live tenant. The Node.js and .NET files are faithful ports of the same two REST calls, **not yet run against a tenant**; each marks the token-exchange line as the one to verify against the local SDK. |
+
+The seven Microsoft skills are untouched by the add-ons: they reference upstream files, never modify them.
+
+---
+
 ## What is *not* changed
 
 - No skill logic, phase ordering, or decision matrix.

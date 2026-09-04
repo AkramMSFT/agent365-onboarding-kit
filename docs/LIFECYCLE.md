@@ -149,7 +149,9 @@ Claude Code runs these validators automatically at the end of a session. Every o
 
 ### C1. An HTTP host on `/api/messages`
 
-Teams and Copilot deliver messages by HTTPS POST to `/api/messages` on your agent. `make-ai-teammate` scaffolds this host (`host_agent_server.py` / Express / ASP.NET Core). The non-AI-Teammate skill does **not** — it assumes your agent already listens on port 3978 — so for a CEA built from a CLI or library agent, you add it. The pattern is the same aiohttp `CloudAdapter` host the AI Teammate reference uses; asking your CLI to *"Add the Agent 365 hosting layer from the Python AI Teammate reference, keeping my current identity configuration"* gets you there.
+Teams and Copilot deliver messages by HTTPS POST to `/api/messages` on your agent. `make-ai-teammate` scaffolds this host (`host_agent_server.py` / Express / ASP.NET Core). The non-AI-Teammate skill does **not** — it assumes your agent already listens on port 3978 — so for a CEA built from a CLI or library agent, you add it.
+
+**The kit's `add-messaging-endpoint` add-on does C1 through C4 for you.** In your CLI: *"Make this agent chattable in Teams."* It adds the host for your language, proves it (health 200, anonymous POST 401), starts a dev tunnel or takes your URL, registers the endpoint with `--m365`, and stops at the one step that needs the broker. The rest of this phase documents what it does, so you can do it by hand or check its work.
 
 > **SDK version matters here (verified on a real run).** Some references — including the
 > Python hosting layer `make-ai-teammate` generates — use `CloudAdapter.on_activity`,
@@ -311,7 +313,7 @@ Already wired in Phase B. Every message, model call and tool call emits spans to
 
 ### E2. Purview DLP on prompts and responses
 
-Purview can inspect every prompt on the way in and every response on the way out, block on policy, and feed Insider Risk Management. Three parts:
+Purview can inspect every prompt on the way in and every response on the way out, block on policy, and feed Insider Risk Management. **The kit's `add-purview-dlp` add-on does the grants and the code for Python, Node.js and .NET** — in your CLI: *"Add DLP to this agent."* Three parts:
 
 **Grants.** The agent's identity service principal needs two delegated Graph scopes: `ProtectionScopes.Compute.User` and `Content.Process.User`. Which principal depends on kind — the identity created at setup (blueprint-only / CEA) or the one minted at instance creation (AI Teammate). This is one `oauth2PermissionGrants` POST via `az rest`; the kit's DLP add-on and the reference deploy kit both automate it.
 

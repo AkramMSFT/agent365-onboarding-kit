@@ -417,6 +417,8 @@ $manifest = [ordered]@{
     upstreamCommit  = $UpstreamCommit
     builtUtc        = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
     skills          = @(Get-ChildItem -Path (Join-Path $KitPath 'skills') -Directory | ForEach-Object { $_.Name })
+    addons          = @(if (Test-Path -LiteralPath (Join-Path $KitPath 'addons')) {
+                          Get-ChildItem -Path (Join-Path $KitPath 'addons') -Directory | ForEach-Object { $_.Name } })
 }
 $manifest | ConvertTo-Json -Depth 5 |
     Set-Content -LiteralPath (Join-Path $KitPath 'KIT-VERSION.json') -Encoding UTF8
@@ -439,7 +441,18 @@ foreach ($target in $discoveryTargets) {
     $dest = Join-Path $OutDir $target.Path
     New-Item -ItemType Directory -Force -Path $dest | Out-Null
     Copy-Item -Path (Join-Path $KitPath 'skills\*') -Destination $dest -Recurse -Force
+    # Kit-authored add-ons live in .a365-kit/addons/ (from payload/), separate from the
+    # seven upstream skills so provenance stays clear, but they are discovered the same way.
+    $addonsPath = Join-Path $KitPath 'addons'
+    if (Test-Path -LiteralPath $addonsPath) {
+        Copy-Item -Path (Join-Path $addonsPath '*') -Destination $dest -Recurse -Force
+    }
     Ok "$($target.Path)  ->  $($target.For)"
+}
+$addonNames = @()
+if (Test-Path -LiteralPath (Join-Path $KitPath 'addons')) {
+    $addonNames = @(Get-ChildItem -Path (Join-Path $KitPath 'addons') -Directory | ForEach-Object { $_.Name })
+    Ok "add-ons included: $($addonNames -join ', ')"
 }
 
 # ---------------------------------------------------------------------------
@@ -477,7 +490,9 @@ if ($nsLeft) {
 $refPattern = [regex]::Escape($KIT_DIR) + '/[A-Za-z0-9_./-]+'
 $checked = 0
 $badRefs = @()
-foreach ($file in (Get-ChildItem -Path (Join-Path $KitPath 'skills') -Filter 'SKILL.md' -Recurse)) {
+$skillMdRoots = @((Join-Path $KitPath 'skills'))
+if (Test-Path -LiteralPath (Join-Path $KitPath 'addons')) { $skillMdRoots += (Join-Path $KitPath 'addons') }
+foreach ($file in ($skillMdRoots | ForEach-Object { Get-ChildItem -Path $_ -Filter 'SKILL.md' -Recurse })) {
     $text = Get-Content -LiteralPath $file.FullName -Raw
     foreach ($m in [regex]::Matches($text, $refPattern)) {
         $rel = $m.Value.TrimEnd('.', ',', ')', '`')
@@ -505,15 +520,19 @@ foreach ($js in $jsFiles) {
 }
 Ok "$($jsFiles.Count) JS files parse cleanly"
 
-# (d) Discovery copies match the canonical set.
-$canonicalNames = (Get-ChildItem -Path (Join-Path $KitPath 'skills') -Directory).Name | Sort-Object
+# (d) Discovery copies match the canonical set: the seven upstream skills plus kit add-ons.
+$canonicalNames = @((Get-ChildItem -Path (Join-Path $KitPath 'skills') -Directory).Name)
+if (Test-Path -LiteralPath (Join-Path $KitPath 'addons')) {
+    $canonicalNames += @((Get-ChildItem -Path (Join-Path $KitPath 'addons') -Directory).Name)
+}
+$canonicalNames = $canonicalNames | Sort-Object
 foreach ($target in $discoveryTargets) {
     $names = (Get-ChildItem -Path (Join-Path $OutDir $target.Path) -Directory).Name | Sort-Object
     if (Compare-Object $canonicalNames $names) {
         $problems += "discovery copy out of sync: $($target.Path)"
     }
 }
-Ok 'discovery copies match canonical skills'
+Ok "discovery copies match canonical skills + add-ons ($($canonicalNames.Count) total)"
 
 # (e) Hook commands are absolute and quoted.
 $hookCmds = Select-String -Path (Join-Path $KitPath 'skills\*\SKILL.md') -Pattern 'command:\s*node'
