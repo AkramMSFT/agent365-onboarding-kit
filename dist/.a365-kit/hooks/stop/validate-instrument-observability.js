@@ -219,6 +219,33 @@ if (isNodejs) {
     }
   }
 
+  // Kit fix-up: on the OBO path the resolver reads a cache that only
+  // refreshObservabilityToken fills. Without the per-turn call it returns '' forever
+  // and nothing is exported. Also catch the PascalCase name, which is undefined on
+  // the shipped API and throws a TypeError on the first turn.
+  if (authMode !== 's2s') {
+    const wiresCacheResolver = anyFileContains(tsFiles, 'getObservabilityToken');
+    const refreshesPerTurn = anyFileContains(tsFiles, 'refreshObservabilityToken');
+    if (wiresCacheResolver && !refreshesPerTurn) {
+      issues.push('OBO: tokenResolver reads AgenticTokenCacheInstance but no call to ' +
+        'refreshObservabilityToken() was found -- the cache is never filled, the resolver ' +
+        'returns "" and no spans are exported. Call it at the start of each handler turn');
+    }
+    const badCase = tsFiles.filter(f => {
+      try {
+        return /\.RefreshObservabilityToken\b/.test(fs.readFileSync(f, 'utf8'));
+      } catch {
+        return false;
+      }
+    });
+    if (badCase.length) {
+      issues.push('RefreshObservabilityToken is spelled PascalCase in ' +
+        badCase.map(f => path.basename(f)).join(', ') +
+        ' -- the shipped API is refreshObservabilityToken (camelCase since GA 1.0); ' +
+        'the PascalCase name is undefined and throws on the first turn');
+    }
+  }
+
   // 5. .env has observability vars
   const hasEnvConfig = envFiles.some(f =>
     fileContains(f, 'ENABLE_A365_OBSERVABILITY_EXPORTER'));
