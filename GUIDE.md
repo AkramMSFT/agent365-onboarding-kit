@@ -82,7 +82,22 @@ az login --allow-no-subscriptions
 
 ## Step 1 — Put the kit in your agent project
 
-Download the latest release zip and extract it into the **root of your agent project** — the folder containing your agent's source. It has no wrapper directory, so extracting in place gives you:
+Download the latest release zip into your Downloads folder, then from the **root of your agent project** — the folder containing your agent's source — extract it in place. This is the entire install:
+
+```powershell
+# Windows PowerShell, from the project root
+cd C:\path\to\your-agent-project
+Expand-Archive -Path "$env:USERPROFILE\Downloads\agent365-onboarding-kit-v0.1.0.zip" -DestinationPath . -Force
+```
+
+```bash
+# macOS / Linux, from the project root
+cd ~/path/to/your-agent-project
+unzip -o ~/Downloads/agent365-onboarding-kit-v0.1.0.zip -d .
+chmod +x agent365-kit.sh
+```
+
+The zip has no wrapper directory, so extracting in place gives you:
 
 ```
 your-agent-project/
