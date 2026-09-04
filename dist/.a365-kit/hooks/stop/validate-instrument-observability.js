@@ -140,6 +140,27 @@ if (isDotnet) {
     issues.push('appsettings.json does not contain A365 observability config (EnableAgent365Exporter)');
   }
 
+  // Kit fix-up: the value must be true or nothing is ever exported. Only the root
+  // appsettings.json is checked; appsettings.Development.json is meant to be false.
+  const hasExporterKey = anyFileContains(appSettingsFiles, 'EnableAgent365Exporter');
+  const exporterIsOn = appSettingsFiles.some(f => {
+    try {
+      return /"EnableAgent365Exporter"\s*:\s*true/i.test(fs.readFileSync(f, 'utf8'));
+    } catch {
+      return false;
+    }
+  });
+  if (hasExporterKey && !exporterIsOn) {
+    issues.push('EnableAgent365Exporter is present in appsettings.json but not "true" -- the agent is instrumented but exports nothing; set it to true and restart');
+  }
+
+  // Kit fix-up: on the OBO path the exporter's token comes from a cache that only the
+  // per-turn RegisterObservability() call fills. Without it every export is unauthenticated.
+  if (authMode !== 's2s' && hasDistroWired && !anyFileContains(csFiles, 'RegisterObservability')) {
+    issues.push('OBO: no call to RegisterObservability() found in any .cs file -- the exporter token cache ' +
+      'is never filled, so no spans are exported. Call it once per turn in the agent handler');
+  }
+
   // 5. Logging config present — required for logs to appear in Microsoft Defender
   const hasLoggingConfig = appSettingsFiles.some(f =>
     fileContains(f, 'Microsoft.Agents.A365.Observability') && fileContains(f, 'OpenTelemetry'));

@@ -189,6 +189,26 @@ The kit adds two validator checks for the OBO path: a `tokenResolver` reading th
 
 Found 2026-09-04 while confirming whether the section 11 fix left Node.js exposed. Reported upstream.
 
+
+### 13. `validate-instrument-observability.js` — the .NET branch
+
+.NET does not share the section 11 defect either, and this was verified by reflecting over the shipped assemblies rather than reading the docs:
+
+```
+delegate AsyncAuthTokenResolver(String agentId, String tenantId) -> Task<...>
+Agent365ExporterOptions.TokenResolver : AsyncAuthTokenResolver
+```
+
+The resolver is async **by type**, so the exporter awaits it and the reference doc's `async (agentId, tenantId) => await tokenCache.GetObservabilityToken(...)` is correct. `AgenticTokenCache` has the same shape as Python's — sync `RegisterObservability`, async `GetObservabilityToken` — but because the delegate is declared async, there is no mismatch.
+
+The .NET *instructions* are also the strongest of the three languages: invariant 3 already has the skill correct `EnableAgent365Exporter`, Phase 3 warns that without it "the exporter is wired but inert", and the per-turn `RegisterObservability()` call is spelled out in Phase 4. Nothing needed rewriting.
+
+What was missing was verification. The validator's .NET branch checked only that `EnableAgent365Exporter` **exists** — the same defect section 9 fixed for Node.js and Python, left in place for .NET — so an agent with the exporter off passed as fully instrumented. And nothing checked the per-turn registration, so an OBO agent whose token cache is never filled also passed.
+
+Both checks added. The exporter check requires `true` only in the root `appsettings.json`; `appsettings.Development.json` is *meant* to be `false` (invariant 3 says so) and is excluded, because `filterByName` matches on exact basename. Verified across four states: exporter false, exporter true, a `false` Development file beside a `true` root, and a missing `RegisterObservability`.
+
+Found 2026-09-04 while checking whether sections 11 and 12 left .NET exposed.
+
 ---
 
 ## Kit add-ons — not Microsoft's
@@ -212,7 +232,7 @@ The seven Microsoft skills are untouched by the add-ons: they reference upstream
 - No phase ordering, decision matrix, or trigger phrases.
 - No code patterns in `references/` beyond the token-resolver fix in section 11.
 - No skill logic beyond the exporter switch in section 10, which is applied to bring the Node.js and Python paths into line with what upstream's .NET path already does.
-- No validator check logic beyond the two bug fixes in sections 8 and 9, and no code pattern beyond the token-resolver fix in section 11 — the validators otherwise enforce exactly what upstream enforces.
+- No validator check logic beyond the bug fixes in sections 8, 9, 11, 12 and 13, and no code pattern beyond the token-resolver fix in section 11 — the validators otherwise enforce exactly what upstream enforces.
 - Nothing added to the skills. This kit contributes no Purview, hosting, or hardening content of its own to them; that lives in the separately labelled add-ons above.
 
 ## Reporting issues
