@@ -10,6 +10,36 @@ Every step is labelled by **who** performs it:
 - **[you]** one command in your own terminal
 - **[admin]** a tenant admin, in a portal
 
+```mermaid
+flowchart TD
+    A["Your agent's source"] --> B["1-2 Place the kit<br/>launch your CLI"]
+    B --> C["3 Register<br/>blueprint + Agent ID"]
+    C --> D["4 Observability"]
+    C --> E["5 Tools<br/>WorkIQ / MCP / lab"]
+    D --> F{"Reachable in<br/>Teams &amp; Copilot?"}
+    E --> F
+    F -- "no, governance only" --> Z["Done: Registered"]
+    F -- "yes" --> G["6 Host + endpoint URL"]
+    G --> H["7 OBO agent<br/>or AI Teammate"]
+    H --> I["8 Publish manifest package"]
+    I --> J["9 Upload, activate,<br/>create instance"]
+    J --> K["10 Purview DLP"]
+    K --> L["Chatting in Teams<br/>&amp; Copilot, governed"]
+
+    classDef cli fill:#dbeafe,stroke:#2563eb,color:#111;
+    classDef you fill:#fef3c7,stroke:#d97706,color:#111;
+    classDef admin fill:#fee2e2,stroke:#dc2626,color:#111;
+    classDef done fill:#dcfce7,stroke:#16a34a,color:#111;
+    class B,C,D,E,G cli;
+    class I you;
+    class J,K admin;
+    class Z,L done;
+```
+
+<sub>Blue = the AI CLI does it · amber = you, in your own terminal · red = an admin, in a portal · green = a finish line.</sub>
+
+> Screenshots for the portal steps go in [`docs/images/`](docs/images/) — see its README for the shot-list. The text steps stand on their own without them.
+
 ---
 
 ## Before you start
@@ -73,6 +103,8 @@ Confirm your CLI sees the skills:
 
 You should see twelve: seven Microsoft skills plus five kit add-ons.
 
+<!-- ![Skills listed by the CLI](images/02-skills-list.png) -->
+
 ## Step 3 — Register: blueprint + Agent ID  [CLI] + [you]
 
 In your CLI:
@@ -106,6 +138,8 @@ python -c "import src.agent"           # confirm it still imports
 Python + WorkIQ: if the import fails on `microsoft_agents_a365.runtime`, add `microsoft-agents-a365-runtime>=1.0.0` and install again.
 
 **You are now Registered.** The agent is in the Agent 365 registry with an identity. If governance is all you need, stop here.
+
+<!-- ![a365 setup all summary](images/03-setup-summary.png) -->
 
 ## Step 4 — Observability  [CLI]
 
@@ -156,6 +190,8 @@ a365 setup permissions bot
 
 Verify in the Teams Developer Portal (the CLI gives you the link) that **Agent Type = API Based** and the **Notification URL** matches your endpoint.
 
+<!-- ![Teams Developer Portal config](images/04-dev-portal.png) -->
+
 ## Step 7 — Choose the path: OBO agent or AI Teammate
 
 This decides what happens in Steps 8–9. It was set by your capability choice in Step 3.
@@ -180,6 +216,8 @@ a365 publish --aiteammate true  # blueprint / OBO agent (flag selects the packag
 
 This writes `manifest/manifest.json` and `manifest/manifest.zip`. Edit `name.short` (30 chars max), the description and icons in `manifest/manifest.json` if you want, then run it again.
 
+<!-- ![a365 publish output](images/05-publish.png) -->
+
 ## Step 9 — Upload, activate, create the instance  [admin]
 
 Portal only — there is no CLI upload API.
@@ -191,6 +229,10 @@ Portal only — there is no CLI upload API.
 User-driven alternative if you lack the Teams Admin role: sideload the same zip via **Teams → Apps → Manage your apps → Upload a custom app**, then **Request Instance**; an admin approves at `admin.cloud.microsoft/#/agents/all/requested`.
 
 Provisioning is asynchronous — a few minutes, occasionally longer. If **Request Instance** is disabled, Agent 365 Frontier is not enabled on the tenant.
+
+<!-- ![Upload custom agent](images/06-admin-upload.png) -->
+<!-- ![Activate](images/07-admin-activate.png) -->
+<!-- ![Create instance](images/08-create-instance.png) -->
 
 ## Step 10 — Govern with Purview DLP  [CLI] + [admin]
 
@@ -205,10 +247,14 @@ The `add-purview-dlp` add-on grants the agent identity two Graph scopes, and wir
 
 Allow up to 24 hours for the first evaluation.
 
+<!-- ![Purview policy](images/10-purview-policy.png) -->
+
 ## Test
 
 - **Before upload / any path:** *Test this agent locally* opens AgentsPlayground against your host.
 - **After upload and activation:** search Teams for the agent by name and chat with it. It also appears in the Microsoft 365 Copilot agent picker.
+
+<!-- ![Agent answering in Teams](images/09-teams-chat.png) -->
 
 ---
 
