@@ -12,6 +12,8 @@
 #   ./agent365-kit.sh --skip-doctor   skip the prerequisite check
 #   ./agent365-kit.sh --wire-copilot  create/append .github/copilot-instructions.md
 #   ./agent365-kit.sh --launch claude launch Claude Code with the trigger phrase
+#   ./agent365-kit.sh --update        replace the kit with the latest release (kit paths only)
+#   ./agent365-kit.sh --update --update-from <zip|url>   ...from a local zip or another URL
 
 set -euo pipefail
 
@@ -24,6 +26,8 @@ SKIP_DOCTOR=0
 WIRE_COPILOT=0
 WIRE_CLAUDE_HOOK=0
 LAUNCH=''
+UPDATE=0
+UPDATE_FROM='https://github.com/AkramMSFT/agent365-onboarding-kit/releases/latest/download/agent365-onboarding-kit-latest.zip'
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -32,11 +36,58 @@ while [ $# -gt 0 ]; do
     --wire-copilot)     WIRE_COPILOT=1 ;;
     --wire-claude-hook) WIRE_CLAUDE_HOOK=1 ;;
     --launch)           shift; LAUNCH="${1:-}" ;;
-    -h|--help)          sed -n '2,14p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    --update)           UPDATE=1 ;;
+    --update-from)      shift; UPDATE_FROM="${1:-}" ;;
+    -h|--help)          sed -n '2,16p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) echo "Unknown option: $1" >&2; exit 2 ;;
   esac
   shift
 done
+
+# -- 0. Self-update -------------------------------------------------------------
+# Replaces kit paths only; the user's agent, .env, config and .claude/settings.json
+# are never touched. Skill folders to replace come from the NEW kit's manifest
+# (plus the old one's, so a skill upstream removed is removed here too).
+
+if [ "$UPDATE" -eq 1 ]; then
+  # Node is a hard prerequisite of the kit (the validators run on it), so it is the
+  # one JSON reader we can rely on. python3 is deliberately NOT used: on Windows it
+  # often resolves to the Store alias stub, which prints an error and returns nothing.
+  command -v node >/dev/null 2>&1 || { echo "  node is required to read the kit manifest (it is a kit prerequisite)" >&2; exit 1; }
+  STAGE="$(mktemp -d)"
+  trap 'rm -rf "$STAGE"' EXIT
+  ZIP="$STAGE/kit.zip"
+  case "$UPDATE_FROM" in
+    http://*|https://*) echo "  downloading $UPDATE_FROM"; curl -fsSL -o "$ZIP" "$UPDATE_FROM" ;;
+    *) [ -f "$UPDATE_FROM" ] || { echo "  not found: $UPDATE_FROM" >&2; exit 1; }; cp "$UPDATE_FROM" "$ZIP" ;;
+  esac
+  NEW="$STAGE/new"; mkdir -p "$NEW"
+  if command -v unzip >/dev/null 2>&1; then unzip -q -o "$ZIP" -d "$NEW"
+  else tar -xf "$ZIP" -C "$NEW"; fi          # bsdtar (macOS, Windows 10+) extracts zips
+  [ -f "$NEW/.a365-kit/KIT-VERSION.json" ] || { echo "  that archive is not an Agent 365 Onboarding Kit" >&2; exit 1; }
+  desc()  { node -e 'const d=require(process.argv[1]);console.log(`kit v${d.kitVersion} / upstream v${d.upstreamVersion} (${d.upstreamCommit})`)' "$1"; }
+  names() { node -e 'const d=require(process.argv[1]);console.log([...(d.skills||[]),...(d.addons||[])].join("\n"))' "$1"; }
+  OLD_M="$KIT_ROOT/.a365-kit/KIT-VERSION.json"
+  echo "  current : $([ -f "$OLD_M" ] && desc "$OLD_M" || echo 'no kit installed')"
+  echo "  new     : $(desc "$NEW/.a365-kit/KIT-VERSION.json")"
+  NAMES="$(names "$NEW/.a365-kit/KIT-VERSION.json"; [ -f "$OLD_M" ] && names "$OLD_M")"
+  NAMES="$(printf '%s\n' "$NAMES" | sort -u | sed '/^$/d')"
+  rm -rf "$KIT_ROOT/.a365-kit"; cp -R "$NEW/.a365-kit" "$KIT_ROOT/.a365-kit"
+  for DISC in .claude/skills .agents/skills; do
+    mkdir -p "$KIT_ROOT/$DISC"
+    while IFS= read -r NAME; do
+      rm -rf "$KIT_ROOT/$DISC/$NAME"
+      [ -d "$NEW/$DISC/$NAME" ] && cp -R "$NEW/$DISC/$NAME" "$KIT_ROOT/$DISC/$NAME"
+    done <<< "$NAMES"
+  done
+  for F in agent365-kit.ps1 agent365-kit.sh AGENT365-KIT-README.md; do
+    [ -f "$NEW/$F" ] && cp "$NEW/$F" "$KIT_ROOT/$F"
+  done
+  chmod +x "$KIT_ROOT/agent365-kit.sh" 2>/dev/null || true
+  echo "  kit updated. Your agent files, .env, a365 config and .claude/settings.json were not touched."
+  echo "  re-run ./agent365-kit.sh to use the new launcher."
+  exit 0
+fi
 
 if [ -t 1 ] && [ -z "${NO_COLOR:-}" ]; then
   C_RESET=$'\033[0m'; C_BOLD=$'\033[1m'; C_DIM=$'\033[2m'

@@ -1,0 +1,41 @@
+name: Build
+
+# Smoke-check every push and pull request: the kit must still build and pass its
+# own verification against current upstream main.
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ["dist/**", "*.md"]
+  pull_request:
+    paths-ignore: ["dist/**", "*.md"]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        shell: pwsh
+        run: ./build/Build-Kit.ps1 -Zip
+      - name: Launchers parse
+        shell: pwsh
+        run: |
+          $errs = $null
+          [System.Management.Automation.Language.Parser]::ParseFile("$PWD/dist/agent365-kit.ps1", [ref]$null, [ref]$errs) | Out-Null
+          if ($errs) { $errs | ForEach-Object { $_.ToString() }; exit 1 }
+          bash -n dist/agent365-kit.sh
+      - name: Validators run
+        shell: pwsh
+        run: |
+          $env:VALIDATE_SKIP_EXEC = "1"
+          Get-ChildItem dist/.a365-kit/hooks/stop/*.js | ForEach-Object {
+            Push-Location dist
+            $out = node $_.FullName 2>$null
+            Pop-Location
+            if (-not ($out -match '"ok"')) { throw "validator produced no JSON verdict: $($_.Name)" }
+          }
+          "all validators emit a verdict"
