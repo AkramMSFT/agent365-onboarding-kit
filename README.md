@@ -53,10 +53,10 @@ Support is determined by where each CLI looks for skills, not by anything kit-sp
 
 The skills are plain Markdown. Only the Node validator hooks are Claude Code specific, and they are optional — the skills work without them, just without the end-of-session correctness check.
 
-**Three guides, three questions:**
+**[`GUIDE.md`](GUIDE.md) is the complete end-to-end walkthrough** — from your agent's source to a registered, observable, tool-enabled agent chatting in Teams and Copilot with Purview and Defender watching. Start there. The `docs/` below go deeper on specific parts:
 
-- **[`docs/STEP-BY-STEP.md`](docs/STEP-BY-STEP.md)** — *what do I say, in what order?* The phrase that starts each stage — register, chat in Teams and Copilot, Purview DLP — the questions each asks, and the four moments you run one command in your own terminal. Start here.
-- **[`docs/USING-WITH-YOUR-CLI.md`](docs/USING-WITH-YOUR-CLI.md)** — *how do I start?* From the zip to the moment onboarding begins, per CLI.
+- **[`docs/STEP-BY-STEP.md`](docs/STEP-BY-STEP.md)** — the phrase that starts each stage, condensed.
+- **[`docs/USING-WITH-YOUR-CLI.md`](docs/USING-WITH-YOUR-CLI.md)** — per-CLI setup and differences.
 - **[`docs/LIFECYCLE.md`](docs/LIFECYCLE.md)** — *how do I finish?* The complete path from a custom agent to one chatting in Teams and Copilot with Defender and Purview watching: agent kinds and identity, the two commands you always run yourself, hosting and the messaging endpoint, `a365 publish` and the manifest, admin-centre activation, DLP, teardown. Each step says whether the skills do it, you do it, or an admin does it in a portal.
 
 ---
