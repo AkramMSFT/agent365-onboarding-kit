@@ -69,6 +69,7 @@ Two skills the kit adds beside Microsoft's seven, discovered the same way, clear
 |---|---|---|
 | `add-messaging-endpoint` | *"make this agent chattable in Teams"* | For blueprint-based agents, which upstream registers but never hosts: adds the `/api/messages` host (Python verified on SDK 1.6; Node/.NET via upstream's references), exposes it through a dev tunnel or your URL, registers the endpoint with `--m365`, and hands off `a365 setup permissions bot` — the one part that needs the Windows broker. |
 | `add-purview-dlp` | *"add DLP to this agent"* | Purview runtime DLP on every prompt and response: two Graph REST calls, so one pattern for Python, Node.js and .NET. Grants the two delegated scopes on the agent identity, wires the hooks with the token-subject rule that otherwise yields Graph 400, and hands off the portal policy. Python is from a live reference deployment; the ports are transcriptions awaiting a tenant run. |
+| `add-lab-tools` | *"add lab tools"* | Local in-process tools beyond Work IQ: web fetch and page summarise, base64/hex/url/rot13 encode-decode, md5/sha hashing, text transforms. Plain function tools — no consent or tokens. Dual-use and opt-in; the web fetch is deliberate egress surface for exercising Defender and Purview. Python verified on a live agent; Node.js and .NET ported. |
 
 ## Building
 
