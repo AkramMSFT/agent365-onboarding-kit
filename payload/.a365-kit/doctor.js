@@ -64,13 +64,23 @@ const CHECKS = [
       : 'brew install node   # or https://nodejs.org',
   },
   {
-    key: 'claude',
-    label: 'Claude Code CLI',
+    key: 'ai_cli',
+    label: 'An AI coding CLI',
     required: true,
-    why: 'The host that loads these skills and drives the onboarding.',
-    probe: () => firstVersion(probe('claude --version')),
+    why: 'Reads the skills and drives the onboarding. Any one of these is enough.',
+    // Passes if at least one supported CLI is on PATH; reports which.
+    probe: () => {
+      const found = [];
+      if (probe('claude --version')) found.push('Claude Code');
+      if (probe(isWin ? 'where copilot' : 'command -v copilot')) found.push('Copilot CLI');
+      if (probe(isWin ? 'where cursor-agent' : 'command -v cursor-agent')) found.push('Cursor');
+      if (probe(isWin ? 'where gemini' : 'command -v gemini')) found.push('Gemini CLI');
+      return found.length ? found.join(', ') : null;
+    },
     ok: v => !!v,
-    install: 'npm install -g @anthropic-ai/claude-code',
+    install: 'pick one -- Copilot: npm install -g @github/copilot   |   '
+      + 'Claude Code: npm install -g @anthropic-ai/claude-code   |   '
+      + 'Cursor / Codex / Gemini CLI: install per their docs',
   },
   {
     key: 'dotnet',
