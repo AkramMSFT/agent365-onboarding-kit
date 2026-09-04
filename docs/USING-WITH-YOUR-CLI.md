@@ -333,6 +333,8 @@ You'll be asked to choose an agent kind and an auth mode. Two notes worth having
 
 The skills are additive, idempotent, and state-aware. Re-running them is safe.
 
+**That gets the agent registered.** Making it answer in Teams and Microsoft 365 Copilot — hosting, the messaging endpoint, `a365 publish`, admin-centre activation — and putting Purview DLP on it are covered step by step in **[LIFECYCLE.md](LIFECYCLE.md)**, with each step labelled by who performs it.
+
 ### Running skills directly
 
 Already registered? Skip the entry point:
