@@ -224,6 +224,9 @@ if (isNodejs) {
     fileContains(f, 'ENABLE_A365_OBSERVABILITY_EXPORTER'));
   if (!hasEnvConfig) {
     issues.push('.env / .env.example does not contain ENABLE_A365_OBSERVABILITY_EXPORTER');
+  } else if (!envFiles.some(f => { try { return /ENABLE_A365_OBSERVABILITY_EXPORTER\s*=\s*true/i.test(fs.readFileSync(f, 'utf8')); } catch { return false; } })) {
+    // Kit fix-up: the value must be true or nothing is ever exported.
+    issues.push('ENABLE_A365_OBSERVABILITY_EXPORTER is present but not "true" -- the agent is instrumented but exports nothing; set it to true and restart');
   }
 }
 
@@ -314,6 +317,9 @@ if (isPython) {
     fileContains(f, 'ENABLE_A365_OBSERVABILITY_EXPORTER'));
   if (!hasEnvConfig) {
     issues.push('.env does not contain ENABLE_A365_OBSERVABILITY_EXPORTER');
+  } else if (!envFiles.some(f => { try { return /ENABLE_A365_OBSERVABILITY_EXPORTER\s*=\s*true/i.test(fs.readFileSync(f, 'utf8')); } catch { return false; } })) {
+    // Kit fix-up: the value must be true or nothing is ever exported.
+    issues.push('ENABLE_A365_OBSERVABILITY_EXPORTER is present but not "true" -- the agent is instrumented but exports nothing; set it to true and restart');
   }
 }
 
