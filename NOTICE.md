@@ -114,6 +114,20 @@ Everything under `.a365-kit/addons/` (and its copies in `.claude/skills/` and `.
 
 The seven Microsoft skills are untouched by the add-ons: they reference upstream files, never modify them.
 
+### 9. `validate-instrument-observability.js` — exporter value, not just presence
+
+The `a365` CLI stamps `ENABLE_A365_OBSERVABILITY_EXPORTER=false` into `.env`, and `instrument-observability` has an explicit invariant not to overwrite an existing value ("Preserve existing values … Add only missing keys"); it is meant to *warn* instead. Upstream's validator then checks only that the key **exists**:
+
+```js
+const hasEnvConfig = envFiles.some(f => fileContains(f, 'ENABLE_A365_OBSERVABILITY_EXPORTER'));
+```
+
+So an agent with the exporter switched off passes validation as fully instrumented, produces spans on every turn, and exports none of them. The Agent 365 Activity view stays empty with nothing anywhere reporting a fault.
+
+The kit adds a value check to both the Node.js and Python branches: if the key is present but not `true`, the validator fails with *"instrumented but exports nothing; set it to true and restart"*. No other check is altered.
+
+Found 2026-09-04 after several hours of live Teams traffic produced no activity. The instrumentation was correct throughout; only the last hop was disabled.
+
 ---
 
 ## What is *not* changed

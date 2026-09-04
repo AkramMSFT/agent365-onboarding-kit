@@ -290,6 +290,51 @@ const hasPyproject  = fs.existsSync(path.join(cwd, 'pyproject.toml'))
 '@
     }
     @{
+        # BUG FIX -- NOTICE.md section 9. Node.js branch: the check tests only that the
+        # key EXISTS. The a365 CLI stamps ENABLE_A365_OBSERVABILITY_EXPORTER=false, and
+        # instrument-observability deliberately preserves an existing value, so an agent
+        # that exports nothing passes validation as fully instrumented.
+        File = 'hooks\stop\validate-instrument-observability.js'
+        Find = @'
+  const hasEnvConfig = envFiles.some(f =>
+    fileContains(f, 'ENABLE_A365_OBSERVABILITY_EXPORTER'));
+  if (!hasEnvConfig) {
+    issues.push('.env / .env.example does not contain ENABLE_A365_OBSERVABILITY_EXPORTER');
+  }
+'@
+        Replace = @'
+  const hasEnvConfig = envFiles.some(f =>
+    fileContains(f, 'ENABLE_A365_OBSERVABILITY_EXPORTER'));
+  if (!hasEnvConfig) {
+    issues.push('.env / .env.example does not contain ENABLE_A365_OBSERVABILITY_EXPORTER');
+  } else if (!envFiles.some(f => { try { return /ENABLE_A365_OBSERVABILITY_EXPORTER\s*=\s*true/i.test(fs.readFileSync(f, 'utf8')); } catch { return false; } })) {
+    // Kit fix-up: the value must be true or nothing is ever exported.
+    issues.push('ENABLE_A365_OBSERVABILITY_EXPORTER is present but not "true" -- the agent is instrumented but exports nothing; set it to true and restart');
+  }
+'@
+    }
+    @{
+        # BUG FIX -- NOTICE.md section 9. Python branch: same defect.
+        File = 'hooks\stop\validate-instrument-observability.js'
+        Find = @'
+  const hasEnvConfig = envFiles.some(f =>
+    fileContains(f, 'ENABLE_A365_OBSERVABILITY_EXPORTER'));
+  if (!hasEnvConfig) {
+    issues.push('.env does not contain ENABLE_A365_OBSERVABILITY_EXPORTER');
+  }
+'@
+        Replace = @'
+  const hasEnvConfig = envFiles.some(f =>
+    fileContains(f, 'ENABLE_A365_OBSERVABILITY_EXPORTER'));
+  if (!hasEnvConfig) {
+    issues.push('.env does not contain ENABLE_A365_OBSERVABILITY_EXPORTER');
+  } else if (!envFiles.some(f => { try { return /ENABLE_A365_OBSERVABILITY_EXPORTER\s*=\s*true/i.test(fs.readFileSync(f, 'utf8')); } catch { return false; } })) {
+    // Kit fix-up: the value must be true or nothing is ever exported.
+    issues.push('ENABLE_A365_OBSERVABILITY_EXPORTER is present but not "true" -- the agent is instrumented but exports nothing; set it to true and restart');
+  }
+'@
+    }
+    @{
         File = 'skills\a365-code-validator\SKILL.md'
         Find = @'
 When running from the plugin source (Claude Code / marketplace plugin), use:

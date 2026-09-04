@@ -197,6 +197,17 @@ Make the agent emit telemetry — every message, model call and tool call — to
 
 If you selected Observability as a capability in Step 3 it is already wired and this confirms it; if you did not, this adds it now. Either way the `instrument-observability` skill does the work. It uses OpenTelemetry: the SDK auto-instruments every model and tool call into spans, an `InvokeAgentScope` wraps each turn, identity baggage is stamped on the context, and an Agent 365 exporter ships the spans out.
 
+**Then check the exporter is actually on.** The `a365` CLI writes `ENABLE_A365_OBSERVABILITY_EXPORTER=false` into `.env`, and the skill deliberately preserves an existing value rather than overwriting it — so the agent ends up instrumented but exporting nothing, and the Activity view stays empty. Confirm and fix in `.env`:
+
+```
+ENABLE_A365_OBSERVABILITY_EXPORTER=true
+A365_OBSERVABILITY_LOG_LEVEL=info
+```
+
+Restart the agent afterwards — the value is read at startup.
+
+Two more values in `.env` worth checking once the agent is running in Teams: `AGENT365OBSERVABILITY__AGENTID` should be the **instance** appId that Teams runs the agent as, not the identity created at setup, or activity attributes to the wrong agent. `A365_OBSERVABILITY_LOG_LEVEL` is sometimes written as the literal option list `info|warn|error`; set it to one value.
+
 Then verify:
 
 > **Validate A365 code.**
