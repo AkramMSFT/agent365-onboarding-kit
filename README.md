@@ -60,6 +60,15 @@ The skills are plain Markdown. Only the Node validator hooks are Claude Code spe
 
 ---
 
+## Kit add-ons
+
+Two skills the kit adds beside Microsoft's seven, discovered the same way, clearly separated in `NOTICE.md`. Both were built from what the live runs showed was missing.
+
+| Add-on | Say | What it does |
+|---|---|---|
+| `add-messaging-endpoint` | *"make this agent chattable in Teams"* | For blueprint-based agents, which upstream registers but never hosts: adds the `/api/messages` host (Python verified on SDK 1.6; Node/.NET via upstream's references), exposes it through a dev tunnel or your URL, registers the endpoint with `--m365`, and hands off `a365 setup permissions bot` — the one part that needs the Windows broker. |
+| `add-purview-dlp` | *"add DLP to this agent"* | Purview runtime DLP on every prompt and response: two Graph REST calls, so one pattern for Python, Node.js and .NET. Grants the two delegated scopes on the agent identity, wires the hooks with the token-subject rule that otherwise yields Graph 400, and hands off the portal policy. Python is from a live reference deployment; the ports are transcriptions awaiting a tenant run. |
+
 ## Building
 
 Requires PowerShell 7+, Git, and Node.js.
