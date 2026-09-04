@@ -151,12 +151,24 @@ Claude Code runs these validators automatically at the end of a session. Every o
 
 Teams and Copilot deliver messages by HTTPS POST to `/api/messages` on your agent. `make-ai-teammate` scaffolds this host (`host_agent_server.py` / Express / ASP.NET Core). The non-AI-Teammate skill does **not** — it assumes your agent already listens on port 3978 — so for a CEA built from a CLI or library agent, you add it. The pattern is the same aiohttp `CloudAdapter` host the AI Teammate reference uses; asking your CLI to *"Add the Agent 365 hosting layer from the Python AI Teammate reference, keeping my current identity configuration"* gets you there.
 
+> **SDK version matters here (verified on a real run).** Some references — including the
+> Python hosting layer `make-ai-teammate` generates — use `CloudAdapter.on_activity`,
+> `adapter.authorization` and `MsalConnectionManager.from_environment()`. None of those
+> exist in `microsoft-agents` 1.6.x, which is what `pip` installs today; the host crashes
+> on startup. The working 1.6 pattern is `AgentApplication[TurnState]` with
+> `@app.activity(...)` handlers, `MsalConnectionManager(**load_configuration_from_env(os.environ))`,
+> `start_agent_process(request, app, adapter)`, and `jwt_authorization_middleware` with
+> `web_app["agent_configuration"] = connection_manager.get_default_connection_configuration()`.
+> If your generated host dies with `AttributeError ... from_environment`, that is why.
+
 Confirm locally before exposing anything:
 
 ```bash
-python host_agent_server.py             # or npm start / dotnet run
+python -u host_agent_server.py          # -u: unbuffered logs; or npm start / dotnet run
 curl http://localhost:3978/api/health
 ```
+
+Expect `/api/health` → 200 and an anonymous `POST /api/messages` → **401** — the JWT middleware rejecting it is the proof the pipeline is wired. If 3978 is taken by another agent on the machine, set `PORT` in `.env` and use that port for the tunnel below.
 
 ### C2. A public HTTPS URL
 
@@ -179,7 +191,17 @@ The URL is `https://<id>-3978.<cluster>.devtunnels.ms`; `devtunnel show <name>` 
 a365 setup blueprint --update-endpoint https://<your-host>/api/messages --m365
 ```
 
-**`--m365` is required.** Without it the CLI silently skips the Teams Graph re-registration and Teams keeps routing to nothing. Run this every time the URL changes — dev tunnels rotate on restart — and run it even when the config already shows the right value; the disk copy can be stale. It is idempotent. Afterwards, `a365.generated.config.json` has `messagingEndpoint` set and is authoritative.
+**`--m365` is required.** Without it the CLI silently skips the Teams Graph re-registration and Teams keeps routing to nothing. Run this every time the URL changes — dev tunnels rotate on restart — and run it even when the config already shows the right value; the disk copy can be stale. It is idempotent. Afterwards, `a365.generated.config.json` has `messagingEndpoint` set, `completed` flips to `true`, and the file is authoritative. The CLI also re-stamps `.env`; a `PORT` line you added survives.
+
+> **Verified: this one runs fine from inside a coding-agent's shell.** Unlike `a365 setup all`, endpoint registration authenticates with the cached Azure CLI context and never touches the Windows broker. The broker boundary is precise: **creating OAuth2 grants and admin consent** need it; **endpoint registration and inheritable-permission configuration** do not.
+
+Blueprint-based / Custom Engine Agents need one more command, which upstream's skill requires after setup:
+
+```bash
+a365 setup permissions bot
+```
+
+It configures inheritable permissions (works from anywhere), then creates the Messaging Bot API grant (`AgentData.ReadWrite`) and asks `[y/N]` before an application permission — **those two parts need the broker and a keyboard, so run it in your own terminal.** From an agent's shell it half-completes: inheritable permissions land, the grant fails with `MSAL … Status: 17`, and the prompt gets EOF.
 
 ### C4. Verify in the Teams Developer Portal
 
@@ -195,7 +217,20 @@ with the ID from `a365.generated.config.json`. Confirm **Agent Type = API Based*
 
 ## Phase D — Publish and activate
 
-### D1. Manifest and package — `a365 publish`
+### D0. Which path are you on? It decides everything below
+
+> **Verified on a real run:** for a **blueprint-based agent** (`aiTeammate: false` — the Register / Observability / Custom Engine Agent kinds), `a365 publish` prints
+> *"Nothing to publish for blueprint-based agents"* and exits. There is no manifest, no zip, no admin-centre upload on that path. Reachability comes from Phase C alone: the `--m365` endpoint registration plus one more grant step:
+>
+> ```bash
+> a365 setup permissions bot
+> ```
+>
+> which grants the Messaging Bot API (`AgentData.ReadWrite`), the observability write scope, and Power Platform connectivity on the blueprint. Upstream's `make-a365-agent` skill requires it after `setup all` for any CEA. The agent identity already exists (created at setup), so there is no instance to request either.
+>
+> **D1–D2 below apply to AI Teammates only.** If you are on the blueprint path, skip to D3.
+
+### D1. Manifest and package — `a365 publish` (AI Teammate only)
 
 The manifest is the Teams app definition — the JSON that makes the agent an installable app, a bot, and (via `copilotAgents.customEngineAgents`) a **Microsoft 365 Copilot custom engine agent**. **The CLI owns it.** Do not hand-write it.
 
@@ -242,9 +277,10 @@ Provisioning is asynchronous — minutes usually, occasionally hours before the 
 
 ### D3. Smoke test
 
-**Before admin approval — AgentsPlayground.** Works for any kind, hits your host directly:
+**Before admin approval — AgentsPlayground.** Works for any kind, hits your host directly. Note the package name: upstream's skill says `@microsoft/agentsplayground`, which does not exist on npm (404); the real one is:
 
 ```bash
+npm install -g @microsoft/m365agentsplayground
 agentsplayground
 ```
 
