@@ -379,6 +379,7 @@ Everything else is done by the CLI or a portal. These four need your own termina
 | Agent answers nothing in Teams, host log shows no request | Nothing is listening, or the tunnel is down. Both must be running; re-check the Notification URL matches the current tunnel URL. |
 | Host starts, but every turn fails on the model call | No model provider key in `.env` (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `AZURE_OPENAI_*`). Onboarding does not supply one. |
 | `devtunnel host` fails to start | `devtunnel user login` has not been run, or the session expired. It is separate from `az login`. |
+| Log shows `EndpointInvalid` / `Tenant id  is invalid` (note the blank) | The exporter got an un-awaited coroutine instead of a token, not a bad tenant. Python OBO agents onboarded before this kit version need the sync resolver bridge — re-run *Add observability to this agent*. |
 | Everything works but Activity stays empty after hours | `ENABLE_A365_OBSERVABILITY_EXPORTER` is not `true`, or `AGENT365OBSERVABILITY__AGENTID` is not the instance appId. See Step 4. Indexing also lags 15–90 min after the first export. |
 
 ## Going deeper

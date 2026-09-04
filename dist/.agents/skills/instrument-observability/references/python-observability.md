@@ -91,13 +91,48 @@ load_dotenv()
 from microsoft.opentelemetry import use_microsoft_opentelemetry
 from microsoft.opentelemetry.a365.hosting.token_cache_helpers import AgenticTokenCache
 
+import asyncio
+
 _token_cache = AgenticTokenCache()
+
+# a365_token_resolver must be a SYNC callable. AgenticTokenCache exposes only an
+# async getter, so bridge onto the host loop rather than passing it directly:
+# the exporter calls the resolver from its own export thread, so passing the
+# coroutine function hands it an un-awaited coroutine. That object is truthy, so
+# the exporter's "no token" guard does not catch it and it sends
+# "Bearer <coroutine object ...>", which the service rejects with
+# {"code":"EndpointInvalid","message":"Tenant id  is invalid."} -- note the blank
+# tenant: the value is unreadable, not missing from your config.
+HOST_LOOP: asyncio.AbstractEventLoop | None = None
+
+
+def _observability_token(agent_id: str, tenant_id: str) -> str | None:
+    if HOST_LOOP is None or not HOST_LOOP.is_running():
+        return None
+    try:
+        return asyncio.run_coroutine_threadsafe(
+            _token_cache.get_observability_token(agent_id, tenant_id), HOST_LOOP
+        ).result(timeout=15)
+    except Exception:
+        return None   # a telemetry failure must never cost a turn
+
 
 use_microsoft_opentelemetry(
     enable_a365=True,
     a365_enable_observability_exporter=True,   # REQUIRED in 1.0+ to actually export spans
-    a365_token_resolver=_token_cache.get_observability_token,
+    a365_token_resolver=_observability_token,
 )
+```
+
+Set `HOST_LOOP` once the loop exists — in whatever coroutine starts your host:
+
+```python
+import asyncio
+import src.agent as core   # the module holding HOST_LOOP
+
+async def start_server() -> None:
+    core.HOST_LOOP = asyncio.get_running_loop()
+    ...
 ```
 
 > **Two flags required (1.0 breaking change):** `enable_a365=True` only registers
