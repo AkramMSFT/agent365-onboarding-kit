@@ -93,6 +93,7 @@ if (latest && latest !== bundledUpstream) {
   console.log('> [!NOTE]');
   console.log('> **Newer Agent 365 skills available upstream.** This kit (v' + kitVersion +
     ') bundles agent365-skills v' + bundledUpstream + '; Microsoft has published v' + latest + '.');
-  console.log('> The bundled skills still work. To pick up the newer ones, download the latest');
-  console.log('> release of the Agent 365 Onboarding Kit and re-extract it over this project.');
+  console.log('> The bundled skills still work. To pick up the newer ones, run');
+  console.log('> `./agent365-kit.ps1 -Update` (Windows) or `./agent365-kit.sh --update` (macOS/Linux)');
+  console.log('> in this project -- it replaces only the kit\'s own files.');
 }

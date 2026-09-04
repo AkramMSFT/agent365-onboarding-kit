@@ -1,0 +1,109 @@
+name: Refresh from upstream
+
+# Rebuilds the kit whenever microsoft/agent365-skills moves, and cuts a release.
+#
+# Zero-touch when upstream is well-behaved. Loud when it is not: Build-Kit.ps1
+# asserts every text fix-up against upstream's exact wording, so an upstream
+# rewording fails this job and opens an issue instead of shipping a mangled kit.
+#
+# Runs on Windows because the build script is PowerShell with Windows path joins.
+
+on:
+  schedule:
+    - cron: "17 5 * * *"          # daily, 05:17 UTC (off the hour to dodge the rush)
+  workflow_dispatch:
+    inputs:
+      upstream_ref:
+        description: "Upstream branch or tag to build (default: main)"
+        default: "main"
+        required: false
+      force:
+        description: "Build even if upstream has not moved"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: refresh-upstream
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: windows-latest
+    env:
+      UPSTREAM_REF: ${{ github.event.inputs.upstream_ref || 'main' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Compare upstream HEAD with the bundled commit
+        id: probe
+        shell: pwsh
+        run: |
+          $bundled = (Get-Content dist/.a365-kit/KIT-VERSION.json -Raw | ConvertFrom-Json).upstreamCommit
+          $remote  = (git ls-remote https://github.com/microsoft/agent365-skills.git "refs/heads/$env:UPSTREAM_REF").Split("`t")[0]
+          if (-not $remote) { $remote = (git ls-remote https://github.com/microsoft/agent365-skills.git "refs/tags/$env:UPSTREAM_REF").Split("`t")[0] }
+          $short = $remote.Substring(0, 7)
+          "bundled=$bundled"  >> $env:GITHUB_OUTPUT
+          "remote=$short"     >> $env:GITHUB_OUTPUT
+          $changed = ($short -ne $bundled) -or ('${{ github.event.inputs.force }}' -eq 'true')
+          "changed=$($changed.ToString().ToLower())" >> $env:GITHUB_OUTPUT
+          Write-Host "bundled upstream: $bundled   remote $env:UPSTREAM_REF: $short   changed: $changed"
+
+      - name: Nothing to do
+        if: steps.probe.outputs.changed == 'false'
+        run: echo "Upstream ${{ env.UPSTREAM_REF }} is still at ${{ steps.probe.outputs.bundled }}. Kit is current."
+
+      - name: Build the kit
+        if: steps.probe.outputs.changed == 'true'
+        id: build
+        shell: pwsh
+        run: |
+          ./build/Build-Kit.ps1 -UpstreamRef $env:UPSTREAM_REF -Zip
+          $m = Get-Content dist/.a365-kit/KIT-VERSION.json -Raw | ConvertFrom-Json
+          "kit=$($m.kitVersion)"           >> $env:GITHUB_OUTPUT
+          "upstream=$($m.upstreamVersion)" >> $env:GITHUB_OUTPUT
+          "commit=$($m.upstreamCommit)"    >> $env:GITHUB_OUTPUT
+
+      - name: Commit the rebuilt dist
+        if: steps.probe.outputs.changed == 'true'
+        shell: pwsh
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add dist
+          if (git diff --cached --quiet) { Write-Host "dist unchanged after rebuild"; exit 0 }
+          git commit -m "Refresh from upstream agent365-skills v${{ steps.build.outputs.upstream }} (${{ steps.build.outputs.commit }})"
+          git push
+
+      - name: Release
+        if: steps.probe.outputs.changed == 'true'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "v${{ steps.build.outputs.kit }}-upstream.${{ steps.build.outputs.commit }}"
+          $zip = "agent365-onboarding-kit-v${{ steps.build.outputs.kit }}.zip"
+          Copy-Item $zip agent365-onboarding-kit-latest.zip
+          gh release create $tag $zip agent365-onboarding-kit-latest.zip `
+            --title "Kit v${{ steps.build.outputs.kit }} · upstream v${{ steps.build.outputs.upstream }} (${{ steps.build.outputs.commit }})" `
+            --notes "Rebuilt from microsoft/agent365-skills ``${{ env.UPSTREAM_REF }}`` at ``${{ steps.build.outputs.commit }}``.`n`nExtract into your agent project root, or run ``agent365-kit.ps1 -Update`` / ``agent365-kit.sh --update`` in a project that already has the kit."
+
+      - name: Open or update an issue on failure
+        if: failure()
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $title = "Upstream refresh failed for ${{ env.UPSTREAM_REF }} @ ${{ steps.probe.outputs.remote }}"
+          $body  = "The scheduled rebuild against microsoft/agent365-skills ``${{ env.UPSTREAM_REF }}`` (``${{ steps.probe.outputs.remote }}``) failed.`n`nMost likely an upstream rewording broke one of the asserted fix-ups in ``build/Build-Kit.ps1`` -- the log names the file. Update the fix-up (or delete it if upstream fixed the underlying bug) and re-run.`n`nRun: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          $open = gh issue list --label upstream-refresh --state open --json number --jq '.[0].number'
+          if ($open) { gh issue comment $open --body $body }
+          else {
+            gh label create upstream-refresh --color D93F0B --description "Scheduled upstream rebuild failed" 2>$null
+            gh issue create --title $title --body $body --label upstream-refresh
+          }

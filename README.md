@@ -85,11 +85,17 @@ Output lands in `dist/`. With `-Zip` you also get `agent365-onboarding-kit-v<ver
 
 ### Refreshing when Microsoft ships a new version
 
+It happens by itself. `.github/workflows/refresh-upstream.yml` runs daily, compares upstream `main` with the commit recorded in `KIT-VERSION.json`, and when it has moved: rebuilds, commits `dist/`, and cuts a release with the zip attached — both `agent365-onboarding-kit-v<version>.zip` and a stable `agent365-onboarding-kit-latest.zip`. If a fix-up assertion fails because upstream reworded a patched passage, the job fails and opens (or comments on) an issue labelled `upstream-refresh` naming the file. Trigger it by hand from the Actions tab, optionally pinning `upstream_ref` to a tag.
+
+Locally it is one command:
+
 ```powershell
 .\build\Build-Kit.ps1 -Zip
 ```
 
-That is the whole process. The build re-derives everything from upstream; nothing is hand-maintained. Bump `build/kit.version` if the kit's own packaging changed.
+The build re-derives everything from upstream; nothing is hand-maintained. Bump `build/kit.version` if the kit's own packaging changed.
+
+**Users update in place** with `.\agent365-kit.ps1 -Update` (or `./agent365-kit.sh --update`), which fetches the latest release and replaces only the kit's own paths — never the agent, `.env`, config, or `.claude/settings.json`. `-UpdateFrom <zip-or-url>` points it at a local build or another source; the Claude Code session-start notice tells users when upstream has moved.
 
 The build **fails loudly** rather than shipping something subtly broken. It verifies that:
 

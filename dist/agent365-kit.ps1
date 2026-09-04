@@ -34,6 +34,16 @@
 .PARAMETER Launch
     Which CLI to launch once the checks pass. Currently supports 'claude'.
 
+.PARAMETER Update
+    Replace the kit in this project with the latest release. Touches ONLY kit paths
+    (.a365-kit, the kit's own skill folders under .claude/skills and .agents/skills, the
+    launchers, and AGENT365-KIT-README.md). Your agent, .env, config and .claude/settings.json
+    are never modified.
+
+.PARAMETER UpdateFrom
+    Where -Update fetches the kit from: a local .zip path, or an HTTPS URL. Default is the
+    kit repository's latest release. Useful offline or to test a build before releasing it.
+
 .EXAMPLE
     .\agent365-kit.ps1
 
@@ -50,7 +60,9 @@ param(
     [switch] $WireCopilot,
     [switch] $WireClaudeHook,
     [ValidateSet('claude')]
-    [string] $Launch
+    [string] $Launch,
+    [switch] $Update,
+    [string] $UpdateFrom = 'https://github.com/AkramMSFT/agent365-onboarding-kit/releases/latest/download/agent365-onboarding-kit-latest.zip'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -69,6 +81,75 @@ $KitRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 Write-Host ''
 Write-Host 'Agent 365 Onboarding Kit' -ForegroundColor White
 Write-Host '========================' -ForegroundColor DarkGray
+
+# -- 0. Self-update ------------------------------------------------------------
+# Replaces kit paths only. Anything the user owns is left alone, and the set of
+# skill folders to replace is read from the NEW kit's manifest, so a skill that
+# upstream removes is removed here too rather than lingering.
+
+if ($Update) {
+    Write-Head 'Updating the kit'
+    $stage = Join-Path ([IO.Path]::GetTempPath()) ("a365-kit-update-" + [Guid]::NewGuid().ToString('N').Substring(0, 8))
+    New-Item -ItemType Directory -Force -Path $stage | Out-Null
+    $zip = Join-Path $stage 'kit.zip'
+    try {
+        if ($UpdateFrom -match '^https?://') {
+            Write-Note "Downloading $UpdateFrom"
+            Invoke-WebRequest -Uri $UpdateFrom -OutFile $zip -UseBasicParsing
+        } else {
+            if (-not (Test-Path -LiteralPath $UpdateFrom)) { Write-Err "Not found: $UpdateFrom"; exit 1 }
+            Copy-Item -LiteralPath $UpdateFrom -Destination $zip
+        }
+        $new = Join-Path $stage 'new'
+        Expand-Archive -Path $zip -DestinationPath $new -Force
+        $manifestPath = Join-Path $new '.a365-kit\KIT-VERSION.json'
+        if (-not (Test-Path -LiteralPath $manifestPath)) { Write-Err 'That archive is not an Agent 365 Onboarding Kit (no .a365-kit\KIT-VERSION.json).'; exit 1 }
+        $newManifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+        $oldManifestPath = Join-Path $KitRoot '.a365-kit\KIT-VERSION.json'
+        $oldDesc = if (Test-Path -LiteralPath $oldManifestPath) {
+            $o = Get-Content -LiteralPath $oldManifestPath -Raw | ConvertFrom-Json
+            "kit v$($o.kitVersion) / upstream v$($o.upstreamVersion) ($($o.upstreamCommit))"
+        } else { 'no kit installed' }
+        Write-Note "Current : $oldDesc"
+        Write-Note "New     : kit v$($newManifest.kitVersion) / upstream v$($newManifest.upstreamVersion) ($($newManifest.upstreamCommit))"
+
+        $skillNames = @($newManifest.skills) + @($newManifest.addons)
+        if (Test-Path -LiteralPath $oldManifestPath) {
+            $o = Get-Content -LiteralPath $oldManifestPath -Raw | ConvertFrom-Json
+            $skillNames += @($o.skills) + @($o.addons)      # remove anything the new kit dropped
+        }
+        $skillNames = $skillNames | Where-Object { $_ } | Sort-Object -Unique
+
+        # 1. canonical folder
+        $dst = Join-Path $KitRoot '.a365-kit'
+        if (Test-Path -LiteralPath $dst) { Remove-Item -LiteralPath $dst -Recurse -Force }
+        Copy-Item -LiteralPath (Join-Path $new '.a365-kit') -Destination $dst -Recurse
+        # 2. discovery copies -- only the kit's own skill folders
+        foreach ($disc in @('.claude\skills', '.agents\skills')) {
+            $target = Join-Path $KitRoot $disc
+            New-Item -ItemType Directory -Force -Path $target | Out-Null
+            foreach ($name in $skillNames) {
+                $old = Join-Path $target $name
+                if (Test-Path -LiteralPath $old) { Remove-Item -LiteralPath $old -Recurse -Force }
+                $src = Join-Path (Join-Path $new $disc) $name
+                if (Test-Path -LiteralPath $src) { Copy-Item -LiteralPath $src -Destination $old -Recurse }
+            }
+        }
+        # 3. launchers + kit README
+        foreach ($f in @('agent365-kit.ps1', 'agent365-kit.sh', 'AGENT365-KIT-README.md')) {
+            $src = Join-Path $new $f
+            if (Test-Path -LiteralPath $src) { Copy-Item -LiteralPath $src -Destination (Join-Path $KitRoot $f) -Force }
+        }
+        Write-Ok "Kit updated to v$($newManifest.kitVersion) (upstream v$($newManifest.upstreamVersion), $($newManifest.upstreamCommit))"
+        Write-Note 'Your agent files, .env, a365 config and .claude\settings.json were not touched.'
+        Write-Note 'The launcher you are running is now the old copy; re-run .\agent365-kit.ps1 to use the new one.'
+        Write-Host ''
+        exit 0
+    }
+    finally {
+        Remove-Item -LiteralPath $stage -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
 
 # -- 1. Confirm the kit landed in the right place -----------------------------
 
