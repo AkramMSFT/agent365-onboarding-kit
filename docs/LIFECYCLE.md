@@ -314,6 +314,20 @@ Connect to `http://localhost:3978/api/messages` (or the tunnel URL), send *Hello
 
 ---
 
+### D4. If you added Work IQ tools, three things will bite you
+
+Verified on a live tenant. None is set by the CLI or the skills, and all three look like permission problems when they are not.
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| Every MCP server returns `401`; the agent says it has no tools | The tooling SDK defaults to a **development** environment when `PYTHON_ENVIRONMENT` and friends are unset, so it reads `BEARER_TOKEN_*` env vars instead of exchanging tokens. Its sibling runtime module defaults to *Production* — the two disagree. | `PYTHON_ENVIRONMENT=Production` in `.env` |
+| `UserError: Duplicate tool names found across MCP servers` | SharePoint and OneDrive both publish `getFileOrFolderMetadataByUrl` and `getSensitivityLabels` | set `include_server_in_tool_names` on the agent, **after** the servers attach |
+| Tools attach, agent still says "I'm only set up to…" | Its system prompt never mentions the tools | say in the instructions that Work IQ tools exist and that using them is expected |
+
+Tell-tales for the first: `Listing MCP tool servers for agent ` with an **empty** id, and `Loading MCP servers from: ToolingManifest.json` — production loads from the gateway, not the manifest. Judge success by `Attached N WorkIQ MCP server(s)`; `400` and `405` responses are part of the normal handshake, and individual servers can legitimately be `403`/`404` where the tenant hasn't provisioned them.
+
+---
+
 ## Phase E — Govern
 
 This is what the whole exercise is for. Everything here is visible to security and compliance teams without touching the agent again.
