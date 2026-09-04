@@ -40,6 +40,8 @@ The `a365-setup` skill detects your language and framework, then asks three thin
 | Capabilities (1 Register · 2 Observability · 3 WorkIQ · 4 AI Teammate) | `1, 2` for a first run; add `3` for M365 data access; `4` only if the agent should have its own mailbox and UPN |
 | Auth mode (not asked for AI Teammate) | **OBO** — no admin consent needed |
 
+> **What this choice decides about packaging.** Pick 1–3 (with OBO or S2S) and there is **no manifest and nothing to upload** — the identity is created during `a365 setup all`, and Teams reachability comes from endpoint registration alone (Stage 2, blueprint path). Pick 4 (AI Teammate) and Stage 2 includes `a365 publish` → `manifest.zip` → admin-centre upload, activation and instance creation — that is when the identity is minted. The CLI enforces this: on the blueprint path `a365 publish` reports *"Nothing to publish for blueprint-based agents."*
+
 It writes config and code, then reaches `a365 setup all`. **This is the first "leave your CLI" moment:**
 
 1. Copy the exact command from the approval prompt.
