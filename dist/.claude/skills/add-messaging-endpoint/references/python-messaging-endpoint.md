@@ -281,6 +281,16 @@ curl -s http://localhost:3978/api/health       # {"status": "healthy", ...}
 curl -s -o /dev/null -w "%{http_code}" -X POST http://localhost:3978/api/messages -H "Content-Type: application/json" -d '{"type":"message","text":"hi"}'   # 401
 ```
 
+## Dev tunnel: take the URL from `devtunnel host`, never from the name
+
+```bash
+devtunnel create <agent>-tunnel --allow-anonymous
+devtunnel port create <agent>-tunnel -p 3979 --protocol http
+devtunnel host <agent>-tunnel            # prints:  Connect via browser: https://<id>-3979.<cluster>.devtunnels.ms
+```
+
+Use exactly the `Connect via browser` URL for `--update-endpoint`. The **cluster** (`aue`, `asse`, `usw3`, …) is assigned when the tunnel is created and a deleted-and-recreated tunnel can land in a different one, so a URL built from the tunnel *name* silently stops resolving. Seen on the verified run: the first tunnel was `…tunnel.aue`, the recreated one `…tunnel.asse`, and the registered `aue` endpoint went dark. **If the tunnel is ever recreated, re-run `a365 setup blueprint --update-endpoint <new url> --m365`.**
+
 ## Gotchas seen on the verified run
 
 | Symptom | Cause |

@@ -185,7 +185,7 @@ devtunnel port create <agent-name>-tunnel -p 3978 --protocol http
 devtunnel host <agent-name>-tunnel
 ```
 
-The URL is `https://<id>-3978.<cluster>.devtunnels.ms`; `devtunnel show <name>` prints it. `--protocol http` matters: without it the relay attempts TLS to your plain-HTTP server and Teams gets `502`.
+Use the URL from the `Connect via browser:` line `devtunnel host` prints — `https://<id>-3978.<cluster>.devtunnels.ms`. Don't derive it from the tunnel name: the cluster is assigned per tunnel at creation, and a tunnel that is deleted and recreated can land in another cluster, at which point any URL you wrote down earlier — and the endpoint registered from it — silently stops resolving. Recreated the tunnel? Re-run C3. `--protocol http` matters too: without it the relay attempts TLS to your plain-HTTP server and Teams gets `502`.
 
 **Production** — anywhere that serves HTTPS: Azure App Service, Container Apps, a Cloudflare tunnel to a VM, your own cluster. The only contract is `POST https://<host>/api/messages` reaching your process.
 
