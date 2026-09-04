@@ -78,6 +78,17 @@ Requires Application Administrator (lightest), Cloud Application Administrator, 
 az login --allow-no-subscriptions
 ```
 
+**A model provider key for the agent itself.** The kit onboards an agent; it does not give it one to think with. Your agent project needs whatever key its framework expects in its own `.env` — `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `AZURE_OPENAI_ENDPOINT` and friends — before it can answer anything. Skip it and the agent still registers, still publishes, still appears in Teams, and fails on the first message.
+
+**Only if you plan to do Step 6 (chatting in Teams):** a dev tunnel, to give the host on your laptop a public HTTPS URL.
+
+```bash
+winget install Microsoft.devtunnel     # macOS/Linux: https://aka.ms/devtunnels/download
+devtunnel user login
+```
+
+`devtunnel user login` is a separate sign-in from `az login` and is easy to forget; without it `devtunnel host` fails at the point you need it.
+
 ---
 
 ## Step 1 — Put the kit in your agent project
@@ -197,7 +208,7 @@ Make the agent emit telemetry — every message, model call and tool call — to
 
 If you selected Observability as a capability in Step 3 it is already wired and this confirms it; if you did not, this adds it now. Either way the `instrument-observability` skill does the work. It uses OpenTelemetry: the SDK auto-instruments every model and tool call into spans, an `InvokeAgentScope` wraps each turn, identity baggage is stamped on the context, and an Agent 365 exporter ships the spans out.
 
-**Then check the exporter is actually on.** The `a365` CLI writes `ENABLE_A365_OBSERVABILITY_EXPORTER=false` into `.env`, and the skill deliberately preserves an existing value rather than overwriting it — so the agent ends up instrumented but exporting nothing, and the Activity view stays empty. Confirm and fix in `.env`:
+**Then check the exporter is actually on.** The `a365` CLI writes `ENABLE_A365_OBSERVABILITY_EXPORTER=false` into `.env` during Step 3. Microsoft's skill preserves an existing value rather than overwriting it, which leaves the agent instrumented but exporting nothing and the Activity view empty; the kit changes that one value so the skill sets it (see `NOTICE.md` §10) and the validator fails if it is anything but `true`. It is still worth eyeballing, because a later `a365 setup` run can reset it:
 
 ```
 ENABLE_A365_OBSERVABILITY_EXPORTER=true
@@ -243,7 +254,19 @@ The `add-messaging-endpoint` add-on:
 a365 setup blueprint --update-endpoint https://<host>/api/messages --m365
 ```
 
-`--m365` is required — without it the Teams routing is silently skipped. Take the public URL from the line `devtunnel host` prints, not from the tunnel name.
+`--m365` is required — without it the Teams routing is silently skipped.
+
+If you are tunnelling, that is three commands in a terminal of their own, left running:
+
+```bash
+devtunnel create --allow-anonymous
+devtunnel port create -p 3979
+devtunnel host
+```
+
+Take the public URL from the line `devtunnel host` prints. Do not build it from the tunnel name — a recreated tunnel can land in a different cluster and the derived URL will be wrong.
+
+**Confirm the registration landed.** `a365.generated.config.json` in your project should now show your URL under `messagingEndpoint` and `"completed": true` at the root. If `completed` is `false` or the endpoint is empty, the command did not finish — re-run it rather than moving on.
 
 Then, one command in your own terminal [you] — it needs the broker:
 
@@ -252,6 +275,14 @@ a365 setup permissions bot
 ```
 
 Verify in the Teams Developer Portal (the CLI gives you the link) that **Agent Type = API Based** and the **Notification URL** matches your endpoint.
+
+**Leave the host running.** Teams delivers every message to that URL over HTTP; if nothing is listening, each one fails in the chat with no clue as to why. Start it in its own terminal and keep it there for as long as you want the agent to answer:
+
+```bash
+python host_agent_server.py     # Node.js: npm start
+```
+
+From here on you are running three terminals: the tunnel, the host, and the one you drive your AI CLI from.
 
 <!-- ![Teams Developer Portal config](images/04-dev-portal.png) -->
 
@@ -345,6 +376,10 @@ Everything else is done by the CLI or a portal. These four need your own termina
 | Import fails on `microsoft_agents_a365.runtime` | Add `microsoft-agents-a365-runtime>=1.0.0` and install. |
 | Endpoint stops working after a tunnel restart | A recreated tunnel can change cluster; re-run the Step 6 `--update-endpoint` with the new URL. |
 | Teams turn fails with `MCPError` on a later message | External MCP tokens expire; keep servers open for the host's lifetime, not per turn. |
+| Agent answers nothing in Teams, host log shows no request | Nothing is listening, or the tunnel is down. Both must be running; re-check the Notification URL matches the current tunnel URL. |
+| Host starts, but every turn fails on the model call | No model provider key in `.env` (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `AZURE_OPENAI_*`). Onboarding does not supply one. |
+| `devtunnel host` fails to start | `devtunnel user login` has not been run, or the session expired. It is separate from `az login`. |
+| Everything works but Activity stays empty after hours | `ENABLE_A365_OBSERVABILITY_EXPORTER` is not `true`, or `AGENT365OBSERVABILITY__AGENTID` is not the instance appId. See Step 4. Indexing also lags 15–90 min after the first export. |
 
 ## Going deeper
 

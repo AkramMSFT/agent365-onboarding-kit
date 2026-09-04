@@ -335,6 +335,59 @@ const hasPyproject  = fs.existsSync(path.join(cwd, 'pyproject.toml'))
 '@
     }
     @{
+        # BEHAVIOUR FIX -- NOTICE.md section 10. Invariant 1 tells the skill to preserve
+        # an existing ENABLE_A365_OBSERVABILITY_EXPORTER. The a365 CLI writes it as
+        # false, so "add observability to my agent" reliably lands an agent that traces
+        # every turn and exports none of it. Invariant 3 already has the skill correct
+        # the equivalent .NET value; this makes Node.js and Python consistent with it.
+        File = 'skills\instrument-observability\SKILL.md'
+        Find = @'
+1. **Preserve existing values.** If `Agent365Observability` (.NET) or
+   `ENABLE_A365_OBSERVABILITY_EXPORTER` (Node.js / Python) already exists, do not
+   overwrite. Add only missing keys.
+'@
+        Replace = @'
+1. **Preserve existing values, with one exception.** If `Agent365Observability`
+   (.NET) or `ENABLE_A365_OBSERVABILITY_EXPORTER` (Node.js / Python) already
+   exists, do not overwrite. Add only missing keys.
+
+   **Exception -- the exporter switch.** `ENABLE_A365_OBSERVABILITY_EXPORTER`
+   (Node.js / Python) is the one value you DO correct. `a365 setup` writes it as
+   `false`. Preserving that leaves the agent instrumented but silent: it builds a
+   span for every turn and exports none of them, and the Agent 365 Activity view
+   stays empty with nothing anywhere reporting a fault. Set it to `true`, and say
+   so in your summary. This mirrors invariant 3, which already has you correct the
+   equivalent .NET value for the same reason.
+'@
+    }
+    @{
+        # BEHAVIOUR FIX -- NOTICE.md section 10. The other half of the pair: rule 6 had
+        # the skill report the disabled exporter instead of fixing it, and one line in a
+        # long completion summary is easy to miss.
+        File = 'skills\instrument-observability\SKILL.md'
+        Find = @'
+"instrumented but
+     disabled; set `ENABLE_A365_OBSERVABILITY_EXPORTER=true` to start exporting".
+'@
+        Replace = @'
+"the exporter was off; I set
+     `ENABLE_A365_OBSERVABILITY_EXPORTER=true` for you -- restart the agent for
+     it to take effect".
+'@
+    }
+    @{
+        # BEHAVIOUR FIX -- NOTICE.md section 10. Phase 9 told the user to go and enable
+        # the exporter, which now contradicts the skill having already done it.
+        File = 'skills\instrument-observability\SKILL.md'
+        Find = @'
+   1. Enable exporting when ready for production:
+'@
+        Replace = @'
+   1. Confirm the exporter is still on -- this skill sets it, but a later
+      `a365 setup` run can reset it to false:
+'@
+    }
+    @{
         File = 'skills\a365-code-validator\SKILL.md'
         Find = @'
 When running from the plugin source (Claude Code / marketplace plugin), use:
