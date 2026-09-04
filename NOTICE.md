@@ -132,6 +132,35 @@ This matters more outside Claude Code than inside it. The validator in section 9
 
 Found and fixed 2026-09-04, alongside section 9. Reported upstream.
 
+
+### 11. `references/python-observability.md` — the OBO token resolver must be synchronous
+
+The Python OBO sample wires the exporter's token resolver like this:
+
+```python
+a365_token_resolver=_token_cache.get_observability_token,
+```
+
+`AgenticTokenCache.get_observability_token` is declared `async def`, and the exporter calls the resolver synchronously from its own batch-export thread:
+
+```python
+return self._token_resolver(agent_id, tenant_id)
+```
+
+So it receives an un-awaited coroutine rather than a token. The next guard is `if not token:` — and a coroutine object is **truthy**, so the one check that would have caught this passes. The exporter then builds `f"Bearer {token}"`, sending the literal text `Bearer <coroutine object AgenticTokenCache.get_observability_token at 0x...>`. The service cannot read a tenant out of that and answers:
+
+```json
+{"code":"EndpointInvalid","message":"Tenant id  is invalid.","innererror":{"code":"TenantIdInvalid"}}
+```
+
+The blank in *"Tenant id  is invalid"* is the tell: the tenant is unreadable, not absent from the agent's configuration. Chasing the configured `TENANTID` — which is correct — leads nowhere.
+
+Upstream's own documentation already says what the contract is. Its kwarg table describes `a365_token_resolver` as a *"Sync callable `(agent_id, tenant_id) -> str | None`"*, and its S2S sample passes a sync lambda correctly. Only the OBO sample is wrong, and `AgenticTokenCache` exposes no sync accessor, so that sample cannot work as written.
+
+The kit replaces it with a bridge that marshals the coroutine onto the host's event loop via `run_coroutine_threadsafe`, returns `None` on failure so a telemetry fault never costs a turn, and shows where to capture the loop at startup.
+
+Found 2026-09-04 on a live Python OBO agent: the agent answered normally in Teams while every export was rejected. Verified fixed against the same tenant — `HTTP 200`, three spans, all sinks accepting. Reported upstream.
+
 ---
 
 ## Kit add-ons — not Microsoft's
@@ -153,9 +182,9 @@ The seven Microsoft skills are untouched by the add-ons: they reference upstream
 ## What is *not* changed
 
 - No phase ordering, decision matrix, or trigger phrases.
-- No code patterns in `references/`.
+- No code patterns in `references/` beyond the token-resolver fix in section 11.
 - No skill logic beyond the exporter switch in section 10, which is applied to bring the Node.js and Python paths into line with what upstream's .NET path already does.
-- No validator check logic beyond the two bug fixes in sections 8 and 9 — the validators otherwise enforce exactly what upstream enforces.
+- No validator check logic beyond the two bug fixes in sections 8 and 9, and no code pattern beyond the token-resolver fix in section 11 — the validators otherwise enforce exactly what upstream enforces.
 - Nothing added to the skills. This kit contributes no Purview, hosting, or hardening content of its own to them; that lives in the separately labelled add-ons above.
 
 ## Reporting issues
