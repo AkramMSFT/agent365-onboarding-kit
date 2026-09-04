@@ -157,12 +157,15 @@ Onboarding gets the agent **registered**: blueprint, identity, permissions, inst
 |---|---|---|
 | 1. Host `/api/messages` | AI Teammate path scaffolds it; otherwise add the hosting layer | you |
 | 2. Public HTTPS URL | `devtunnel` for dev, any HTTPS host for prod | you |
-| 3. Register the endpoint | `a365 setup blueprint --update-endpoint <url> --m365` — **`--m365` is required** or Teams routing is silently skipped | you, own terminal |
-| 4. Manifest + package | `a365 publish` → `manifest.zip` (the CLI owns `manifest.json`; don't hand-edit) | you, own terminal |
-| 5. Upload, activate, create instance | Microsoft 365 admin center → Agents → All agents → Upload custom agent → Activate → Instances → Create | admin |
-| 6. Test | `agentsplayground` before approval; Teams chat after; Copilot agent picker via `copilotAgents.customEngineAgents` | you |
+| 3. Register the endpoint | `a365 setup blueprint --update-endpoint <url> --m365` — **`--m365` is required** or Teams routing is silently skipped. Works from your CLI agent's shell. | you |
+| 4. Bot API permissions *(blueprint-based / CEA)* | `a365 setup permissions bot` — creates the Messaging Bot API grant; needs the broker and a `y` | you, own terminal |
+| 5. Manifest + package *(AI Teammate only)* | `a365 publish` → `manifest.zip`. For blueprint-based agents it prints *"Nothing to publish"* — that path has no manifest. | you, own terminal |
+| 6. Upload, activate, create instance *(AI Teammate only)* | Microsoft 365 admin center → Agents → All agents → Upload custom agent → Activate → Instances → Create | admin |
+| 7. Test | `agentsplayground` (`npm i -g @microsoft/m365agentsplayground`) against your host; Teams chat; Copilot agent picker | you |
 
-Like `a365 setup all`, run `a365 publish` in your own terminal — it block-buffers under chat tools and looks hung.
+Like `a365 setup all`, run `a365 publish` and `a365 setup permissions bot` in your own terminal — the first block-buffers under chat tools, the second needs the Windows broker for its grant step.
+
+> **If your generated Python host crashes on startup** with `AttributeError: ... 'MsalConnectionManager' has no attribute 'from_environment'`, the reference it was built from predates `microsoft-agents` 1.6. `docs/LIFECYCLE.md` C1 has the working 1.6 pattern.
 
 The full walkthrough with every choice explained — agent kinds, identity, dev tunnel vs cloud, Purview DLP, teardown — is **`docs/LIFECYCLE.md`** in the kit repository.
 
