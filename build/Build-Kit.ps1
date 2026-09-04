@@ -438,15 +438,82 @@ use_microsoft_opentelemetry(
 )
 ```
 
-Set `HOST_LOOP` once the loop exists — in whatever coroutine starts your host:
+`HOST_LOOP` has to be set from code that runs **on** the loop. The simplest place is the
+per-turn handler this skill already instruments — the same function that opens
+`InvokeAgentScope`. Reassigning it each turn is cheap and idempotent:
 
 ```python
 import asyncio
-import src.agent as core   # the module holding HOST_LOOP
+import src.agent as core          # the module holding HOST_LOOP
 
+async def on_message(context, state):
+    core.HOST_LOOP = asyncio.get_running_loop()
+    with InvokeAgentScope.start(...):
+        ...
+```
+
+If the host has an async startup coroutine, setting it once there works equally well:
+
+```python
 async def start_server() -> None:
     core.HOST_LOOP = asyncio.get_running_loop()
-    ...
+```
+
+Leaving `HOST_LOOP` unset does not fail silently: the exporter logs
+`No token resolved for agent ...; dropping chunk N of M` at ERROR on every export.
+'@
+    }
+    @{
+        # BUG FIX -- NOTICE.md section 11. SKILL.md is read before any reference doc, so
+        # fixing only python-observability.md leaves the model with a contradiction and
+        # the broken wiring stated first. Same defect, same fix, stated where it is read.
+        File = 'skills\instrument-observability\SKILL.md'
+        Find = @'
+Wire `a365_token_resolver` to `AgenticTokenCache().get_observability_token` from `microsoft.opentelemetry.a365.hosting.token_cache_helpers` (or a custom resolver reading from `token_cache.py`).
+'@
+        Replace = @'
+Wire `a365_token_resolver` to a **synchronous** callable. Do NOT pass `AgenticTokenCache().get_observability_token` directly: it is `async def`, and the exporter calls the resolver synchronously from its own batch-export thread, so it receives an un-awaited coroutine. A coroutine object is truthy, so the exporter's "no token" guard does not catch it and it sends the literal string `Bearer <coroutine object ...>`; the service then rejects every export with `EndpointInvalid` / "Tenant id  is invalid" (the blank tenant means unreadable, not missing from config). Use the `run_coroutine_threadsafe` bridge shown in the OBO section of `.a365-kit/skills/instrument-observability/references/python-observability.md`, capturing the running loop in the same per-turn handler you wrap with `InvokeAgentScope`. A custom resolver reading from `token_cache.py` is also fine as long as it is sync.
+'@
+    }
+    @{
+        # BUG FIX -- NOTICE.md section 11. Catches the async resolver in code that is
+        # already written, including agents onboarded before the reference was fixed.
+        File = 'hooks\stop\validate-instrument-observability.js'
+        Find = @'
+    const hasS2SEndpoint = anyFileContains(pyFiles, 'use_s2s_endpoint') ||
+                           anyFileContains(pyFiles, 'use_microsoft_opentelemetry');
+    if (!hasS2SEndpoint) {
+      issues.push('S2S: use_microsoft_opentelemetry() or use_s2s_endpoint not found in observability configuration');
+    }
+  }
+'@
+        Replace = @'
+    const hasS2SEndpoint = anyFileContains(pyFiles, 'use_s2s_endpoint') ||
+                           anyFileContains(pyFiles, 'use_microsoft_opentelemetry');
+    if (!hasS2SEndpoint) {
+      issues.push('S2S: use_microsoft_opentelemetry() or use_s2s_endpoint not found in observability configuration');
+    }
+  }
+
+  // Kit fix-up: a365_token_resolver must be a SYNC callable. Wiring it straight to
+  // AgenticTokenCache.get_observability_token (async def) hands the exporter an
+  // un-awaited coroutine; a coroutine is truthy, so the exporter's own "no token"
+  // guard misses it and it sends "Bearer <coroutine object ...>".
+  const asyncResolverFiles = pyFiles.filter(f => {
+    try {
+      return /a365_token_resolver\s*=\s*[\w.]*\bget_observability_token\b/
+        .test(fs.readFileSync(f, 'utf8'));
+    } catch {
+      return false;
+    }
+  });
+  if (asyncResolverFiles.length) {
+    issues.push('a365_token_resolver is wired directly to the async get_observability_token (' +
+      asyncResolverFiles.map(f => path.basename(f)).join(', ') +
+      ') -- the exporter calls it synchronously, so every export is rejected with ' +
+      'EndpointInvalid / "Tenant id  is invalid". Use the run_coroutine_threadsafe bridge ' +
+      'in references/python-observability.md (OBO section)');
+  }
 '@
     }
     @{

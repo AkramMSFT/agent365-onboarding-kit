@@ -157,7 +157,15 @@ The blank in *"Tenant id  is invalid"* is the tell: the tenant is unreadable, no
 
 Upstream's own documentation already says what the contract is. Its kwarg table describes `a365_token_resolver` as a *"Sync callable `(agent_id, tenant_id) -> str | None`"*, and its S2S sample passes a sync lambda correctly. Only the OBO sample is wrong, and `AgenticTokenCache` exposes no sync accessor, so that sample cannot work as written.
 
-The kit replaces it with a bridge that marshals the coroutine onto the host's event loop via `run_coroutine_threadsafe`, returns `None` on failure so a telemetry fault never costs a turn, and shows where to capture the loop at startup.
+The kit replaces it with a bridge that marshals the coroutine onto the host's event loop via `run_coroutine_threadsafe` and returns `None` on failure, so a telemetry fault never costs a turn. It is applied in three places, because any one alone leaves a way through:
+
+| Where | Why it is needed |
+|---|---|
+| `references/python-observability.md` | The code the skill copies from. Also shows where to capture the loop — the per-turn handler the skill already wraps with `InvokeAgentScope`, so nothing outside the skill's own edits has to change. |
+| `SKILL.md` | Read before any reference doc, and it stated the broken wiring outright. Fixing only the reference leaves the model with a contradiction and the wrong instruction first. |
+| `validate-instrument-observability.js` | Catches the pattern in code already written, including agents onboarded before this kit version. Matches `a365_token_resolver=` bound directly to `get_observability_token`; the bridge mentions the same symbol and is correctly ignored. |
+
+Leaving the captured loop unset is the one remaining way to get no telemetry, and unlike the original defect it is loud: the exporter logs `No token resolved for agent ...; dropping chunk` at ERROR on every export.
 
 Found 2026-09-04 on a live Python OBO agent: the agent answered normally in Teams while every export was rejected. Verified fixed against the same tenant — `HTTP 200`, three spans, all sinks accepting. Reported upstream.
 

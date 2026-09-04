@@ -312,6 +312,26 @@ if (isPython) {
     }
   }
 
+  // Kit fix-up: a365_token_resolver must be a SYNC callable. Wiring it straight to
+  // AgenticTokenCache.get_observability_token (async def) hands the exporter an
+  // un-awaited coroutine; a coroutine is truthy, so the exporter's own "no token"
+  // guard misses it and it sends "Bearer <coroutine object ...>".
+  const asyncResolverFiles = pyFiles.filter(f => {
+    try {
+      return /a365_token_resolver\s*=\s*[\w.]*\bget_observability_token\b/
+        .test(fs.readFileSync(f, 'utf8'));
+    } catch {
+      return false;
+    }
+  });
+  if (asyncResolverFiles.length) {
+    issues.push('a365_token_resolver is wired directly to the async get_observability_token (' +
+      asyncResolverFiles.map(f => path.basename(f)).join(', ') +
+      ') -- the exporter calls it synchronously, so every export is rejected with ' +
+      'EndpointInvalid / "Tenant id  is invalid". Use the run_coroutine_threadsafe bridge ' +
+      'in references/python-observability.md (OBO section)');
+  }
+
   // 5. .env has observability vars
   const hasEnvConfig = envFiles.some(f =>
     fileContains(f, 'ENABLE_A365_OBSERVABILITY_EXPORTER'));

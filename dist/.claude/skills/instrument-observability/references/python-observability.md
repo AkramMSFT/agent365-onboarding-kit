@@ -124,15 +124,29 @@ use_microsoft_opentelemetry(
 )
 ```
 
-Set `HOST_LOOP` once the loop exists — in whatever coroutine starts your host:
+`HOST_LOOP` has to be set from code that runs **on** the loop. The simplest place is the
+per-turn handler this skill already instruments — the same function that opens
+`InvokeAgentScope`. Reassigning it each turn is cheap and idempotent:
 
 ```python
 import asyncio
-import src.agent as core   # the module holding HOST_LOOP
+import src.agent as core          # the module holding HOST_LOOP
 
+async def on_message(context, state):
+    core.HOST_LOOP = asyncio.get_running_loop()
+    with InvokeAgentScope.start(...):
+        ...
+```
+
+If the host has an async startup coroutine, setting it once there works equally well:
+
+```python
 async def start_server() -> None:
     core.HOST_LOOP = asyncio.get_running_loop()
-    ...
+```
+
+Leaving `HOST_LOOP` unset does not fail silently: the exporter logs
+`No token resolved for agent ...; dropping chunk N of M` at ERROR on every export.
 ```
 
 > **Two flags required (1.0 breaking change):** `enable_a365=True` only registers
