@@ -105,9 +105,9 @@ You should see twelve: seven Microsoft skills plus five kit add-ons.
 
 <!-- ![Skills listed by the CLI](images/02-skills-list.png) -->
 
-## Step 3 — Register: blueprint + Agent ID  [CLI] + [you]
+## Step 3 — Register the agent in Agent 365  [CLI] + [you]
 
-In your CLI:
+This is the step that puts the agent in the Agent 365 registry and gives it an Entra identity (its **Agent ID**). In your CLI, say:
 
 > **Onboard this agent to Agent 365.**
 
@@ -141,15 +141,19 @@ Python + WorkIQ: if the import fails on `microsoft_agents_a365.runtime`, add `mi
 
 <!-- ![a365 setup all summary](images/03-setup-summary.png) -->
 
-## Step 4 — Observability  [CLI]
+## Step 4 — Add observability  [CLI]
 
-Added during Step 3 when you selected it. It uses OpenTelemetry: the SDK auto-instruments every model and tool call into spans, an `InvokeAgentScope` wraps each turn, identity baggage is stamped on the context, and an Agent 365 exporter ships the spans to the portal and Microsoft Defender.
+Make the agent emit telemetry — every message, model call and tool call — to the Agent 365 portal and Microsoft Defender. In your CLI, say:
 
-Verify:
+> **Add observability to this agent.**
+
+If you selected Observability as a capability in Step 3 it is already wired and this confirms it; if you did not, this adds it now. Either way the `instrument-observability` skill does the work. It uses OpenTelemetry: the SDK auto-instruments every model and tool call into spans, an `InvokeAgentScope` wraps each turn, identity baggage is stamped on the context, and an Agent 365 exporter ships the spans out.
+
+Then verify:
 
 > **Validate A365 code.**
 
-The `a365-code-validator` skill checks exporter activation, identity binding, token shape and the required spans, and offers fixes. If it reports observability incomplete, say *Add observability to this agent* and validate again.
+The `a365-code-validator` skill checks exporter activation, identity binding, token shape and the required spans, and offers fixes. Re-run it after any fix until it reports clean.
 
 ## Step 5 — Tools  [CLI]
 
