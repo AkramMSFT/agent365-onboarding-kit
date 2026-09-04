@@ -169,6 +169,26 @@ Leaving the captured loop unset is the one remaining way to get no telemetry, an
 
 Found 2026-09-04 on a live Python OBO agent: the agent answered normally in Teams while every export was rejected. Verified fixed against the same tenant — `HTTP 200`, three spans, all sinks accepting. Reported upstream.
 
+
+### 12. `instrument-observability` — the Node.js OBO path
+
+Section 11 is Python-only. Node.js does not share that defect: its `AgenticTokenCacheInstance` splits the work that Python collapses into one `async def`, and the shipped types confirm the split.
+
+```ts
+getObservabilityToken(agentId, tenantId): string | null;   // sync cache read — the resolver
+refreshObservabilityToken(...): Promise<void>;             // async, awaited once per turn
+```
+
+Passing the sync getter as `tokenResolver` is therefore correct on Node. But the split creates a different failure with the same outcome — an agent that traces and exports nothing — and `SKILL.md` walks into it twice.
+
+**The cache is only filled per turn.** `tokenResolver` reads a cache that nothing populates unless `refreshObservabilityToken` is called at the start of each handler turn. Miss it and the resolver returns `''` on every export. Upstream instructs the call in Phase 4 and names the symptom in its own troubleshooting table, so this one is documented — but nothing verified it, and the two halves live in different phases.
+
+**The method name is wrong in `SKILL.md`.** It writes `AgenticTokenCacheInstance.RefreshObservabilityToken` — PascalCase, in the Phase 4 code sample a CLI copies verbatim. The shipped API is `refreshObservabilityToken`, camelCase since GA 1.0, which upstream's own reference doc states explicitly at the top of its auth table. The PascalCase name is `undefined`, so the call throws a `TypeError` on the agent's first turn. Both occurrences are corrected.
+
+The kit adds two validator checks for the OBO path: a `tokenResolver` reading the cache with no `refreshObservabilityToken` anywhere, and the PascalCase spelling. Verified across three states — refresh missing, refresh misspelled, refresh correct.
+
+Found 2026-09-04 while confirming whether the section 11 fix left Node.js exposed. Reported upstream.
+
 ---
 
 ## Kit add-ons — not Microsoft's

@@ -398,7 +398,7 @@ flag live in the references — see the "Required packages" section of:
      ```
      const agentId  = turnContext.activity?.recipient?.agenticAppId ?? '';
      const tenantId = turnContext.activity?.recipient?.tenantId     ?? '';
-     await AgenticTokenCacheInstance.RefreshObservabilityToken(
+     await AgenticTokenCacheInstance.refreshObservabilityToken(
        agentId, tenantId, turnContext,
        agentApplication.authorization,   // ← the AgentApplication auth object, NOT an auth-handler name string
      );
@@ -407,7 +407,7 @@ flag live in the references — see the "Required packages" section of:
      - `obo` (agentic identity): `agentApplication.authorization` exchanges the token as the **agentic user** provisioned in Azure AD → traces attributed to the agent
      - Default observability scope is auto-applied (`api://9b975845-388f-4429-889e-eab1ef63949c/.default`) — no need to import `getObservabilityAuthenticationScope` (removed in 1.0).
      - **Recommended pattern:** Extract the agentId/tenantId resolution and token refresh into a `preloadObservabilityToken(turnContext)` helper function to keep the handler clean. See `nodejs-observability.md` for the full helper implementation.
-   - **S2S path**: Do **NOT** call `AgenticTokenCacheInstance.RefreshObservabilityToken` — there is no user authorization token. The `tokenResolver` passed to `useMicrosoftOpenTelemetry()` (set up in Phase 3) handles authentication via the FMI 3-hop chain token service.
+   - **S2S path**: Do **NOT** call `AgenticTokenCacheInstance.refreshObservabilityToken` — there is no user authorization token. The `tokenResolver` passed to `useMicrosoftOpenTelemetry()` (set up in Phase 3) handles authentication via the FMI 3-hop chain token service.
    - **Baggage construction is done in Phase 5.5 (canonical pattern), NOT here.** In Phase 5.5 the message handler builds `BaggageBuilderUtils.fromTurnContext(new BaggageBuilder(), turnContext as any).build()` and runs `InvokeAgentScope.start(...)` inside `baggageScope.run(...)`. The `configureA365Hosting(adapter, { enableBaggage: true })` middleware registered in Phase 3 is a fallback that auto-populates baggage outside the handler, but it does NOT cover the scopes you'll add in Phase 5.5 — those need the manual outer wrapping or they get filtered as `Partitioned into 0 identity groups`. In Phase 4 itself, just refresh the token; do NOT call `InvokeAgentScope.start` here.
    - Add inline comment: `// A365 auth mode: {authMode} — see: https://learn.microsoft.com/en-us/entra/agent-id/agent-on-behalf-of-oauth-flow`
    - Mark all new lines with: `// A365 Observability — best-effort instrumentation (verify against official sample)`
