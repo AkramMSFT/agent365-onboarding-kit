@@ -106,7 +106,7 @@ devtunnel port create <agent-name>-tunnel -p <port> --protocol http
 devtunnel host <agent-name>-tunnel        # run in the background; keep this session open
 ```
 
-`--protocol http` is required -- without it the relay attempts TLS to the plain-HTTP host and Teams sees 502. The URL is `https://<tunnel-id-without-cluster>-<port>.<cluster>.devtunnels.ms`; confirm with `devtunnel show <agent-name>-tunnel`. Then prove it end to end:
+`--protocol http` is required -- without it the relay attempts TLS to the plain-HTTP host and Teams sees 502. **Take the public URL from the `Connect via browser:` line that `devtunnel host` prints** (`https://<id>-<port>.<cluster>.devtunnels.ms`). Do not build it from the tunnel name: the cluster is assigned at creation, and a deleted-and-recreated tunnel can land in a different cluster, so a name-derived URL silently stops resolving and the registered endpoint goes dark. Then prove it end to end:
 
 ```bash
 curl -s https://<tunnel-url>/api/health      # expect the same 200 as locally
