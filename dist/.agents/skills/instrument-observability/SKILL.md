@@ -637,9 +637,17 @@ All new lines marked with the language-appropriate comment:
 
 Apply these invariants across all three languages:
 
-1. **Preserve existing values.** If `Agent365Observability` (.NET) or
-   `ENABLE_A365_OBSERVABILITY_EXPORTER` (Node.js / Python) already exists, do not
-   overwrite. Add only missing keys.
+1. **Preserve existing values, with one exception.** If `Agent365Observability`
+   (.NET) or `ENABLE_A365_OBSERVABILITY_EXPORTER` (Node.js / Python) already
+   exists, do not overwrite. Add only missing keys.
+
+   **Exception -- the exporter switch.** `ENABLE_A365_OBSERVABILITY_EXPORTER`
+   (Node.js / Python) is the one value you DO correct. `a365 setup` writes it as
+   `false`. Preserving that leaves the agent instrumented but silent: it builds a
+   span for every turn and exports none of them, and the Agent 365 Activity view
+   stays empty with nothing anywhere reporting a fault. Set it to `true`, and say
+   so in your summary. This mirrors invariant 3, which already has you correct the
+   equivalent .NET value for the same reason.
 
 2. **.NET — exactly one `Logging` section.** Read `appsettings.json` fully
    before writing. If `Logging` or `Logging.LogLevel` exists, **merge** the new
@@ -666,8 +674,9 @@ Apply these invariants across all three languages:
 
 6. **Inform the user** when:
    - `AgentBlueprintId` / `TenantId` are empty → "run `a365 setup` to populate".
-   - Exporter is `false` (Node.js / Python local dev) → "instrumented but
-     disabled; set `ENABLE_A365_OBSERVABILITY_EXPORTER=true` to start exporting".
+   - Exporter is `false` (Node.js / Python local dev) → "the exporter was off; I set
+     `ENABLE_A365_OBSERVABILITY_EXPORTER=true` for you -- restart the agent for
+     it to take effect".
 
 7. **Stamp the verbose-logging pair into `.env`** (Node.js / Python) — `OTEL_LOG_LEVEL=INFO` (OpenTelemetry SDK's own internal logger) **and** `A365_OBSERVABILITY_LOG_LEVEL=info|warn|error` (pipe-separated levels emitted by the A365 exporter). For .NET, write the equivalent `Logging.LogLevel.Microsoft.Agents.A365.Observability: Information` to `appsettings.json` AND set `OTEL_LOG_LEVEL=INFO` / `A365_OBSERVABILITY_LOG_LEVEL=info|warn|error` as env vars (.NET reads both forms). Recommended baseline: `INFO` + `info|warn|error` in prod; users can trim to `WARN` + `warn|error` to reduce noise. Write them as a labeled `# ── Observability verbose logging ──` block so the two vars stay grouped. **Additive — never overwrite** values the user has set.
 
@@ -789,7 +798,8 @@ Without this phase the skill ends "instrumented successfully" but the user has n
    **Files modified:** [list files]
 
    **Next steps:**
-   1. Enable exporting when ready for production:
+   1. Confirm the exporter is still on -- this skill sets it, but a later
+      `a365 setup` run can reset it to false:
       - .NET: set EnableAgent365Exporter: true in appsettings.json
       - Node.js / Python: set ENABLE_A365_OBSERVABILITY_EXPORTER=true in .env (or `a365.enableObservabilityExporter: true` in code — both required alongside `a365.enabled: true`)
    2. Run your agent and verify traces appear in the Observability dashboard.

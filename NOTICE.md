@@ -98,6 +98,40 @@ Without the first fix a `requirements.txt` project falls through to the Node.js 
 
 Found 2026-09-03 while onboarding an existing Python / OpenAI Agents SDK project (`src/` layout, `requirements.txt`) through the kit: the skill adapted to the layout correctly and the validator then reported it as a failed Node.js project. Reported upstream.
 
+### 9. `validate-instrument-observability.js` — exporter value, not just presence
+
+The `a365` CLI stamps `ENABLE_A365_OBSERVABILITY_EXPORTER=false` into `.env`, and `instrument-observability` has an explicit invariant not to overwrite an existing value ("Preserve existing values … Add only missing keys"); it is meant to *warn* instead. Upstream's validator then checks only that the key **exists**:
+
+```js
+const hasEnvConfig = envFiles.some(f => fileContains(f, 'ENABLE_A365_OBSERVABILITY_EXPORTER'));
+```
+
+So an agent with the exporter switched off passes validation as fully instrumented, produces spans on every turn, and exports none of them. The Agent 365 Activity view stays empty with nothing anywhere reporting a fault.
+
+The kit adds a value check to both the Node.js and Python branches: if the key is present but not `true`, the validator fails with *"instrumented but exports nothing; set it to true and restart"*. No other check is altered.
+
+Found 2026-09-04 after several hours of live Teams traffic produced no activity. The instrumentation was correct throughout; only the last hop was disabled.
+
+### 10. `instrument-observability/SKILL.md` — the skill now sets the exporter, not just reports it
+
+Section 9 makes a disabled exporter visible. This makes the skill fix it.
+
+Invariant 1 told the skill to preserve an existing `ENABLE_A365_OBSERVABILITY_EXPORTER`, and rule 6 told it to report that value back to the user when it was `false`. Because `a365 setup` stamps the key as `false` before this skill ever runs, the key always exists, so the preserve branch always won. The outcome of "add observability to my agent" was an agent correctly instrumented, building a span per turn, exporting none of them, with the fact recorded in one line of a long completion summary.
+
+The kit rewrites three passages in the Node.js / Python path:
+
+| Passage | Upstream | Kit |
+|---|---|---|
+| Invariant 1 | Preserve an existing exporter value | Preserve every value **except** the exporter switch; set that to `true` and say so |
+| Rule 6 | Tell the user it is off and how to turn it on | Tell the user it was off and that you turned it on, and to restart |
+| Phase 9 next steps | "Enable exporting when ready for production" | "Confirm the exporter is still on — a later `a365 setup` run can reset it" |
+
+Upstream's own .NET path already does exactly this. Invariant 3 reads: *"`EnableAgent365Exporter: true` at the root. `a365 setup` may write `false`; this skill corrects it."* The Node.js and Python branches were inconsistent with .NET on the same decision, and the kit makes them agree.
+
+This matters more outside Claude Code than inside it. The validator in section 9 runs as a stop hook, which only Claude Code honours; the kit ships no hook wiring for Copilot CLI, Cursor or Gemini CLI, so on those the validator never runs unless the reader invokes it. Fixing the skill rather than only the validator is what makes the behaviour identical on every CLI the kit supports.
+
+Found and fixed 2026-09-04, alongside section 9. Reported upstream.
+
 ---
 
 ## Kit add-ons — not Microsoft's
@@ -114,29 +148,15 @@ Everything under `.a365-kit/addons/` (and its copies in `.claude/skills/` and `.
 
 The seven Microsoft skills are untouched by the add-ons: they reference upstream files, never modify them.
 
-### 9. `validate-instrument-observability.js` — exporter value, not just presence
-
-The `a365` CLI stamps `ENABLE_A365_OBSERVABILITY_EXPORTER=false` into `.env`, and `instrument-observability` has an explicit invariant not to overwrite an existing value ("Preserve existing values … Add only missing keys"); it is meant to *warn* instead. Upstream's validator then checks only that the key **exists**:
-
-```js
-const hasEnvConfig = envFiles.some(f => fileContains(f, 'ENABLE_A365_OBSERVABILITY_EXPORTER'));
-```
-
-So an agent with the exporter switched off passes validation as fully instrumented, produces spans on every turn, and exports none of them. The Agent 365 Activity view stays empty with nothing anywhere reporting a fault.
-
-The kit adds a value check to both the Node.js and Python branches: if the key is present but not `true`, the validator fails with *"instrumented but exports nothing; set it to true and restart"*. No other check is altered.
-
-Found 2026-09-04 after several hours of live Teams traffic produced no activity. The instrumentation was correct throughout; only the last hop was disabled.
-
 ---
 
 ## What is *not* changed
 
-- No skill logic, phase ordering, or decision matrix.
+- No phase ordering, decision matrix, or trigger phrases.
 - No code patterns in `references/`.
-- No validator check logic, with the single exception of the language-detection fix in section 8 — the validators otherwise enforce exactly what upstream enforces.
-- No trigger phrases.
-- Nothing added to the skills. This kit contains no Purview, hosting, or hardening content; it is a packaging change only.
+- No skill logic beyond the exporter switch in section 10, which is applied to bring the Node.js and Python paths into line with what upstream's .NET path already does.
+- No validator check logic beyond the two bug fixes in sections 8 and 9 — the validators otherwise enforce exactly what upstream enforces.
+- Nothing added to the skills. This kit contributes no Purview, hosting, or hardening content of its own to them; that lives in the separately labelled add-ons above.
 
 ## Reporting issues
 
