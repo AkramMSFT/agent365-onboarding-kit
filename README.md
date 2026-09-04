@@ -53,7 +53,10 @@ Support is determined by where each CLI looks for skills, not by anything kit-sp
 
 The skills are plain Markdown. Only the Node validator hooks are Claude Code specific, and they are optional — the skills work without them, just without the end-of-session correctness check.
 
-**→ [`docs/USING-WITH-YOUR-CLI.md`](docs/USING-WITH-YOUR-CLI.md) is the full step-by-step walkthrough**, from downloading the zip to the moment onboarding starts, for each CLI.
+**Two guides, two questions:**
+
+- **[`docs/USING-WITH-YOUR-CLI.md`](docs/USING-WITH-YOUR-CLI.md)** — *how do I start?* From the zip to the moment onboarding begins, per CLI.
+- **[`docs/LIFECYCLE.md`](docs/LIFECYCLE.md)** — *how do I finish?* The complete path from a custom agent to one chatting in Teams and Copilot with Defender and Purview watching: agent kinds and identity, the two commands you always run yourself, hosting and the messaging endpoint, `a365 publish` and the manifest, admin-centre activation, DLP, teardown. Each step says whether the skills do it, you do it, or an admin does it in a portal.
 
 ---
 
@@ -98,7 +101,8 @@ It also asserts that its own targeted text fix-ups still match upstream. If Micr
 | `build/kit.version` | This kit's packaging version. |
 | `payload/` | Hand-written files copied into every build — launchers, doctor, README. |
 | `dist/` | Built output. Committed so the repo can be downloaded and used directly. |
-| `docs/USING-WITH-YOUR-CLI.md` | End-user walkthrough, step by step, per CLI. |
+| `docs/USING-WITH-YOUR-CLI.md` | End-user walkthrough, step by step, per CLI — how to start. |
+| `docs/LIFECYCLE.md` | The complete path to an agent chatting in Teams and Copilot — hosting, endpoint, manifest, activation, DLP, teardown — how to finish. |
 | `docs/HOW-IT-WORKS.md` | The repackaging design and why each rewrite is needed. |
 
 ## Status

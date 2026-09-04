@@ -149,6 +149,23 @@ Two things the skills leave for you — check both before calling it done:
 
 ---
 
+## After onboarding — making it chat in Teams and Copilot
+
+Onboarding gets the agent **registered**: blueprint, identity, permissions, instrumented code. Making it **reachable** — answering in Teams and Microsoft 365 Copilot — is four more steps, and two of them are portal-only:
+
+| Step | Command or place | Who |
+|---|---|---|
+| 1. Host `/api/messages` | AI Teammate path scaffolds it; otherwise add the hosting layer | you |
+| 2. Public HTTPS URL | `devtunnel` for dev, any HTTPS host for prod | you |
+| 3. Register the endpoint | `a365 setup blueprint --update-endpoint <url> --m365` — **`--m365` is required** or Teams routing is silently skipped | you, own terminal |
+| 4. Manifest + package | `a365 publish` → `manifest.zip` (the CLI owns `manifest.json`; don't hand-edit) | you, own terminal |
+| 5. Upload, activate, create instance | Microsoft 365 admin center → Agents → All agents → Upload custom agent → Activate → Instances → Create | admin |
+| 6. Test | `agentsplayground` before approval; Teams chat after; Copilot agent picker via `copilotAgents.customEngineAgents` | you |
+
+Like `a365 setup all`, run `a365 publish` in your own terminal — it block-buffers under chat tools and looks hung.
+
+The full walkthrough with every choice explained — agent kinds, identity, dev tunnel vs cloud, Purview DLP, teardown — is **`docs/LIFECYCLE.md`** in the kit repository.
+
 ## What happens next
 
 `a365-setup` is the entry point. It verifies the CLI and Azure prerequisites, asks which capabilities you want, then hands off:
