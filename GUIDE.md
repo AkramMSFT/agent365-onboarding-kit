@@ -38,8 +38,6 @@ flowchart TD
 
 <sub>Blue = the AI CLI does it · amber = you, in your own terminal · red = an admin, in a portal · green = a finish line.</sub>
 
-> Screenshots for the portal steps go in [`docs/images/`](docs/images/) — see its README for the shot-list. The text steps stand on their own without them.
-
 ---
 
 ## Which languages this covers
