@@ -1,186 +1,270 @@
 # Agent 365 Onboarding Kit
 
-Microsoft's [`agent365-skills`](https://github.com/microsoft/agent365-skills), repackaged as a **drop-in folder**.
+Onboard an existing AI agent to **Microsoft Agent 365** from whichever coding CLI you already use.
 
-Download, extract into your agent project, run one script. No plugin install, no marketplace step, and no dependency on which coding CLI you use.
+Microsoft publishes [`agent365-skills`](https://github.com/microsoft/agent365-skills) as a Claude Code plugin. This kit repackages those skills as a folder you drop into your agent's repository, so any skill-aware CLI picks them up with no install step.
 
 ```
-Download  ->  extract into your agent project  ->  ./agent365-kit.ps1  ->  "Onboard this agent to Agent 365."
+download  ->  extract into your agent project  ->  run the launcher  ->  "Onboard this agent to Agent 365."
 ```
 
 ---
 
-## Why this exists
+## Contents
 
-The upstream skills are excellent, but every documented install path assumes a specific host:
+- [What it does](#what-it-does)
+- [Prerequisites](#prerequisites)
+- [Quick start](#quick-start)
+- [How it works](#how-it-works)
+- [What you can ask for](#what-you-can-ask-for)
+- [What is included](#what-is-included)
+- [Supported CLIs](#supported-clis)
+- [Language support](#language-support)
+- [Relationship to Microsoft's skills](#relationship-to-microsofts-skills)
+- [Building and self-hosting](#building-and-self-hosting)
+- [Repository layout](#repository-layout)
+- [Verification](#verification)
+- [Licence](#licence)
 
-| Path | Requires |
+---
+
+## What it does
+
+Agent 365 onboarding has roughly ten stages: an Entra blueprint, an agent identity, an agentic user, observability, tools, a messaging endpoint, a published manifest, an admin-centre activation, DLP. Microsoft's skills automate most of it. Getting hold of those skills was the awkward part, because every documented install path assumes a particular host.
+
+| Documented path | Requires |
 |---|---|
-| `/plugin marketplace add` | A Claude Code host that exposes `/plugin` — several do not |
-| `claude --plugin-dir ...` | Knowing an absolute path, and a non-elevated shell |
-| `gh skill add` | The `gh skill` extension |
+| `/plugin marketplace add` | a Claude Code host that exposes `/plugin` — several do not |
+| `claude --plugin-dir ...` | an absolute path, and a non-elevated shell |
+| `gh skill add` | the `gh skill` extension |
 
-Each is fine on its own; together they make "just try the skills" a support conversation. This kit removes the install step entirely: the skills travel **with the project**, in the locations each CLI already looks in.
+Each works on its own; together they turn "try the skills" into a support conversation. This kit removes the install step. The skills travel **with the project**, in the directories each CLI already looks in.
 
-It is a **faithful repackage**. The skill content is Microsoft's. Beyond the mechanical path rewrites, a small number of bugs found while onboarding real agents are fixed in place — mostly in the observability path, where several faults each caused an agent to trace every turn and export none of it. Every change, and why it was made, is listed in [`NOTICE.md`](NOTICE.md).
+## Prerequisites
 
-**Languages:** Python, Node.js / TypeScript and .NET — the three Agent 365 ships SDKs for. Registration, identity, publishing and Teams reachability are language-agnostic and work for any agent; see [GUIDE.md](GUIDE.md#which-languages-this-covers) for what an agent outside those three can and cannot do.
+Install these before you start. The kit's launcher checks all of them and prints the install command for anything missing.
 
-## What a user gets
+| | Why |
+|---|---|
+| **.NET SDK 8+** | the `a365` CLI ships as a .NET global tool — SDK, not just runtime |
+| **`a365` CLI** | creates the blueprint and Entra identity |
+| **Azure CLI**, signed in | tenant sign-in and app registration |
+| **Node.js 18+** | runs the validators bundled with the kit |
+| **Git** | scaffolding starter agents |
+| **An AI coding CLI** | drives the onboarding — see [Supported CLIs](#supported-clis) |
+| **Your agent's own runtime** | Python 3.10+, Node.js, or .NET |
+
+```bash
+winget install --id Microsoft.DotNet.SDK.8 -e
+dotnet tool install -g Microsoft.Agents.A365.DevTools.Cli
+winget install --id Microsoft.AzureCLI -e
+az login --allow-no-subscriptions
+```
+
+On macOS, substitute `brew install --cask dotnet-sdk` and `brew install azure-cli`.
+
+Then at least one CLI:
+
+```bash
+npm install -g @github/copilot
+npm install -g @anthropic-ai/claude-code
+```
+
+Three things that are easy to miss, all covered in the guide:
+
+- **A one-time tenant step.** An administrator runs `a365 setup requirements` once; every developer in the tenant inherits it.
+- **A model provider key.** The kit onboards your agent; it does not give it a model. Your project still needs its own `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, or Azure OpenAI settings, or the agent registers successfully and then fails on its first message.
+- **On Windows, use a normal terminal.** Per-user tools are invisible to an elevated shell.
+
+## Quick start
+
+Download the release archive, then from your agent project's root:
+
+```powershell
+Expand-Archive -Path agent365-onboarding-kit-v0.1.0.zip -DestinationPath . -Force
+.\agent365-kit.ps1
+```
+
+```bash
+unzip agent365-onboarding-kit-v0.1.0.zip -d .
+./agent365-kit.sh
+```
+
+The launcher checks prerequisites, reports which CLIs it can see, and tells you how to start each one. Then open your CLI:
+
+```bash
+copilot
+```
+
+and ask for what you want:
+
+```
+Onboard this agent to Agent 365.
+```
+
+It reads the skills from the folder you just extracted, detects your stack, and works through the stages with you.
+
+**[`GUIDE.md`](GUIDE.md) is the full walkthrough** — ten steps from your agent's source to a registered, observable, tool-enabled agent chatting in Teams with Purview and Defender watching. Start there.
+
+## How it works
+
+A skill is a Markdown file with front matter. CLIs discover skills by looking in known directories, so the kit ships the same content in the directories each one reads:
 
 ```
 your-agent-project/
-  .a365-kit/            canonical: skills, shared docs, validators, doctor
-  .claude/skills/       discovery copy -- Claude Code
-  .agents/skills/       discovery copy -- VS Code agent mode, Copilot cloud agent, gh skill
-  agent365-kit.ps1      prereq check + per-CLI activation steps (Windows)
-  agent365-kit.sh       same, macOS/Linux
-  AGENT365-KIT-README.md
+  .a365-kit/            canonical: skills, shared docs, validators, prerequisite checker
+  .claude/skills/       discovery copy - Claude Code
+  .agents/skills/       discovery copy - Copilot, Cursor, Codex, Gemini CLI, and others
+  agent365-kit.ps1      launcher: prerequisite check and per-CLI activation (Windows)
+  agent365-kit.sh       the same, macOS and Linux
 ```
 
-Skill files are byte-identical across all three locations, because every internal reference points at `.a365-kit/`. See [`docs/HOW-IT-WORKS.md`](docs/HOW-IT-WORKS.md).
+The discovery copies are **byte-identical**, because every internal reference points at `.a365-kit/`. That single indirection is what lets one copy serve every CLI, and the build verifies the copies match. [`docs/HOW-IT-WORKS.md`](docs/HOW-IT-WORKS.md) covers the design.
+
+## What you can ask for
+
+Each stage has a phrase. You do not need to know skill names.
+
+| Say this | What happens |
+|---|---|
+| *Onboard this agent to Agent 365.* | Detects your stack, then creates the blueprint, identity and permissions |
+| *Add observability to this agent.* | OpenTelemetry instrumentation and the Agent 365 exporter |
+| *Add Work IQ tools to this agent.* | Microsoft 365 data: mail, calendar, Teams, SharePoint, OneDrive |
+| *Add an MCP server.* | Any external MCP server: filesystem, git, GitHub, Postgres, Slack, Playwright |
+| *Add lab tools.* | Local utilities: web fetch, encoders, hashing, text transforms |
+| *Make this agent chattable in Teams.* | HTTP host, dev tunnel, and endpoint registration |
+| *Add DLP to this agent.* | Purview evaluation of every prompt and response |
+| *Onboard this Java agent.* | Hosting layer and telemetry for Java, which has no Microsoft SDK |
+| *Update the Agent 365 kit.* | Updates the kit in place, leaving your agent untouched |
+
+### Example
+
+A TypeScript agent using the OpenAI Agents SDK, with no Agent 365 anything:
+
+```
+> Onboard this agent to Agent 365.
+
+  Stack:      OpenAI Agents SDK
+  Language:   NodeJS
+  Agent type: Agent (Non AI Teammate)
+  Blueprint:  none found - will create new
+
+  Which capabilities should I configure?
+    1. Register        2. Observability
+    3. Work IQ         4. AI Teammate
+
+> 1 and 2
+
+  How will your agent authenticate when calling downstream APIs?
+    1. On-behalf-of (OBO)    2. Service-to-service (S2S)
+
+> 1
+```
+
+From there it previews `a365 setup all` with `--dry-run`, shows exactly what will be created in your tenant, and asks before committing. Nothing reaches Entra without your explicit confirmation.
+
+## What is included
+
+**Microsoft's seven skills**, unchanged except for the modifications recorded in [`NOTICE.md`](NOTICE.md): `a365-setup`, `make-a365-agent`, `make-ai-teammate`, `instrument-observability`, `add-workiq-tools`, `a365-code-validator`, `test-local`.
+
+**Six add-ons written for this kit**, discovered the same way and clearly separated in `NOTICE.md`:
+
+| Add-on | Fills this gap |
+|---|---|
+| `add-messaging-endpoint` | Upstream registers a blueprint agent but never hosts it, leaving it reachable by nothing. Adds the `/api/messages` host, the tunnel, and the endpoint registration. |
+| `add-purview-dlp` | Upstream has no Purview coverage. Evaluates every prompt and response against tenant DLP through two Graph calls. |
+| `add-mcp-server` | Connects the agent to any external MCP server, with the governance boundary stated plainly: these are **not** registered in Agent 365 or gated by Entra. |
+| `add-lab-tools` | Local in-process utilities an agent otherwise lacks: web fetch, encoders, hashing, text transforms. Opt-in and dual-use. |
+| `add-java-agent` | Java has no Agent 365 SDK. Adds the HTTP host, inbound token validation, and a direct OTLP exporter. |
+| `a365-kit` | Kit maintenance from inside your CLI: prerequisites, versions, in-place update, update source. |
+
+An agent gets tools three ways and the kit covers all three: Work IQ MCP servers (Microsoft-hosted, Entra-gated), local function tools, and external MCP servers (the wider ecosystem, ungoverned by Agent 365). Only the first appears in the Agent 365 registry, and the add-ons for the other two say so.
 
 ## Supported CLIs
 
-Support is determined by where each CLI looks for skills, not by anything kit-specific:
+Support follows from where each CLI looks for skills, not from anything kit-specific:
 
-| Discovery path the kit ships | CLIs that read it | Validator hooks |
+| Directory the kit ships | CLIs that read it | Validator hooks |
 |---|---|---|
-| `.claude/skills/` | **Claude Code** | Yes |
-| `.agents/skills/` | **GitHub Copilot** (CLI, VS Code agent mode, coding agent), **Cursor**, **Codex**, **Gemini CLI**, **Amp**, **Cline**, **OpenCode**, **Warp**, **Antigravity** | No |
-| `.github/copilot-instructions.md` *(opt-in)* | GitHub Copilot — extra grounding, not required | No |
-| — | Anything else: point it at `.a365-kit/skills/a365-setup/SKILL.md` | No |
+| `.claude/skills/` | Claude Code | yes |
+| `.agents/skills/` | GitHub Copilot (CLI, VS Code agent mode, coding agent), Cursor, Codex, Gemini CLI, Amp, Cline, OpenCode, Warp, Antigravity | no |
+| `.github/copilot-instructions.md` *(opt-in)* | GitHub Copilot, as extra grounding — not required | no |
+| — | anything else: point it at `.a365-kit/skills/a365-setup/SKILL.md` | no |
 
-`.agents/skills/` is the [Agent Skills specification](https://agentskills.io/specification) convention; the CLI list is GitHub's own project-scope mapping, confirmed against `gh skill install --help` on gh 2.98.
+`.agents/skills/` follows the [Agent Skills specification](https://agentskills.io/specification).
 
-The skills are plain Markdown. Only the Node validator hooks are Claude Code specific, and they are optional — the skills work without them, just without the end-of-session correctness check.
+The skills themselves are plain Markdown. Only the validator hooks are Claude Code specific, and they are optional: everything works without them, just without the end-of-session correctness check. [`docs/USING-WITH-YOUR-CLI.md`](docs/USING-WITH-YOUR-CLI.md) covers per-CLI differences.
 
-**[`GUIDE.md`](GUIDE.md) is the complete end-to-end walkthrough** — from your agent's source to a registered, observable, tool-enabled agent chatting in Teams and Copilot with Purview and Defender watching. Start there. The `docs/` below go deeper on specific parts:
+## Language support
 
-- **[`docs/STEP-BY-STEP.md`](docs/STEP-BY-STEP.md)** — the phrase that starts each stage, condensed.
-- **[`docs/USING-WITH-YOUR-CLI.md`](docs/USING-WITH-YOUR-CLI.md)** — per-CLI setup and differences.
-- **[`docs/LIFECYCLE.md`](docs/LIFECYCLE.md)** — *how do I finish?* The complete path from a custom agent to one chatting in Teams and Copilot with Defender and Purview watching: agent kinds and identity, the two commands you always run yourself, hosting and the messaging endpoint, `a365 publish` and the manifest, admin-centre activation, DLP, teardown. Each step says whether the skills do it, you do it, or an admin does it in a portal.
+Agent 365 ships SDKs for **Python, Node.js / TypeScript and .NET**. Within those, framework coverage is broad and detected automatically: LangChain, OpenAI Agents SDK, Claude Agent SDK, Google ADK, Semantic Kernel and Microsoft Agent Framework.
 
----
+Most of onboarding never reads your source. The blueprint, identity, agentic user, endpoint registration, manifest, upload and instance are Entra, CLI and portal operations, so an agent in **any** language can be registered, published and made reachable in Teams. Only observability, Work IQ tools and the generated host are SDK-bound. Java is covered by the `add-java-agent` add-on, and [`GUIDE.md`](GUIDE.md#which-languages-this-covers) documents the wire contract other languages would need.
 
-## Kit add-ons
+## Relationship to Microsoft's skills
 
-Two skills the kit adds beside Microsoft's seven, discovered the same way, clearly separated in `NOTICE.md`. Both were built from what the live runs showed was missing.
+This is a repackage, not a fork. The build clones upstream fresh on every run and re-applies a fixed set of edits, each of which asserts the upstream text it expects to find. If Microsoft reword a patched passage, the build fails and names the file rather than silently emitting something broken.
 
-| Add-on | Say | What it does |
-|---|---|---|
-| `add-messaging-endpoint` | *"make this agent chattable in Teams"* | For blueprint-based agents, which upstream registers but never hosts: adds the `/api/messages` host (Python verified on SDK 1.6; Node/.NET via upstream's references), exposes it through a dev tunnel or your URL, registers the endpoint with `--m365`, and hands off `a365 setup permissions bot` — the one part that needs the Windows broker. |
-| `add-purview-dlp` | *"add DLP to this agent"* | Purview runtime DLP on every prompt and response: two Graph REST calls, so one pattern for Python, Node.js and .NET. Grants the two delegated scopes on the agent identity, wires the hooks with the token-subject rule that otherwise yields Graph 400, and hands off the portal policy. Python is from a live reference deployment; the ports are transcriptions awaiting a tenant run. |
-| `add-lab-tools` | *"add lab tools"* | Local in-process tools beyond Work IQ: web fetch and page summarise, base64/hex/url/rot13 encode-decode, md5/sha hashing, text transforms. Plain function tools — no consent or tokens. Dual-use and opt-in; the web fetch is deliberate egress surface for exercising Defender and Purview. Python verified on a live agent; Node.js and .NET ported. |
-| `add-mcp-server` | *"add an MCP server"* | Connects the agent to any external/community MCP server — filesystem, git, GitHub, Postgres, web fetch, Slack, Playwright, and the rest of the ecosystem — via stdio (`npx`/`uvx`) or streamable-HTTP. The governance boundary the kit is careful about: these are **not** registered in Agent 365 or gated by Entra, so the skill flags the risk and points at `add-purview-dlp`. Python pattern API-verified on the live SDK; Node.js and .NET ported. |
+Changes fall into two groups, both itemised in [`NOTICE.md`](NOTICE.md):
 
-**Three ways an agent gets tools**, and the kit covers all three: Work IQ MCP (`add-workiq-tools`, Microsoft-hosted and Entra-gated), local function tools (`add-lab-tools`, in-process), and external MCP servers (`add-mcp-server`, the wider ecosystem, ungoverned by Agent 365). Only the first is in the registry — the add-ons for the other two say so plainly.
+- **Packaging.** Path tokens, hook commands, the plugin command namespace, and a guard that would otherwise disable itself outside a plugin install. Mechanical, no behaviour change.
+- **Defects found while onboarding real agents.** Mostly in the observability path, where several independent faults each left an agent tracing every turn and exporting none of it. Every one is documented with the failure it causes and upstream's own justification for the fix.
 
-## Building
+Problems with what the skills *do* belong upstream at [microsoft/agent365-skills](https://github.com/microsoft/agent365-skills/issues). Problems with the packaging, launchers, prerequisite checker or build belong here.
 
-Requires PowerShell 7+, Git, and Node.js.
+## Building and self-hosting
+
+Requires PowerShell 7+, Git and Node.js.
 
 ```powershell
-# Build from a local clone of upstream
 .\build\Build-Kit.ps1 -UpstreamPath C:\src\agent365-skills
-
-# Or let it shallow-clone upstream itself, and produce a release zip
 .\build\Build-Kit.ps1 -Zip
 ```
 
-Output lands in `dist/`. With `-Zip` you also get `agent365-onboarding-kit-v<version>.zip` at the repo root, ready to attach to a GitHub release.
+The first builds from a local clone of upstream; the second clones upstream itself and produces a release archive. Output lands in `dist/`, and `-Zip` also writes the archive at the repository root.
 
-### Refreshing when Microsoft ships a new version
+The build refuses to emit output it cannot prove coherent. It verifies that no `${CLAUDE_PLUGIN_ROOT}` path tokens or `/agent365:` command references survive, that every path a skill references exists, that every bundled JS file parses, that the discovery copies match, and that every hook command was repointed.
 
-It happens by itself. `.github/workflows/refresh-upstream.yml` runs daily, compares upstream `main` with the commit recorded in `KIT-VERSION.json`, and when it has moved: rebuilds, commits `dist/`, and cuts a release with the zip attached — both `agent365-onboarding-kit-v<version>.zip` and a stable `agent365-onboarding-kit-latest.zip`. If a fix-up assertion fails because upstream reworded a patched passage, the job fails and opens (or comments on) an issue labelled `upstream-refresh` naming the file. Trigger it by hand from the Actions tab, optionally pinning `upstream_ref` to a tag.
+**Staying current.** `.github/workflows/refresh-upstream.yml` runs daily, compares upstream `main` against the recorded commit, and when it moves it rebuilds, commits `dist/` and cuts a release. If a fix-up assertion fails it opens an issue instead.
 
-Locally it is one command:
+**Updating in place.** `.\agent365-kit.ps1 -Update`, or *"update the Agent 365 kit"* from inside your CLI. Only the kit's own paths are replaced, never your agent, `.env`, config, or skills you added.
 
-```powershell
-.\build\Build-Kit.ps1 -Zip
-```
+**Using your own mirror.** The public release is only the default. Point updates at a URL or a filesystem path:
 
-The build re-derives everything from upstream; nothing is hand-maintained. Bump `build/kit.version` if the kit's own packaging changed.
+| Scope | How |
+|---|---|
+| One call | `-UpdateFrom <zip-or-url>` |
+| One shell or CI job | `A365_KIT_UPDATE_SOURCE=<zip-or-url>` |
+| One project, whole team | `-SetUpdateSource <zip-or-url>`, which writes `a365-kit.config.json` — commit it |
+| Your own build | `.\build\Build-Kit.ps1 -UpdateSource <zip-or-url> -Zip` |
 
-**Users update in place** with `.\agent365-kit.ps1 -Update` (or `./agent365-kit.sh --update`) — or, from inside their CLI, *"update the Agent 365 kit"* (the `a365-kit` add-on). It replaces only the kit's own paths — never the agent, `.env`, config, `.claude/settings.json`, or skills the user added. The Claude Code session-start notice tells users when upstream has moved.
-
-### Hosting the kit yourself
-
-The public GitHub release is only the default. Organisations that mirror the kit — internal GitHub, an artifact server, a file share — choose where updates come from at whichever level fits:
-
-| Level | How | Wins over |
-|---|---|---|
-| One call | `-UpdateFrom <zip-or-url>` / `--update-from` | everything below |
-| One shell or CI job | `A365_KIT_UPDATE_SOURCE=<zip-or-url>` | everything below |
-| One project, whole team | `.\agent365-kit.ps1 -SetUpdateSource <zip-or-url>` → writes `a365-kit.config.json` at the project root, outside the paths an update replaces; **commit it** | everything below |
-| Your own build of the kit | `.\build\Build-Kit.ps1 -UpdateSource <zip-or-url> -Zip` → baked into `KIT-VERSION.json` | the public default |
-
-A filesystem path is as valid as a URL, so a network share with `agent365-onboarding-kit-latest.zip` on it works with no web server at all.
-
-The build **fails loudly** rather than shipping something subtly broken. It verifies that:
-
-- no `${CLAUDE_PLUGIN_ROOT}` path tokens survive (they resolve to nothing without a plugin)
-- no `/agent365:` plugin command references survive (that namespace does not exist here)
-- every `.a365-kit/...` path a skill references actually exists in the output
-- every bundled JS file parses
-- the discovery copies match the canonical skill set
-- every hook command was repointed to `${CLAUDE_PROJECT_DIR}`
-
-It also asserts that its own targeted text fix-ups still match upstream. If Microsoft rewords a passage the kit patches, the build stops and names the file, instead of silently emitting nonsense.
+A network share holding `agent365-onboarding-kit-latest.zip` works with no web server at all.
 
 ## Repository layout
 
 | Path | Purpose |
 |---|---|
-| `build/Build-Kit.ps1` | The build. Derives `dist/` from upstream. |
-| `build/kit.version` | This kit's packaging version. |
-| `payload/` | Hand-written files copied into every build — launchers, doctor, README. |
-| `dist/` | Built output. Committed so the repo can be downloaded and used directly. |
-| `docs/USING-WITH-YOUR-CLI.md` | End-user walkthrough, step by step, per CLI — how to start. |
-| `docs/LIFECYCLE.md` | The complete path to an agent chatting in Teams and Copilot — hosting, endpoint, manifest, activation, DLP, teardown — how to finish. |
-| `docs/HOW-IT-WORKS.md` | The repackaging design and why each rewrite is needed. |
+| `build/Build-Kit.ps1` | the build — derives `dist/` from upstream |
+| `build/kit.version` | this kit's packaging version |
+| `payload/` | files authored here and copied into every build: add-ons, validators, launchers, prerequisite checker |
+| `dist/` | built output, committed so the repository can be used directly |
+| `GUIDE.md` | the end-to-end walkthrough |
+| `NOTICE.md` | attribution and every modification made to upstream |
+| `docs/` | deeper references: per-CLI setup, lifecycle, design |
 
-## Status
+`dist/` is generated. Changes to Microsoft's skills go in the fix-up list in `build/Build-Kit.ps1`; changes to the kit's own content go in `payload/`.
 
-Verified on Windows 11 against upstream v1.0.2:
+## Verification
 
-**Build**
-- builds clean with all verification passing
-- the patched path guard blocks writes into the kit and outside the project, and allows writes to agent source
-- stop validators run and correctly report an un-instrumented project
-- Copilot wiring creates the instructions file, and appends to a pre-existing one without data loss
+Built against upstream `agent365-skills` v1.0.2 and verified on Windows 11.
 
-**Claude Code**
-- discovers all seven skills from `.claude/skills/` with no plugin install
+- **Discovery.** Claude Code and GitHub Copilot CLI both list all thirteen skills from the extracted folder with no install step. Copilot loads referenced files by relative path, which is what confirms the path-rewrite strategy works outside Claude Code.
+- **Onboarding.** Driven end to end through Copilot CLI against a live tenant on a Python agent: blueprint, agent identity, eleven delegated permission grants, observability instrumentation, Work IQ tool wiring, messaging endpoint, published package, and an agent answering in Teams.
+- **Java.** The `add-java-agent` output compiles on JDK 21 and runs: health check returns 200, an anonymous request returns 401, a forged bearer returns 401. Its OTLP encoder was matched field by field against the Python SDK's output.
+- **Guard behaviour.** The patched path guard blocks writes into the kit and outside the project, and allows writes to agent source.
 
-**GitHub Copilot CLI 1.0.81**
-- `copilot skill list` shows all seven under *Project skills* from `.agents/skills/`
-- a dry run loaded `.a365-kit/skills/a365-setup/SKILL.md` **by relative path**, confirming the path-rewrite strategy works outside Claude Code
-- correctly detected Python + OpenAI Agents SDK + non-AI-Teammate, and routed to `make-a365-agent`
-- produced the full question sequence and step plan, with zero file changes
-
-**Live onboarding through Copilot CLI, real tenant** (existing Python / OpenAI Agents SDK project, `src/` layout, `requirements.txt`, AI Teammate path)
-- blueprint and service principal created, all five resource consents granted
-- hosting layer, `AgentInterface` adapter, notification handler, `.env` and `requirements.txt` all written correctly
-- `validate-make-ai-teammate.js` passes — after the three fix-ups in `NOTICE.md` §8, which this run surfaced
-- two things a first run leaves for the user: `pip install` (the skill edits `requirements.txt` but doesn't install), and the observability scopes (re-invoke `instrument-observability`); both documented in the kit README
-- **`a365 setup all` must be run in the user's own terminal**, not through any agentic CLI — it authenticates via the Windows broker, which needs an interactive desktop session. This is a property of the a365 CLI, not the kit; see `docs/USING-WITH-YOUR-CLI.md`
-
-**Second live run, non-AI-Teammate path** (same project, fresh folder; Register + Observability + WorkIQ, OBO)
-- with the own-terminal instruction in place, the `a365 setup all` step that stalled for an hour in run 1 took about a minute
-- blueprint created **and an agent identity auto-created** — for the blueprint-only path `a365 setup all` provisions the identity service principal itself, so the agent is in the registry with an Entra identity without an admin-centre step
-- all 11 delegated OAuth2 grants materialised in the tenant (Graph, seven WorkIQ MCP servers, observability, connectivity)
-- `InvokeAgentScope`, the token cache and the WorkIQ `McpToolRegistrationService` all wired into the agent; `ToolingManifest.json` written
-- all four applicable validators pass: `a365-setup`, `make-a365-agent`, `instrument-observability`, `add-workiq-tools`
-- `completed: false` in the generated config on this path means the Azure hosting/endpoint step is outstanding, not that consent is — the validator's own warning says so
-- the one gap reproduced from run 1: the skill edits `requirements.txt` but does not run `pip`; documented in the kit README as a post-run check
-
-**Reachability, on the same agent**
-- host, dev tunnel, endpoint registration and bot permissions all verified — and **the agent still did not appear in Teams**, which corrected a wrong assumption: the app package is required on the blueprint path too, not only for AI Teammates
-- plain `a365 publish` refuses on that path (`useBlueprint: true`); `a365 publish --aiteammate true` builds the package without changing the agent's kind — verified, and the docs and the endpoint add-on now say so
-
-Not yet exercised: the admin-centre upload and activation of that package, and the `.agents/skills/` path under the other CLIs (Cursor, Codex, Gemini CLI, Amp, Cline, OpenCode, Warp, Antigravity).
+Not yet exercised: the `.agents/skills/` path under Cursor, Codex, Gemini CLI, Amp, Cline, OpenCode, Warp and Antigravity, and a Java agent taken all the way to a live tenant.
 
 ## Licence
 
-This packaging is MIT licensed — see [`LICENSE`](LICENSE). The bundled skills are © Microsoft Corporation, also MIT. See [`NOTICE.md`](NOTICE.md) for attribution and the exact list of modifications.
+This packaging is MIT licensed — see [`LICENSE`](LICENSE). The bundled skills are © Microsoft Corporation, also MIT. [`NOTICE.md`](NOTICE.md) carries the attribution and the full list of modifications.

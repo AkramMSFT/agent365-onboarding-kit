@@ -20,7 +20,7 @@ The kit ships the skills into the two directories that coding agents actually re
 
 Anything not listed still works — see [Any other agentic CLI](#any-other-agentic-cli).
 
-> **Verified:** **Claude Code** (all seven skills discovered, validators firing) and
+> **Verified:** **Claude Code** (all thirteen skills discovered, validators firing) and
 > **GitHub Copilot CLI 1.0.81** (all seven listed as project skills; a dry run loaded
 > `.a365-kit/skills/a365-setup/SKILL.md`, correctly detected Python + OpenAI Agents SDK +
 > non-AI-Teammate, and routed to `make-a365-agent`).
@@ -224,7 +224,7 @@ All of these share `.agents/skills/` at project scope, so **the skills are alrea
 1. Open the project folder in your tool.
 2. Ask using the trigger phrase.
 
-If your tool has a skills listing command (often `/skills list`), use it to confirm the seven skills are visible first.
+If your tool has a skills listing command (often `/skills list`), use it to confirm the thirteen skills are visible first.
 
 Two caveats that apply to every non-Claude CLI:
 
