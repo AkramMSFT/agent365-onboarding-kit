@@ -10,3 +10,15 @@ Thumbs.db
 .DS_Store
 .vs/
 .idea/
+
+# Credential-bearing files, if the kit is ever exercised in place
+.env
+.env.*
+!.env.example
+a365.generated.config.json
+a365-kit.config.json
+
+# Build and dependency output from test projects
+node_modules/
+target/
+__pycache__/

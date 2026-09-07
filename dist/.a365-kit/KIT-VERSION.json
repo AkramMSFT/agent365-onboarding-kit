@@ -3,7 +3,7 @@
   "upstreamRepo": "microsoft/agent365-skills",
   "upstreamVersion": "1.0.2",
   "upstreamCommit": "99a3ceb",
-  "builtUtc": "2026-09-07T04:10:42Z",
+  "builtUtc": "2026-09-07T08:49:17Z",
   "updateSource": "https://github.com/AkramMSFT/agent365-onboarding-kit/releases/latest/download/agent365-onboarding-kit-latest.zip",
   "skills": [
     "a365-code-validator",
