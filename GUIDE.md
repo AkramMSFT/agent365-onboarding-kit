@@ -285,9 +285,18 @@ The last two are outside the Entra model, so pair them with DLP (Step 9). WorkIQ
 
 ## Step 5a — Optional: chat with it locally, with no tunnel  [CLI]
 
-Skip this if Step 6 is going to work for you. It exists for the cases where it will not: a
-network that blocks dev tunnels, an agent not published yet, or just a faster loop while you
-are changing agent logic.
+Not a prerequisite for Step 6 — the two are alternatives. Skip it if Step 6 is going to work
+for you, and use it when it will not: a network that blocks dev tunnels, an agent not
+published yet, or just a faster loop while you are changing agent logic.
+
+**One case where it is worth doing even if Step 6 would work: straight after adding tools.**
+Tool wiring is where agents break, and through Teams every one of those failures looks
+identical — the agent simply does not answer. A duplicate tool name across two Work IQ
+servers, MCP tokens that expire after the first turn, a Work IQ 401 from a missing
+environment variable: all of them reach the user as silence, and diagnosing them means
+correlating Teams, the tunnel and the host log. On the dev channel you `curl` the agent and
+read the exception. It separates *does the agent work* from *is the routing right*, and after
+Step 5 the first question is the one you want answered.
 
 > **Let me test this agent locally.**
 
