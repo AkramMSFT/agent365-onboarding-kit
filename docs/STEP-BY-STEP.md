@@ -124,7 +124,8 @@ The `add-purview-dlp` add-on finds your agent identity's appId (that is the Purv
 |---|---|
 | *Validate A365 code.* | Read-only diagnosis of telemetry, identity binding and live grants; offers fixes |
 | *Add WorkIQ tools to this agent.* | Mail, calendar, Teams, SharePoint MCP servers; needs OBO |
-| *Test this agent locally.* | Starts the agent and AgentsPlayground |
+| *Test this agent locally.* | Starts the agent and AgentsPlayground — AI Teammate path |
+| *Let me test this agent locally.* | Loopback-only dev channel for a blueprint agent: no tunnel, no tenant, no Teams. Off unless `A365_DEV_CHANNEL=true` |
 | *Update the Agent 365 kit.* | Replaces only the kit's files with the latest release, or your organisation's mirror |
 | *Check the kit prerequisites.* | The launcher's doctor, from the CLI |
 | *Set the kit update source to …* | Pin updates to your own server or share, for the whole team |
