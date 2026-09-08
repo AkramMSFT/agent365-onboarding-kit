@@ -235,8 +235,10 @@ if (-not (Test-Path -LiteralPath $Canonical)) {
 }
 
 $SkillCount = (Get-ChildItem -Path (Join-Path $KitRoot '.a365-kit\skills') -Directory).Count
+$AddonPath  = Join-Path $KitRoot '.a365-kit\addons'
+$AddonNames = @(if (Test-Path -LiteralPath $AddonPath) { (Get-ChildItem -Path $AddonPath -Directory).Name })
 Write-Host ''
-Write-Ok "Kit layout looks correct ($SkillCount skills)"
+Write-Ok "Kit layout looks correct ($($SkillCount + $AddonNames.Count) skills: $SkillCount Microsoft, $($AddonNames.Count) add-ons)"
 
 if ((Get-Location).Path -ne $KitRoot) {
     Write-Warn "Switching working directory to the project root: $KitRoot"
@@ -423,6 +425,46 @@ Write-Note '    validator hooks, which are optional.'
 Write-Host ''
 Write-Note 'Full per-CLI walkthrough: docs/USING-WITH-YOUR-CLI.md in the kit repository.'
 Write-Host ''
+
+Write-Head 'What you can ask for'
+Write-Host ''
+Write-Note 'Say these in whichever CLI you picked. You do not need to know skill names.'
+Write-Host ''
+
+Write-Host '  Core' -ForegroundColor White
+Write-Cmd '"Onboard this agent to Agent 365."'
+Write-Note '        blueprint, Entra identity, permissions'
+Write-Cmd '"Add observability to this agent."'
+Write-Note '        OpenTelemetry and the Agent 365 exporter'
+Write-Cmd '"Add WorkIQ tools to this agent."'
+Write-Note '        Microsoft 365 data: mail, calendar, Teams, SharePoint'
+Write-Cmd '"Validate A365 code."'
+Write-Note '        read-only check of telemetry, identity binding and grants'
+Write-Host ''
+
+# Enumerated, not hardcoded: a new add-on appears here without touching the launcher.
+$AddonPhrases = @{
+  'add-messaging-endpoint' = @('"Make this agent chattable in Teams."', 'HTTP host, dev tunnel, endpoint registration')
+  'test-local-channel'     = @('"Let me test this agent locally."', 'loopback-only dev channel: no tunnel, no tenant, no Teams')
+  'add-mcp-server'         = @('"Add an MCP server."', 'any external MCP server -- not governed by Agent 365')
+  'add-lab-tools'          = @('"Add lab tools."', 'local utilities: web fetch, encoders, hashing, text transforms')
+  'add-purview-dlp'        = @('"Add DLP to this agent."', 'Purview checks every prompt and response')
+  'add-java-agent'         = @('"Onboard this Java agent."', 'hosting and telemetry for Java, which has no Microsoft SDK')
+  'a365-kit'               = @('"Update the Agent 365 kit."', 'replaces only the kit files, never your agent')
+}
+if ($AddonNames.Count -gt 0) {
+    Write-Host '  Add-ons in this kit' -ForegroundColor White
+    foreach ($addon in ($AddonNames | Sort-Object)) {
+        if ($AddonPhrases.ContainsKey($addon)) {
+            Write-Cmd  $AddonPhrases[$addon][0]
+            Write-Note ('        ' + $AddonPhrases[$addon][1])
+        } else {
+            Write-Cmd  $addon
+            Write-Note ('        see .a365-kit/addons/' + $addon + '/SKILL.md')
+        }
+    }
+    Write-Host ''
+}
 
 Write-Host '  ---' -ForegroundColor DarkGray
 Write-Note 'a365-setup is the entry point. It checks prerequisites, asks which capabilities'

@@ -166,9 +166,11 @@ if [ ! -f "$CANONICAL" ]; then
   exit 1
 fi
 
-SKILL_COUNT="$(find "$KIT_ROOT/.a365-kit/skills" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')"
+SKILL_COUNT="$(find "$KIT_ROOT/.a365-kit/skills" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l | tr -d ' ')"
+ADDON_COUNT="$(find "$KIT_ROOT/.a365-kit/addons" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l | tr -d ' ')"
+TOTAL_SKILLS="$((SKILL_COUNT + ADDON_COUNT))"
 echo ''
-ok_ "Kit layout looks correct ($SKILL_COUNT skills)"
+ok_ "Kit layout looks correct ($TOTAL_SKILLS skills: $SKILL_COUNT Microsoft, $ADDON_COUNT add-ons)"
 
 cd "$KIT_ROOT"
 
@@ -308,6 +310,59 @@ note_ '    validator hooks, which are optional.'
 echo ''
 note_ 'Full per-CLI walkthrough: docs/USING-WITH-YOUR-CLI.md in the kit repository.'
 echo ''
+
+head_ 'What you can ask for'
+echo ''
+note_ 'Say these in whichever CLI you picked. You do not need to know skill names.'
+echo ''
+
+printf '  %sCore%s
+' "$C_BOLD" "$C_RESET"
+cmd_ '"Onboard this agent to Agent 365."'
+note_ '        blueprint, Entra identity, permissions'
+cmd_ '"Add observability to this agent."'
+note_ '        OpenTelemetry and the Agent 365 exporter'
+cmd_ '"Add WorkIQ tools to this agent."'
+note_ '        Microsoft 365 data: mail, calendar, Teams, SharePoint'
+cmd_ '"Validate A365 code."'
+note_ '        read-only check of telemetry, identity binding and grants'
+echo ''
+
+if [ -d "$KIT_ROOT/.a365-kit/addons" ]; then
+  printf '  %sAdd-ons in this kit%s
+' "$C_BOLD" "$C_RESET"
+  for addon_dir in "$KIT_ROOT"/.a365-kit/addons/*/; do
+    [ -d "$addon_dir" ] || continue
+    addon_name="$(basename "$addon_dir")"
+    case "$addon_name" in
+      add-messaging-endpoint)
+        cmd_ '"Make this agent chattable in Teams."'
+        note_ '        HTTP host, dev tunnel, endpoint registration' ;;
+      test-local-channel)
+        cmd_ '"Let me test this agent locally."'
+        note_ '        loopback-only dev channel: no tunnel, no tenant, no Teams' ;;
+      add-mcp-server)
+        cmd_ '"Add an MCP server."'
+        note_ '        any external MCP server -- not governed by Agent 365' ;;
+      add-lab-tools)
+        cmd_ '"Add lab tools."'
+        note_ '        local utilities: web fetch, encoders, hashing, text transforms' ;;
+      add-purview-dlp)
+        cmd_ '"Add DLP to this agent."'
+        note_ '        Purview checks every prompt and response' ;;
+      add-java-agent)
+        cmd_ '"Onboard this Java agent."'
+        note_ '        hosting and telemetry for Java, which has no Microsoft SDK' ;;
+      a365-kit)
+        cmd_ '"Update the Agent 365 kit."'
+        note_ '        replaces only the kit files, never your agent' ;;
+      *)
+        cmd_ "\"$addon_name\""
+        note_ "        see .a365-kit/addons/$addon_name/SKILL.md" ;;
+    esac
+  done
+  echo ''
+fi
 
 printf '  %s---%s\n' "$C_DIM" "$C_RESET"
 note_ 'a365-setup is the entry point. It checks prerequisites, asks which capabilities'
