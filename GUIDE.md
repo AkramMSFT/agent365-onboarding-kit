@@ -139,22 +139,47 @@ devtunnel user login
 
 ## Step 1 — Put the kit in your agent project
 
-Download the latest release zip into your Downloads folder, then from the **root of your agent project** — the folder containing your agent's source — extract it in place. This is the entire install:
+> **Do not use GitHub's green Code → Download ZIP button.** That gives you
+> `agent365-onboarding-kit-main.zip`, which is the whole *repository* inside a wrapper
+> folder. Extracting it puts the skills where no CLI looks, and the failure is silent: the
+> extraction succeeds and then your CLI finds no skills. You want the **release asset**,
+> which is the kit itself with no wrapper.
+
+Everything happens in the **root of your agent project** — the folder containing your
+agent's source. Three commands, and this is the entire install.
+
+**Windows PowerShell:**
 
 ```powershell
-# Windows PowerShell, from the project root
 cd C:\path\to\your-agent-project
-Expand-Archive -Path "$env:USERPROFILE\Downloads\agent365-onboarding-kit-v0.1.0.zip" -DestinationPath . -Force
+```
+
+```powershell
+Invoke-WebRequest -Uri "https://github.com/AkramMSFT/agent365-onboarding-kit/releases/latest/download/agent365-onboarding-kit-latest.zip" -OutFile "kit.zip"
+```
+
+```powershell
+Expand-Archive -Path kit.zip -DestinationPath . -Force
+```
+
+**macOS / Linux:**
+
+```bash
+cd ~/path/to/your-agent-project
 ```
 
 ```bash
-# macOS / Linux, from the project root
-cd ~/path/to/your-agent-project
-unzip -o ~/Downloads/agent365-onboarding-kit-v0.1.0.zip -d .
-chmod +x agent365-kit.sh
+curl -L -o kit.zip https://github.com/AkramMSFT/agent365-onboarding-kit/releases/latest/download/agent365-onboarding-kit-latest.zip
 ```
 
-The zip has no wrapper directory, so extracting in place gives you:
+```bash
+unzip -o kit.zip -d . && chmod +x agent365-kit.sh
+```
+
+That URL always resolves to the newest release, so it does not go stale. Delete `kit.zip`
+afterwards if you like — nothing depends on it.
+
+The archive has no wrapper directory, so extracting in place gives you:
 
 ```
 your-agent-project/
@@ -170,22 +195,43 @@ Starting from nothing? Extract into an empty folder — the skills can scaffold 
 
 Committing these folders to your repo is the recommended end state: the skills then travel with the project and teammates need no download.
 
-## Step 2 — Check prerequisites and pick your CLI
+## Step 2 — Check prerequisites and start your CLI
 
-```bash
-.\agent365-kit.ps1          # Windows
-./agent365-kit.sh           # macOS / Linux
+**First, run the launcher.** It changes nothing: it verifies prerequisites, prints the
+install command for anything missing, detects which CLIs you have, and lists every phrase
+you can use.
+
+```powershell
+.\agent365-kit.ps1
 ```
 
-This changes nothing. It verifies prerequisites, prints the install command for anything missing, detects your CLIs, and prints how to start each. Fix anything it flags, open a new terminal, run it again.
+```bash
+./agent365-kit.sh
+```
 
-Confirm your CLI sees the skills:
+Fix anything it flags, open a **new** terminal so freshly installed tools are on PATH, and
+run it again until everything passes.
 
-- **Claude Code:** run `claude`, then ask *What Agent 365 skills do you have?*
-- **GitHub Copilot CLI:** `copilot skill list`
-- **Others:** open the project; the skills are in `.agents/skills/`.
+**Then start your CLI, from this same folder.** Run one of these:
 
-You should see thirteen: seven Microsoft skills plus six kit add-ons.
+```bash
+copilot
+```
+
+```bash
+claude
+```
+
+Cursor, Codex, Gemini CLI, Amp, Cline, OpenCode, Warp and Antigravity all read
+`.agents/skills/` at project scope: open this folder in the tool and use its chat.
+
+**Confirm it can see the skills** before going further. In Copilot CLI type `/skills` or run
+`copilot skill list` in a separate terminal; in Claude Code just ask *What Agent 365 skills
+do you have?*
+
+You should see fourteen — seven Microsoft skills plus seven kit add-ons. If you see none, the
+kit was extracted somewhere other than this folder; check that `.agents` and `.claude` sit
+beside your agent's source, not inside a subfolder.
 
 <!-- ![Skills listed by the CLI](images/02-skills-list.png) -->
 

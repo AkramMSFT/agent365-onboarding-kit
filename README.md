@@ -78,15 +78,26 @@ Three things that are easy to miss, all covered in the guide:
 
 ## Quick start
 
-Download the release archive, then from your agent project's root:
+From the root of your agent project — the folder holding your agent's source.
+
+> Use the **release asset**, not GitHub's green Code → Download ZIP button. That button
+> gives you the whole repository inside a wrapper folder, which puts the skills where no CLI
+> looks. The extraction succeeds and your CLI then finds nothing, so the mistake is easy to
+> miss. The commands below fetch the right archive.
+
+**Windows PowerShell:**
 
 ```powershell
-Expand-Archive -Path agent365-onboarding-kit-v0.1.0.zip -DestinationPath . -Force
+Invoke-WebRequest -Uri "https://github.com/AkramMSFT/agent365-onboarding-kit/releases/latest/download/agent365-onboarding-kit-latest.zip" -OutFile "kit.zip"
+Expand-Archive -Path kit.zip -DestinationPath . -Force
 .\agent365-kit.ps1
 ```
 
+**macOS / Linux:**
+
 ```bash
-unzip agent365-onboarding-kit-v0.1.0.zip -d .
+curl -L -o kit.zip https://github.com/AkramMSFT/agent365-onboarding-kit/releases/latest/download/agent365-onboarding-kit-latest.zip
+unzip -o kit.zip -d .
 ./agent365-kit.sh
 ```
 
