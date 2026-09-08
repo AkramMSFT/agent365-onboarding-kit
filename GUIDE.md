@@ -283,6 +283,55 @@ An agent gets tools three ways. Add any combination:
 
 The last two are outside the Entra model, so pair them with DLP (Step 9). WorkIQ tokens are per-audience; the skill wires that. If you add several servers, tool names are namespaced automatically so they don't collide.
 
+## Step 5a — Optional: chat with it locally, with no tunnel  [CLI]
+
+Skip this if Step 6 is going to work for you. It exists for the cases where it will not: a
+network that blocks dev tunnels, an agent not published yet, or just a faster loop while you
+are changing agent logic.
+
+> **Let me test this agent locally.**
+
+The `test-local-channel` add-on adds a second listener on its own port, bound to `127.0.0.1`,
+serving `/dev/chat` and `/dev/health`. It calls the same function your production handler
+calls, so you are exercising the real agent rather than a copy. `/api/messages` is untouched
+and stays fully authenticated.
+
+It is **off by default**. Turn it on for a session:
+
+```bash
+A365_DEV_CHANNEL=true python host_agent_server.py     # Node.js: npm start | .NET: dotnet run
+```
+
+Then talk to it:
+
+```bash
+curl -s -X POST http://127.0.0.1:3999/dev/chat -H "content-type: application/json" -d "{\"text\":\"hello\"}"
+```
+
+On Windows, put the body in a file and use `--data @body.json` — quoting JSON inline in
+PowerShell is more trouble than it is worth.
+
+**Two things to be clear about.** This channel bypasses authentication, which is the entire
+point and also the risk. Never set `A365_DEV_CHANNEL=true` outside local development, and
+never point a tunnel at the dev port.
+
+And the guard is not the one you would expect. `devtunnel host` runs on your own machine and
+forwards to a local port, so a request from the public internet still arrives looking like
+`127.0.0.1`:
+
+```
+local request  ->  peer=127.0.0.1  xff=None
+via tunnel     ->  peer=127.0.0.1  xff=40.65.108.177
+```
+
+A loopback check alone would let tunnelled traffic straight through. The channel refuses any
+request carrying forwarding headers instead — which is why it returns 403 rather than an
+answer if something proxies to it.
+
+If the agent is an AI Teammate, *Test this agent locally* is the better route: it opens
+AgentsPlayground against the standard endpoint. This add-on is for the blueprint path, which
+that skill does not cover.
+
 ## Step 6 — Make it reachable in Teams and Copilot  [CLI] + [you]
 
 Only if you want users to chat with it. In your CLI:
@@ -391,7 +440,8 @@ Allow up to 24 hours for the first evaluation.
 
 ## Test
 
-- **Before upload / any path:** *Test this agent locally* opens AgentsPlayground against your host.
+- **Before upload, AI Teammate:** *Test this agent locally* opens AgentsPlayground against your host.
+- **Before upload, blueprint agent:** the dev channel from Step 5a — no tunnel, no tenant, no Teams.
 - **After upload and activation:** search Teams for the agent by name and chat with it. It also appears in the Microsoft 365 Copilot agent picker.
 
 <!-- ![Agent answering in Teams](images/09-teams-chat.png) -->
@@ -424,6 +474,8 @@ Everything else is done by the CLI or a portal. These four need your own termina
 | Teams turn fails with `MCPError` on a later message | External MCP tokens expire; keep servers open for the host's lifetime, not per turn. |
 | Agent answers nothing in Teams, host log shows no request | Nothing is listening, or the tunnel is down. Both must be running; re-check the Notification URL matches the current tunnel URL. |
 | Host starts, but every turn fails on the model call | No model provider key in `.env` (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `AZURE_OPENAI_*`). Onboarding does not supply one. |
+| Dev channel returns 403 instead of an answer | The request carried a forwarding header, so it was treated as proxied. Call `127.0.0.1` directly rather than through a tunnel or proxy. |
+| Dev channel port refuses the connection | `A365_DEV_CHANNEL` is not `true`. It is off by default and set per session, not in `.env`. |
 | `devtunnel host` fails to start | `devtunnel user login` has not been run, or the session expired. It is separate from `az login`. |
 | Log shows `EndpointInvalid` / `Tenant id  is invalid` (note the blank) | The exporter got an un-awaited coroutine instead of a token, not a bad tenant. Python OBO agents onboarded before this kit version need the sync resolver bridge — re-run *Add observability to this agent*. |
 | Everything works but Activity stays empty after hours | `ENABLE_A365_OBSERVABILITY_EXPORTER` is not `true`, or `AGENT365OBSERVABILITY__AGENTID` is not the instance appId. See Step 4. Indexing also lags 15–90 min after the first export. |
