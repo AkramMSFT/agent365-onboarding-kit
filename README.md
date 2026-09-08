@@ -135,6 +135,7 @@ Each stage has a phrase. You do not need to know skill names.
 | *Make this agent chattable in Teams.* | HTTP host, dev tunnel, and endpoint registration |
 | *Add DLP to this agent.* | Purview evaluation of every prompt and response |
 | *Onboard this Java agent.* | Hosting layer and telemetry for Java, which has no Microsoft SDK |
+| *Let me test this agent locally.* | A loopback-only dev channel, so you can chat with the agent with no tenant, tunnel or Teams |
 | *Update the Agent 365 kit.* | Updates the kit in place, leaving your agent untouched |
 
 ### Example
@@ -167,7 +168,7 @@ From there it previews `a365 setup all` with `--dry-run`, shows exactly what wil
 
 **Microsoft's seven skills**, unchanged except for the modifications recorded in [`NOTICE.md`](NOTICE.md): `a365-setup`, `make-a365-agent`, `make-ai-teammate`, `instrument-observability`, `add-workiq-tools`, `a365-code-validator`, `test-local`.
 
-**Six add-ons written for this kit**, discovered the same way and clearly separated in `NOTICE.md`:
+**Seven add-ons written for this kit**, discovered the same way and clearly separated in `NOTICE.md`:
 
 | Add-on | Fills this gap |
 |---|---|
@@ -177,6 +178,7 @@ From there it previews `a365 setup all` with `--dry-run`, shows exactly what wil
 | `add-lab-tools` | Local in-process utilities an agent otherwise lacks: web fetch, encoders, hashing, text transforms. Opt-in and dual-use. |
 | `add-java-agent` | Java has no Agent 365 SDK. Adds the HTTP host, inbound token validation, and a direct OTLP exporter. |
 | `a365-kit` | Kit maintenance from inside your CLI: prerequisites, versions, in-place update, update source. |
+| `test-local-channel` | Microsoft's `test-local` targets AI Teammates only, so a blueprint agent had no local test path: its host rejects every unauthenticated request. Adds a loopback-only dev channel on its own port, off unless `A365_DEV_CHANNEL=true`. |
 
 An agent gets tools three ways and the kit covers all three: Work IQ MCP servers (Microsoft-hosted, Entra-gated), local function tools, and external MCP servers (the wider ecosystem, ungoverned by Agent 365). Only the first appears in the Agent 365 registry, and the add-ons for the other two say so.
 
@@ -258,7 +260,7 @@ A network share holding `agent365-onboarding-kit-latest.zip` works with no web s
 
 Built against upstream `agent365-skills` v1.0.2 and verified on Windows 11.
 
-- **Discovery.** Claude Code and GitHub Copilot CLI both list all thirteen skills from the extracted folder with no install step. Copilot loads referenced files by relative path, which is what confirms the path-rewrite strategy works outside Claude Code.
+- **Discovery.** Claude Code and GitHub Copilot CLI both list all fourteen skills from the extracted folder with no install step. Copilot loads referenced files by relative path, which is what confirms the path-rewrite strategy works outside Claude Code.
 - **Onboarding.** Driven end to end through Copilot CLI against a live tenant on a Python agent: blueprint, agent identity, eleven delegated permission grants, observability instrumentation, Work IQ tool wiring, messaging endpoint, published package, and an agent answering in Teams.
 - **Java.** The `add-java-agent` output compiles on JDK 21 and runs: health check returns 200, an anonymous request returns 401, a forged bearer returns 401. Its OTLP encoder was matched field by field against the Python SDK's output.
 - **Guard behaviour.** The patched path guard blocks writes into the kit and outside the project, and allows writes to agent source.
