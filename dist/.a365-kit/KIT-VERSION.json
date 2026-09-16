@@ -2,8 +2,8 @@
   "kitVersion": "0.1.0",
   "upstreamRepo": "microsoft/agent365-skills",
   "upstreamVersion": "1.0.2",
-  "upstreamCommit": "99a3ceb",
-  "builtUtc": "2026-09-08T09:19:07Z",
+  "upstreamCommit": "07a0304",
+  "builtUtc": "2026-09-16T09:58:04Z",
   "updateSource": "https://github.com/AkramMSFT/agent365-onboarding-kit/releases/latest/download/agent365-onboarding-kit-latest.zip",
   "skills": [
     "a365-code-validator",
@@ -12,6 +12,7 @@
     "instrument-observability",
     "make-a365-agent",
     "make-ai-teammate",
+    "purview-dlp-integration",
     "test-local"
   ],
   "addons": [
