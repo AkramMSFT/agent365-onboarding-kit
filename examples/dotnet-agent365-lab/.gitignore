@@ -6,7 +6,6 @@ obj/
 *.log
 a365.generated.config.json
 appsettings.json
-a365-kit.config.json
 .a365-workspace-detection.local.json
 .a365-runtime.local.json
 .a365-tokens.local.json

@@ -8,6 +8,5 @@ __pycache__/
 runtime-work/
 deps*/
 a365.generated.config.json
-a365-kit.config.json
 .a365-workspace-detection.local.json
 ToolingManifest.local.json

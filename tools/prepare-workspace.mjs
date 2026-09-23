@@ -98,7 +98,7 @@ export function prepareWorkspace(bundleRoot, { example, destination }) {
     }
     if (!destinations.has('.gitignore')) {
       fs.writeFileSync(path.join(target, '.gitignore'),
-        '.env\n.env.*\n!.env.example\na365.generated.config.json\na365-kit.config.json\n.a365-workspace-detection.local.json\n',
+        '.env\n.env.*\n!.env.example\na365.generated.config.json\n.a365-workspace-detection.local.json\n',
         { flag: 'wx' });
     }
   } catch (error) {

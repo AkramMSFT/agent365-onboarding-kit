@@ -17,7 +17,7 @@ def main() -> int:
     if not sys.flags.no_site:
         raise SystemExit("Use python -I -S run_offline.py to exclude global site packages")
     parser = argparse.ArgumentParser()
-    parser.add_argument("--deps", type=Path, default=Path(__file__).parent / "deps-arm64")
+    parser.add_argument("--deps", type=Path, default=Path(__file__).parent / "deps")
     parser.add_argument("--pattern", default="test_*.py")
     args = parser.parse_args()
     root = Path(__file__).parent
