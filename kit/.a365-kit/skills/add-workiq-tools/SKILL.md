@@ -696,17 +696,12 @@ fi
 
 ### For Python
 
-For the pinned AF profile, restore its manifest in the project environment and run:
-
-```powershell
-python -c "from mcp_tool_registration_service import AgentFrameworkMcpTools; from agent_framework_openai import OpenAIChatCompletionClient; from agent_framework import RawAgent; print('AF WorkIQ imports OK')"
+```bash
+pip3 install -r requirements.txt 2>/dev/null || pip install -r requirements.txt || pip install .
+python3 -c "from microsoft_agents_a365.tooling.extensions.agent_framework import McpToolRegistrationService; print('WorkIQ imports OK')" 2>/dev/null || python -c "from microsoft_agents_a365.tooling.extensions.agent_framework import McpToolRegistrationService; print('WorkIQ imports OK')"
 ```
 
-Also exercise the offline core discovery/per-audience/MCP tool-loop contract;
-an import alone does not validate token freshness or lifecycle cleanup.
-For other supported frameworks use only their separately verified reference
-imports. Python LangChain, Claude and CrewAI hard stops remain in force; do not
-guess a `.langchain` namespace or fall back to an unrelated generic service.
+Adjust the import path to match the installed framework extension (e.g. `.langchain`, `.openai`).
 
 If build fails, present error output with suggested fixes. Do not revert changes.
 

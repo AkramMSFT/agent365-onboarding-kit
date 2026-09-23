@@ -49,7 +49,7 @@ hooks:
 > servers only for agents you operate, prefer servers you trust or run yourself, and treat
 > their output as untrusted model input. `add-purview-dlp` evaluates the user prompt and
 > final reply, not intermediate MCP arguments/results; tool-boundary evaluation is
-> additional work. Not part of Microsoft's seven skills.
+> additional work. Not part of Microsoft's skills.
 
 ## How external MCP differs from Work IQ
 

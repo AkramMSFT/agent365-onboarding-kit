@@ -1,6 +1,7 @@
 name: Refresh from upstream
 
-# Rebuilds the kit whenever microsoft/agent365-skills moves, and cuts a release.
+# Rebuilds the kit whenever microsoft/agent365-skills moves, bumps the patch version,
+# and cuts a release, so every published kit has its own version and tag.
 #
 # Zero-touch when upstream is well-behaved. Loud when it is not: Build-Kit.ps1
 # asserts every text fix-up against upstream's exact wording, so an upstream
@@ -63,6 +64,9 @@ jobs:
         id: build
         shell: pwsh
         run: |
+          $parts = (Get-Content build/kit.version -Raw).Trim().Split('.')
+          $next = "$($parts[0]).$($parts[1]).$([int]$parts[2] + 1)"
+          [IO.File]::WriteAllText("$PWD/build/kit.version", "$next`n")
           ./build/Build-Kit.ps1 -UpstreamRef $env:UPSTREAM_REF -Zip
           $m = Get-Content kit/.a365-kit/KIT-VERSION.json -Raw | ConvertFrom-Json
           "kit=$($m.kitVersion)"           >> $env:GITHUB_OUTPUT
@@ -75,10 +79,10 @@ jobs:
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add kit BUNDLE-MANIFEST.json SHA256SUMS.txt
-          if (git diff --cached --quiet) { Write-Host "kit unchanged after rebuild"; exit 0 }
-          git commit -m "Refresh from upstream agent365-skills v${{ steps.build.outputs.upstream }} (${{ steps.build.outputs.commit }})"
-          git push
+          git add build/kit.version kit BUNDLE-MANIFEST.json SHA256SUMS.txt
+          git commit -m "Kit v${{ steps.build.outputs.kit }}: refresh from upstream agent365-skills v${{ steps.build.outputs.upstream }} (${{ steps.build.outputs.commit }})"
+          git tag "v${{ steps.build.outputs.kit }}"
+          git push origin HEAD "v${{ steps.build.outputs.kit }}"
 
       - name: Release
         if: steps.probe.outputs.changed == 'true'
@@ -86,12 +90,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = "v${{ steps.build.outputs.kit }}-upstream.${{ steps.build.outputs.commit }}"
+          $tag = "v${{ steps.build.outputs.kit }}"
           $zip = "agent365-onboarding-kit-v${{ steps.build.outputs.kit }}.zip"
           $bundle = "agent365-onboarding-bundle-v${{ steps.build.outputs.kit }}.zip"
           Copy-Item $zip agent365-onboarding-kit-latest.zip
-          gh release create $tag $zip agent365-onboarding-kit-latest.zip $bundle `
-            --title "Kit v${{ steps.build.outputs.kit }} · upstream v${{ steps.build.outputs.upstream }} (${{ steps.build.outputs.commit }})" `
+          gh release create $tag $zip agent365-onboarding-kit-latest.zip $bundle --latest `
+            --title "v${{ steps.build.outputs.kit }}" `
             --notes "Rebuilt from microsoft/agent365-skills ``${{ env.UPSTREAM_REF }}`` at ``${{ steps.build.outputs.commit }}``.`n`nExtract into your agent project root, or run ``agent365-kit.ps1 -Update`` / ``agent365-kit.sh --update`` in a project that already has the kit."
 
       - name: Open or update an issue on failure

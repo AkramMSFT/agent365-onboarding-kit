@@ -13,9 +13,9 @@
       5. Prints the exact steps to load the skills in each one.
 
     The skills work with any CLI that reads one of these locations:
-      .claude/skills/    Claude Code
-      .agents/skills/    VS Code agent mode, Copilot cloud agent, gh skill
-      .github/           GitHub Copilot CLI, VS Code Copilot Chat
+      .claude/skills/    Claude Code, GitHub Copilot CLI
+      .agents/skills/    GitHub Copilot CLI, VS Code agent mode, Copilot cloud agent, gh skill
+      .github/copilot-instructions.md   VS Code Copilot Chat; extra grounding for Copilot CLI
 
 .PARAMETER DoctorOnly
     Run the prerequisite check and exit, without printing activation steps.
@@ -104,23 +104,38 @@ Write-Host '========================' -ForegroundColor DarkGray
 $KitConfigPath = Join-Path $KitRoot 'a365-kit.config.json'
 $PublicSource  = 'https://github.com/AkramMSFT/agent365-onboarding-kit/releases/latest/download/agent365-onboarding-kit-latest.zip'
 
+# Works in Windows PowerShell 5.1 and PowerShell 7. 5.1 reads BOM-less files in the ANSI
+# code page, writes a BOM with -Encoding UTF8, and has no ConvertFrom-Json -AsHashtable.
+function Read-KitText([string] $Path) { [IO.File]::ReadAllText($Path) }
+function Write-KitText([string] $Path, [string] $Text, [switch] $Append) {
+    $utf8 = [Text.UTF8Encoding]::new($false)
+    if ($Append) { [IO.File]::AppendAllText($Path, $Text, $utf8) } else { [IO.File]::WriteAllText($Path, $Text, $utf8) }
+}
+function ConvertFrom-KitJson([string] $Json) {
+    if ($PSVersionTable.PSVersion.Major -ge 7) { return ,($Json | ConvertFrom-Json -AsHashtable -NoEnumerate) }
+    Add-Type -AssemblyName System.Web.Extensions
+    $serializer = [System.Web.Script.Serialization.JavaScriptSerializer]::new()
+    $serializer.MaxJsonLength = [int]::MaxValue
+    return ,$serializer.DeserializeObject($Json)
+}
+
 function Get-UpdateSource {
     if ($UpdateFrom) { return @{ Value = $UpdateFrom; Origin = '-UpdateFrom' } }
     if ($env:A365_KIT_UPDATE_SOURCE) { return @{ Value = $env:A365_KIT_UPDATE_SOURCE; Origin = 'A365_KIT_UPDATE_SOURCE' } }
     if (Test-Path -LiteralPath $KitConfigPath) {
         try {
-            $c = Get-Content -LiteralPath $KitConfigPath -Raw | ConvertFrom-Json -NoEnumerate
-            if ($c -is [pscustomobject] -and $c.updateSource -is [string] -and -not [string]::IsNullOrWhiteSpace($c.updateSource)) {
-                return @{ Value = $c.updateSource; Origin = 'a365-kit.config.json' }
+            $c = ConvertFrom-KitJson (Read-KitText $KitConfigPath)
+            if ($c -is [System.Collections.IDictionary] -and $c['updateSource'] -is [string] -and -not [string]::IsNullOrWhiteSpace($c['updateSource'])) {
+                return @{ Value = $c['updateSource']; Origin = 'a365-kit.config.json' }
             }
         } catch { Write-Warn "a365-kit.config.json is not valid JSON -- ignoring it" }
     }
     $m = Join-Path $KitRoot '.a365-kit\KIT-VERSION.json'
     if (Test-Path -LiteralPath $m) {
         try {
-            $mv = Get-Content -LiteralPath $m -Raw | ConvertFrom-Json -NoEnumerate
-            if ($mv -is [pscustomobject] -and $mv.updateSource -is [string] -and -not [string]::IsNullOrWhiteSpace($mv.updateSource)) {
-                return @{ Value = $mv.updateSource; Origin = 'kit build default' }
+            $mv = ConvertFrom-KitJson (Read-KitText $m)
+            if ($mv -is [System.Collections.IDictionary] -and $mv['updateSource'] -is [string] -and -not [string]::IsNullOrWhiteSpace($mv['updateSource'])) {
+                return @{ Value = $mv['updateSource']; Origin = 'kit build default' }
             }
         } catch { }
     }
@@ -131,7 +146,7 @@ if ($PSBoundParameters.ContainsKey('SetUpdateSource')) {
     Write-Head 'Kit update source'
     $cfg = @{}
     if (Test-Path -LiteralPath $KitConfigPath) {
-        $cfg = Get-Content -LiteralPath $KitConfigPath -Raw | ConvertFrom-Json -AsHashtable -NoEnumerate
+        $cfg = ConvertFrom-KitJson (Read-KitText $KitConfigPath)
         if ($cfg -isnot [System.Collections.IDictionary]) {
             throw 'a365-kit.config.json must contain a JSON object; it was not changed.'
         }
@@ -143,7 +158,7 @@ if ($PSBoundParameters.ContainsKey('SetUpdateSource')) {
         $cfg['updateSource'] = $SetUpdateSource
         Write-Ok "Project update source set to: $SetUpdateSource"
     }
-    ($cfg | ConvertTo-Json -Depth 100 -WarningAction Stop) | Set-Content -LiteralPath $KitConfigPath -Encoding UTF8
+    Write-KitText $KitConfigPath (($cfg | ConvertTo-Json -Depth 100 -WarningAction Stop) + "`n")
     Write-Note 'Written to a365-kit.config.json -- commit it so your whole team updates from the same place.'
     $r = Get-UpdateSource
     Write-Note "-Update will now use: $($r.Value)  [$($r.Origin)]"
@@ -167,7 +182,7 @@ if ($Update) {
     }
 
     function Read-KitManifest([string] $Path) {
-        $data = Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json -AsHashtable -NoEnumerate
+        $data = ConvertFrom-KitJson (Read-KitText $Path)
         if ($data -isnot [System.Collections.IDictionary]) { throw "Invalid kit manifest: $Path" }
         foreach ($field in @('kitVersion', 'upstreamVersion', 'upstreamCommit')) {
             if ($data[$field] -isnot [string] -or [string]::IsNullOrWhiteSpace($data[$field])) {
@@ -197,7 +212,8 @@ if ($Update) {
         }
     }
 
-    $stage = Join-Path $KitRoot ('.a365-kit-update-' + [Guid]::NewGuid().ToString('N'))
+    # Short name: Windows PowerShell 5.1 cannot extract past 260 characters.
+    $stage = Join-Path $KitRoot ('.a365-kit-update-' + [Guid]::NewGuid().ToString('N').Substring(0, 8))
     New-Item -ItemType Directory -Path $stage | Out-Null
     $zip = Join-Path $stage 'kit.zip'
     $backedUp = [Collections.Generic.List[string]]::new()
@@ -212,6 +228,7 @@ if ($Update) {
             Copy-Item -LiteralPath $UpdateFrom -Destination $zip
         }
         # Check archive paths before extraction, and completeness before moving any installed file.
+        Add-Type -AssemblyName System.IO.Compression.FileSystem
         $archive = [IO.Compression.ZipFile]::OpenRead($zip)
         try {
             $entries = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
@@ -362,7 +379,7 @@ if ((Get-Location).Path -ne $KitRoot) {
 # when they are simply not on the Administrator PATH.
 
 $isElevated = $false
-if ($IsWindows) {
+if ($PSVersionTable.PSEdition -eq 'Desktop' -or $IsWindows) {
     $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
     $principal = [Security.Principal.WindowsPrincipal]::new($identity)
     $isElevated = $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
@@ -430,16 +447,16 @@ if ($WireCopilot) {
         exit 1
     }
     else {
-        $instructions = Get-Content -LiteralPath $src -Raw
+        $instructions = Read-KitText $src
         if ([string]::IsNullOrWhiteSpace($instructions)) { throw 'The kit Copilot instructions are empty.' }
         $marker = '<!-- agent365-kit:copilot-instructions -->'
-        $existing = if (Test-Path -LiteralPath $dst) { [string](Get-Content -LiteralPath $dst -Raw) } else { '' }
+        $existing = if (Test-Path -LiteralPath $dst) { (Read-KitText $dst) } else { '' }
         $alreadyWired = $existing.Contains($marker) -or
             $existing.Replace("`r`n", "`n").Contains($instructions.Replace("`r`n", "`n").TrimEnd())
         $block = "$marker`n$instructions"
         New-Item -ItemType Directory -Force -Path $dstDir | Out-Null
         if (-not (Test-Path -LiteralPath $dst)) {
-            Set-Content -LiteralPath $dst -Value $block -Encoding UTF8
+            Write-KitText $dst ($block.TrimEnd() + "`n")
             Write-Ok 'Created .github\copilot-instructions.md'
         }
         elseif ($alreadyWired) {
@@ -447,8 +464,7 @@ if ($WireCopilot) {
         }
         else {
             # Append rather than overwrite: this file is commonly project-owned.
-            Add-Content -LiteralPath $dst -Value "`n`n---`n"
-            Add-Content -LiteralPath $dst -Value $block
+            Write-KitText $dst ("`n`n---`n`n" + $block.TrimEnd() + "`n") -Append
             Write-Ok 'Appended Agent 365 instructions to your existing .github\copilot-instructions.md'
         }
     }
@@ -523,7 +539,7 @@ Write-Host ''
 
 Write-Host '  GitHub Copilot CLI' -ForegroundColor White
 Write-Note '    Reads .agents/skills/ automatically. From this folder:'
-Write-Cmd 'gh copilot'
+Write-Cmd $(if ($hasCopilotCli -or -not $hasGhCopilotL) { 'copilot' } else { 'gh copilot' })
 Write-Note '    then type the phrase above. For extra grounding, also wire the'
 Write-Note '    instructions file once:'
 Write-Cmd '.\agent365-kit.ps1 -WireCopilot'
@@ -590,7 +606,8 @@ if ($AddonNames.Count -gt 0) {
 Write-Host '  ---' -ForegroundColor DarkGray
 Write-Note 'a365-setup is the entry point. It checks prerequisites, asks which capabilities'
 Write-Note 'you want, then hands off to make-ai-teammate or make-a365-agent.'
-Write-Note 'For consent-aware setup, keep your approved options and use:'
+Write-Note 'Run a365 setup in your own terminal when the skill asks. To have the kit catch'
+Write-Note 'the observability consent hand-off, prefix the same command with the wrapper:'
 Write-Cmd 'node .\.a365-kit\run-a365.mjs setup <subcommand> [options]'
 Write-Note 'If maven-prod OtelWrite needs admin consent, follow the access-package handoff and wait for Delivered.'
 Write-Host ''

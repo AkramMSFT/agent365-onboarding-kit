@@ -290,5 +290,6 @@ Skip the entry point and ask directly:
 
 The bundled skills are © Microsoft Corporation, MIT licensed, from
 [microsoft/agent365-skills](https://github.com/microsoft/agent365-skills). This kit repackages them
-unmodified except for path rewrites needed to load them without a plugin install. See `NOTICE.md`
-in the kit repository for details of exactly what was changed.
+with path rewrites so they load without a plugin install, plus itemised defect corrections.
+`.a365-kit/NOTICE.md` lists every change and the failure it prevents. Microsoft's licence is in
+`.a365-kit/LICENSE-agent365-skills` and the kit's in `.a365-kit/LICENSE`.

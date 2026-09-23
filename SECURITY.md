@@ -2,7 +2,7 @@
 
 ## Reporting a vulnerability
 
-Report suspected vulnerabilities privately through GitHub's [security advisory](../../security/advisories/new) form rather than a public issue.
+Report suspected vulnerabilities privately through GitHub's [security advisory](https://github.com/AkramMSFT/agent365-onboarding-kit/security/advisories/new) form rather than a public issue.
 
 If the issue is in Microsoft's skills rather than this packaging, report it to Microsoft through the [Microsoft Security Response Center](https://msrc.microsoft.com/report). If you are unsure which it is, report it here and it will be forwarded.
 

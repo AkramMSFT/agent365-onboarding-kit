@@ -142,14 +142,14 @@
   {
     "id": "hooks.stop.validate-instrument-observability.js#h8",
     "path": "hooks\\stop\\validate-instrument-observability.js",
-    "find": "  }\n\n  // 5. .env has observability vars\n  const hasEnvConfig = envFiles.some(f =>\n    fileContains(f, 'ENABLE_A365_OBSERVABILITY_EXPORTER'));\n  if (!hasEnvConfig) {\n    issues.push('.env / .env.example does not contain ENABLE_A365_OBSERVABILITY_EXPORTER');\n  } else if (!envFiles.some(f => { try { return /ENABLE_A365_OBSERVABILITY_EXPORTER\\s*=\\s*true/i.test(fs.readFileSync(f, 'utf8')); } catch { return false; } })) {\n    // Kit fix-up: the value must be true or nothing is ever exported.\n    issues.push('ENABLE_A365_OBSERVABILITY_EXPORTER is present but not \"true\" -- the agent is instrumented but exports nothing; set it to true and restart');\n  }\n}",
+    "find": "  }\n\n  // 5. .env has observability vars\n  const hasEnvConfig = envFiles.some(f =>\n    fileContains(f, 'ENABLE_A365_OBSERVABILITY_EXPORTER'));\n  if (!hasEnvConfig) {\n    issues.push('.env / .env.example does not contain ENABLE_A365_OBSERVABILITY_EXPORTER');\n  }\n}",
     "replace": "  }\n\n  // 5. .env has observability vars\n  const codeExporterFlags = tsFiles.flatMap(f => {\n    try {\n      return [...fs.readFileSync(f, 'utf8').matchAll(/\\benableObservabilityExporter\\s*:\\s*(true|false)\\b/g)]\n        .map(match => match[1]);\n    } catch { return []; }\n  });\n  const exporterEnabled = codeExporterFlags.includes('true') ||\n    (!codeExporterFlags.includes('false') && envFlagEnabled(envFiles, 'ENABLE_A365_OBSERVABILITY_EXPORTER'));\n  if (!exporterEnabled) {\n    issues.push('No enabled Agent 365 exporter found: check enableObservabilityExporter in code and ENABLE_A365_OBSERVABILITY_EXPORTER in the selected environment configuration; explicit Node options override the environment');\n  }\n}",
     "expectedCount": 1
   },
   {
     "id": "hooks.stop.validate-instrument-observability.js#h9",
     "path": "hooks\\stop\\validate-instrument-observability.js",
-    "find": "  }\n\n  // 5. .env has observability vars\n  const hasEnvConfig = envFiles.some(f =>\n    fileContains(f, 'ENABLE_A365_OBSERVABILITY_EXPORTER'));\n  if (!hasEnvConfig) {\n    issues.push('.env does not contain ENABLE_A365_OBSERVABILITY_EXPORTER');\n  } else if (!envFiles.some(f => { try { return /ENABLE_A365_OBSERVABILITY_EXPORTER\\s*=\\s*true/i.test(fs.readFileSync(f, 'utf8')); } catch { return false; } })) {\n    // Kit fix-up: the value must be true or nothing is ever exported.\n    issues.push('ENABLE_A365_OBSERVABILITY_EXPORTER is present but not \"true\" -- the agent is instrumented but exports nothing; set it to true and restart');\n  }\n}",
+    "find": "  }\n\n  // 5. .env has observability vars\n  const hasEnvConfig = envFiles.some(f =>\n    fileContains(f, 'ENABLE_A365_OBSERVABILITY_EXPORTER'));\n  if (!hasEnvConfig) {\n    issues.push('.env does not contain ENABLE_A365_OBSERVABILITY_EXPORTER');\n  }\n}",
     "replace": "  }\n\n  // 5. .env has observability vars\n  const codeExporterEnabled = pyFiles.some(f => {\n    try {\n      return /\\ba365_enable_observability_exporter\\s*=\\s*True\\b/.test(fs.readFileSync(f, 'utf8'));\n    } catch { return false; }\n  });\n  if (!codeExporterEnabled && !envFlagEnabled(envFiles, 'ENABLE_A365_OBSERVABILITY_EXPORTER')) {\n    issues.push('No enabled Agent 365 exporter found: set a365_enable_observability_exporter=True in code or ENABLE_A365_OBSERVABILITY_EXPORTER=true in the selected environment configuration');\n  }\n}",
     "expectedCount": 1
   },
@@ -248,7 +248,7 @@
     "id": "skills.add-workiq-tools.SKILL.md#h6",
     "path": "skills\\add-workiq-tools\\SKILL.md",
     "find": "\n```bash\nnpm install\nnpm run build || npm run compile || echo \"No build script — skipping compile check\"\n```\n\n### For Python\n\n```bash\npip3 install -r requirements.txt 2>/dev/null || pip install -r requirements.txt || pip install .\npython3 -c \"from microsoft_agents_a365.tooling.extensions.agent_framework import McpToolRegistrationService; print('WorkIQ imports OK')\" 2>/dev/null || python -c \"from microsoft_agents_a365.tooling.extensions.agent_framework import McpToolRegistrationService; print('WorkIQ imports OK')\"\n```\n\nAdjust the import path to match the installed framework extension (e.g. `.langchain`, `.openai`).\n\nIf build fails, present error output with suggested fixes. Do not revert changes.",
-    "replace": "\n```bash\nnpm install\nif node -e 'process.exit(require(\"./package.json\").scripts?.build ? 0 : 1)'; then\n  npm run build || exit $?\nelif node -e 'process.exit(require(\"./package.json\").scripts?.compile ? 0 : 1)'; then\n  npm run compile || exit $?\nelse\n  echo \"No build/compile script found - skipping compile check\"\nfi\n```\n\n### For Python\n\nFor the pinned AF profile, restore its manifest in the project environment and run:\n\n```powershell\npython -c \"from mcp_tool_registration_service import AgentFrameworkMcpTools; from agent_framework_openai import OpenAIChatCompletionClient; from agent_framework import RawAgent; print('AF WorkIQ imports OK')\"\n```\n\nAlso exercise the offline core discovery/per-audience/MCP tool-loop contract;\nan import alone does not validate token freshness or lifecycle cleanup.\nFor other supported frameworks use only their separately verified reference\nimports. Python LangChain, Claude and CrewAI hard stops remain in force; do not\nguess a `.langchain` namespace or fall back to an unrelated generic service.\n\nIf build fails, present error output with suggested fixes. Do not revert changes.",
+    "replace": "\n```bash\nnpm install\nif node -e 'process.exit(require(\"./package.json\").scripts?.build ? 0 : 1)'; then\n  npm run build || exit $?\nelif node -e 'process.exit(require(\"./package.json\").scripts?.compile ? 0 : 1)'; then\n  npm run compile || exit $?\nelse\n  echo \"No build/compile script found - skipping compile check\"\nfi\n```\n\n### For Python\n\n```bash\npip3 install -r requirements.txt 2>/dev/null || pip install -r requirements.txt || pip install .\npython3 -c \"from microsoft_agents_a365.tooling.extensions.agent_framework import McpToolRegistrationService; print('WorkIQ imports OK')\" 2>/dev/null || python -c \"from microsoft_agents_a365.tooling.extensions.agent_framework import McpToolRegistrationService; print('WorkIQ imports OK')\"\n```\n\nAdjust the import path to match the installed framework extension (e.g. `.langchain`, `.openai`).\n\nIf build fails, present error output with suggested fixes. Do not revert changes.",
     "expectedCount": 1
   },
   {
@@ -486,7 +486,7 @@
     "id": "skills.test-local.SKILL.md#h3",
     "path": "skills\\test-local\\SKILL.md",
     "find": "**Why AgentsPlayground works for all AI Teammate stacks:**\n- Web UI that matches the Teams message format\n- Connects to `/api/messages` over HTTP — the LLM framework on the server side does not matter\n- The `-c emulator` flag bypasses Bot Framework auth — no extra config needed for any stack\n- `requireAuth: false` in `MapAgentApplicationEndpoints` is the only .NET-specific prerequisite\n\nAll actions are **read-only against your codebase** — no code is modified.",
-    "replace": "**Why AgentsPlayground works for all AI Teammate stacks:**\n- Web UI that matches the Teams message format\n- Connects to `/api/messages` over HTTP — the LLM framework on the server side does not matter\n- The `-c emulator` flag selects the client's channel, not the server's authentication policy\n- Verify host compatibility first; the pinned Python host requires JWTs even in Development. Do not disable production authentication to make an unsigned playground request succeed.\n\nAll actions are **read-only against your codebase** — no code is modified.",
+    "replace": "**Why AgentsPlayground works for all AI Teammate stacks:**\n- Web UI that matches the Teams message format\n- Connects to `/api/messages` over HTTP — the LLM framework on the server side does not matter\n- The `-c emulator` flag selects the client's channel, not the server's authentication policy\n- Verify host compatibility first; a Python host that validates JWTs keeps doing so in Development. Do not disable production authentication to make an unsigned playground request succeed.\n\nAll actions are **read-only against your codebase** — no code is modified.",
     "expectedCount": 1
   },
   {
@@ -521,7 +521,7 @@
     "id": "skills.test-local.SKILL.md#h8",
     "path": "skills\\test-local\\SKILL.md",
     "find": "- **Node.js**: `npm start` (fall back to `npm run dev`)\n- **Python**: `python3 <entry-point>` on macOS/Linux (e.g. `python3 host_agent_server.py`); `python <entry-point>` on Windows\n\n> **Note for .NET:** The `-c \"emulator\"` flag bypasses Bot Framework auth.\n> This works because `MapAgentApplicationEndpoints` with `requireAuth: false` skips\n> token validation for local traffic. No config changes are needed for Node.js or Python.\n\nPoll until the agent responds (max ~20 s), then launch AgentsPlayground — **same command for all stacks**:\n\n```bash\n# Poll until agent responds (works on Windows/macOS/Linux — no seq dependency)\nfor i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do\n  curl -s --max-time 1 \"http://localhost:<port>/api/messages\" > /dev/null 2>&1 && break\n  sleep 1\ndone\nagentsplayground -e \"http://localhost:<port>/api/messages\" -c \"emulator\"\n```",
-    "replace": "- **Node.js**: `npm start` (fall back to `npm run dev`)\n- **Python**: `python3 <entry-point>` on macOS/Linux (e.g. `python3 host_agent_server.py`); `python <entry-point>` on Windows\n\n> **Authentication check:** `-c \"emulator\"` selects a client channel; it does not bypass the server's JWT validation. Inspect the actual host contract before opening the playground. The pinned Python profile keeps `/api/messages` authenticated in every environment and intentionally returns 401 for unsigned playground requests. For that profile, stop the unsigned-playground branch and use an authorized caller, or explicitly add a compatible loopback-only development adapter via `/test-local-channel`. Never disable authentication on the production endpoint or tunnel the development channel. Health 200 alone does not verify an authenticated message.\n\nAfter the authentication check passes, wait for the generated host's **GET `/api/health` to return 200**. For an existing host, use its documented health route instead. Do not probe a POST-only message route for readiness. The following is Bash (Git Bash on Windows): at most 20 attempts, each with a one-second request limit and one-second retry delay.\n\n```bash\nready=false\nfor i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do\n  status=$(curl -s --max-time 1 -o /dev/null -w '%{http_code}' \"http://localhost:<port>/api/health\" || true)\n  if [ \"$status\" = \"200\" ]; then ready=true; break; fi\n  sleep 1\ndone\nif [ \"$ready\" != \"true\" ]; then\n  echo \"Agent did not become healthy; inspect its logs before launching AgentsPlayground.\" >&2\n  exit 1\nfi\nagentsplayground -e \"http://localhost:<port>/api/messages\" -c \"emulator\"\n```",
+    "replace": "- **Node.js**: `npm start` (fall back to `npm run dev`)\n- **Python**: `python3 <entry-point>` on macOS/Linux (e.g. `python3 host_agent_server.py`); `python <entry-point>` on Windows\n\n> **Authentication check:** `-c \"emulator\"` selects a client channel; it does not bypass the server's JWT validation. Inspect the actual host contract before opening the playground. A host that keeps `/api/messages` authenticated in every environment, as every blueprint host does, returns 401 for unsigned playground requests. For such a host, stop the unsigned-playground branch and use an authorized caller, or explicitly add a compatible loopback-only development adapter via `/test-local-channel`. Never disable authentication on the production endpoint or tunnel the development channel. Health 200 alone does not verify an authenticated message.\n\nAfter the authentication check passes, wait for the generated host's **GET `/api/health` to return 200**. For an existing host, use its documented health route instead. Do not probe a POST-only message route for readiness. The following is Bash (Git Bash on Windows): at most 20 attempts, each with a one-second request limit and one-second retry delay.\n\n```bash\nready=false\nfor i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do\n  status=$(curl -s --max-time 1 -o /dev/null -w '%{http_code}' \"http://localhost:<port>/api/health\" || true)\n  if [ \"$status\" = \"200\" ]; then ready=true; break; fi\n  sleep 1\ndone\nif [ \"$ready\" != \"true\" ]; then\n  echo \"Agent did not become healthy; inspect its logs before launching AgentsPlayground.\" >&2\n  exit 1\nfi\nagentsplayground -e \"http://localhost:<port>/api/messages\" -c \"emulator\"\n```",
     "expectedCount": 1
   },
   {
@@ -529,6 +529,41 @@
     "path": "skills\\test-local\\SKILL.md",
     "find": "\n| Tool | Required | Install |\n|------|----------|---------|\n| `agentsplayground` | Yes (all stacks) | `npm install -g @microsoft/agentsplayground` |\n| `dotnet` (8.0+) | .NET only | Windows: `winget install Microsoft.DotNet.SDK.8` · macOS: `brew install --cask dotnet-sdk` · Linux: see https://learn.microsoft.com/en-us/dotnet/core/install/linux |\n| `node` / `npm` (18+) | All stacks (agentsplayground requires npm) | Windows: `winget install OpenJS.NodeJS.LTS` · macOS: `brew install node` · Linux: `apt install nodejs npm` · https://nodejs.org |\n| `python3` or `python` (3.11+) | Python only | Windows: `winget install Python.Python.3.11` · macOS: `brew install python@3.11` · Linux: `apt install python3.11` · https://python.org |",
     "replace": "\n| Tool | Required | Install |\n|------|----------|---------|\n| `agentsplayground` | Yes (all stacks) | `npm install -g @microsoft/m365agentsplayground` |\n| `dotnet` (8.0+) | .NET only | Windows: `winget install Microsoft.DotNet.SDK.8` · macOS: `brew install --cask dotnet-sdk` · Linux: see https://learn.microsoft.com/en-us/dotnet/core/install/linux |\n| `node` / `npm` (18+) | All stacks (agentsplayground requires npm) | Windows: `winget install OpenJS.NodeJS.LTS` · macOS: `brew install node` · Linux: `apt install nodejs npm` · https://nodejs.org |\n| `python3` or `python` (3.11+) | Python only | Windows: `winget install Python.Python.3.11` · macOS: `brew install python@3.11` · Linux: `apt install python3.11` · https://python.org |",
+    "expectedCount": 1
+  },
+  {
+    "id": "skills.instrument-observability.SKILL.md#k1",
+    "path": "skills\\instrument-observability\\SKILL.md",
+    "find": "With the **`Microsoft.OpenTelemetry` distro** the cache is auto-registered by `UseMicrosoftOpenTelemetry(...)` (Phase 3).",
+    "replace": "With the **`Microsoft.OpenTelemetry` distro** the cache is registered explicitly in Phase 3 (`AddSingleton<IExporterTokenCache<AgenticTokenStruct>, AgenticTokenCache>()`); `UseMicrosoftOpenTelemetry(...)` does not register it.",
+    "expectedCount": 1
+  },
+  {
+    "id": "skills.instrument-observability.SKILL.md#k2",
+    "path": "skills\\instrument-observability\\SKILL.md",
+    "find": "1. The distro's `builder.UseMicrosoftOpenTelemetry(...)` call (Phase 3) **auto-registers `IExporterTokenCache<AgenticTokenStruct>`** in DI — no separate `AddAgenticTracingExporter()` call is needed.",
+    "replace": "1. Phase 3 registers `IExporterTokenCache<AgenticTokenStruct>` explicitly with `builder.Services.AddSingleton<IExporterTokenCache<AgenticTokenStruct>, AgenticTokenCache>()` and points `o.Agent365.TokenResolver` at the same instance. `builder.UseMicrosoftOpenTelemetry(...)` alone does not register it (checked against `Microsoft.OpenTelemetry` 1.0.3 and 1.0.7).",
+    "expectedCount": 1
+  },
+  {
+    "id": "skills.make-ai-teammate.references.dotnet-ai-teammate.md#k1",
+    "path": "skills\\make-ai-teammate\\references\\dotnet-ai-teammate.md",
+    "find": "        // Auto-registered by the Microsoft.OpenTelemetry distro. Held here so the",
+    "replace": "        // Registered by instrument-observability (Phase 3, AgenticTokenCache). Held here so the",
+    "expectedCount": 1
+  },
+  {
+    "id": "skills.make-ai-teammate.references.dotnet-ai-teammate.md#k2",
+    "path": "skills\\make-ai-teammate\\references\\dotnet-ai-teammate.md",
+    "find": "            // Auto-registered by the Microsoft.OpenTelemetry distro — used by instrument-observability",
+    "replace": "            // Registered by instrument-observability (Phase 3) — used by instrument-observability",
+    "expectedCount": 1
+  },
+  {
+    "id": "copilot-instructions.md#k1",
+    "path": "copilot-instructions.md",
+    "find": "to `AgenticTokenCacheInstance.RefreshObservabilityToken`.",
+    "replace": "to `AgenticTokenCacheInstance.refreshObservabilityToken`.",
     "expectedCount": 1
   }
 ]

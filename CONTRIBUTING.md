@@ -25,7 +25,7 @@ If you are not sure which it is, open it here and we will move it.
 
 ## Changing Microsoft's skills
 
-Every edit to upstream content is a **fix-up**: an entry in the `$fixups` array that names a file, the exact text it expects to find, and the replacement.
+Every edit to upstream content is a **fix-up**: an entry that names a file, the exact text it expects to find, and the replacement. New fix-ups go in `build/upstream-fixups.json`. The `$fixups` array in `build/Build-Kit.ps1` holds the original packaging fix-ups and has this shape:
 
 ```powershell
 @{
@@ -41,7 +41,7 @@ Every edit to upstream content is a **fix-up**: an entry in the `$fixups` array 
 
 The `Find` block must match upstream exactly. If it does not, the build throws rather than continuing, which is deliberate: an upstream rewording should stop the build loudly instead of producing a patched file that no longer says what we assumed.
 
-SDK and playbook corrections use `build/upstream-fixups.json` instead, applied after the packaging fix-ups and the Copilot instructions are staged:
+`build/upstream-fixups.json` is applied after the packaging fix-ups and the Copilot instructions are staged. Anchor each `find` on the smallest unique span of upstream text, not on text another fix-up wrote:
 
 ```json
 {
@@ -68,10 +68,15 @@ Prefer fixing the skill over fixing only the validator. Validator hooks run unde
 Requires PowerShell 7+, Git and Node.js.
 
 ```powershell
-.\build\Build-Kit.ps1 -Zip
+.\build\Build-Kit.ps1 -UpstreamRef <upstreamCommit> -Zip
+node build/check-examples.mjs
 ```
 
-The build fails rather than emitting output it cannot verify. A green build means no dangling path tokens, every referenced path resolves, every bundled JS file parses, the discovery copies match, and every fix-up still matched its upstream text.
+Use the `upstreamCommit` recorded in `kit/.a365-kit/KIT-VERSION.json` unless you are deliberately moving to a newer upstream. Commit `kit/`, `BUNDLE-MANIFEST.json` and `SHA256SUMS.txt` together with the change that produced them. CI rebuilds from the recorded commit and timestamp and fails if the committed output differs by a single byte.
+
+The build fails rather than emitting output it cannot verify. A green build means no dangling path tokens, every referenced path resolves, every bundled JS file parses, the discovery copies match, every fix-up still matched its upstream text, no retracted claim survives in the shipped guidance, and the licences are in place.
+
+The version lives in `build/kit.version`. The nightly refresh bumps the patch number when upstream moves. Bump it by hand for any other release and tag it `v<version>`. CI checks that the tag, `build/kit.version`, `KIT-VERSION.json` and the manifest agree.
 
 `node --check` is not sufficient on its own for validator changes — it accepts code that fails to load as a CommonJS module. Run the validator against a real project before committing.
 

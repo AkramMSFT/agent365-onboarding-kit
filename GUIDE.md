@@ -279,6 +279,8 @@ It writes config and code, then reaches `a365 setup all`. **This command must ru
 3. Paste it into a second normal terminal in the same folder; complete the sign-in.
 4. Tell the CLI: *`a365 setup all` completed in a separate terminal. Read `a365.generated.config.json` and continue.*
 
+Optionally, in step 3, prefix the command with `node .a365-kit/run-a365.mjs` (for example `node .a365-kit/run-a365.mjs setup all …`). It runs the same CLI and sign-in, and exits with code 2 and the administrator steps if the blueprint still needs `maven-prod` observability consent, which the CLI alone reports with exit code 0.
+
 This creates the **blueprint** (an Entra app registration) and, on the blueprint path, the **Agent ID** (a service-principal agent identity) in one run. For an AI Teammate the identity is a user with a UPN and mailbox, minted later at instance creation.
 
 Then install what the skill added [you]:
@@ -461,10 +463,6 @@ a365 publish --aiteammate true  # blueprint / OBO agent (flag selects the packag
 ```
 
 That flag is the one thing that got a blueprint agent into Teams on CLI 1.1.221 (verified 2026-09-04, and again in the September audit). Two cautions: check `a365 publish --help` on a newer CLI before assuming the flag still means only a package format, and after publishing re-read `a365.config.json` to confirm `aiTeammate` is still `false`. If you see "Nothing to publish", that is this case, not a broken setup.
-
-```bash
-# (continued)
-```
 
 This writes `manifest/manifest.json` and `manifest/manifest.zip`. Edit `name.short` (30 chars max), the description and icons in `manifest/manifest.json` if you want, then run it again.
 

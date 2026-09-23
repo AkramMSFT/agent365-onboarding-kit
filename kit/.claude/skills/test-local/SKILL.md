@@ -70,7 +70,7 @@ simulates a Teams-like chat interface without requiring a deployment or Bot Fram
 - Web UI that matches the Teams message format
 - Connects to `/api/messages` over HTTP — the LLM framework on the server side does not matter
 - The `-c emulator` flag selects the client's channel, not the server's authentication policy
-- Verify host compatibility first; the pinned Python host requires JWTs even in Development. Do not disable production authentication to make an unsigned playground request succeed.
+- Verify host compatibility first; a Python host that validates JWTs keeps doing so in Development. Do not disable production authentication to make an unsigned playground request succeed.
 
 All actions are **read-only against your codebase** — no code is modified.
 
@@ -288,7 +288,7 @@ Inform the user:
 - **Node.js**: `npm start` (fall back to `npm run dev`)
 - **Python**: `python3 <entry-point>` on macOS/Linux (e.g. `python3 host_agent_server.py`); `python <entry-point>` on Windows
 
-> **Authentication check:** `-c "emulator"` selects a client channel; it does not bypass the server's JWT validation. Inspect the actual host contract before opening the playground. The pinned Python profile keeps `/api/messages` authenticated in every environment and intentionally returns 401 for unsigned playground requests. For that profile, stop the unsigned-playground branch and use an authorized caller, or explicitly add a compatible loopback-only development adapter via `/test-local-channel`. Never disable authentication on the production endpoint or tunnel the development channel. Health 200 alone does not verify an authenticated message.
+> **Authentication check:** `-c "emulator"` selects a client channel; it does not bypass the server's JWT validation. Inspect the actual host contract before opening the playground. A host that keeps `/api/messages` authenticated in every environment, as every blueprint host does, returns 401 for unsigned playground requests. For such a host, stop the unsigned-playground branch and use an authorized caller, or explicitly add a compatible loopback-only development adapter via `/test-local-channel`. Never disable authentication on the production endpoint or tunnel the development channel. Health 200 alone does not verify an authenticated message.
 
 After the authentication check passes, wait for the generated host's **GET `/api/health` to return 200**. For an existing host, use its documented health route instead. Do not probe a POST-only message route for readiness. The following is Bash (Git Bash on Windows): at most 20 attempts, each with a one-second request limit and one-second retry delay.
 

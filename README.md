@@ -295,10 +295,10 @@ Requires PowerShell 7+, Git and Node.js.
 
 ```powershell
 .\build\Build-Kit.ps1 -UpstreamPath C:\src\agent365-skills
-.\build\Build-Kit.ps1 -Zip
+.\build\Build-Kit.ps1 -UpstreamRef <commit> -Zip
 ```
 
-The first builds from a local clone of upstream; the second clones upstream itself and produces the release archives. Output lands in `kit/`, and `-Zip` also writes two archives at the repository root: `agent365-onboarding-kit-v<version>.zip` (the kit alone, for extracting into an existing project) and `agent365-onboarding-bundle-v<version>.zip` (kit, examples, tools and docs). Building into `kit/` also regenerates `BUNDLE-MANIFEST.json` and `SHA256SUMS.txt`, which the workspace tool verifies against.
+The first builds from a local clone of upstream; the second clones upstream at a branch, tag or commit and produces the release archives. CI rebuilds from the commit recorded in `kit/.a365-kit/KIT-VERSION.json` and fails if the committed `kit/`, manifest or checksums differ from that rebuild. Output lands in `kit/`, and `-Zip` also writes two archives at the repository root: `agent365-onboarding-kit-v<version>.zip` (the kit alone, for extracting into an existing project) and `agent365-onboarding-bundle-v<version>.zip` (kit, examples, tools and docs). Building into `kit/` also regenerates `BUNDLE-MANIFEST.json` and `SHA256SUMS.txt`, which the workspace tool verifies against.
 
 The build refuses to emit output it cannot prove coherent. It verifies that no `${CLAUDE_PLUGIN_ROOT}` path tokens or `/agent365:` command references survive, that every path a skill references exists, that every bundled script parses, that the discovery copies match, and that every hook command was repointed. Corrections to Microsoft's files live in two places, both asserted against upstream's exact text on every build: the packaging fix-ups in `Build-Kit.ps1`, and the SDK and playbook corrections in `build/upstream-fixups.json`, each with an id and an expected match count.
 

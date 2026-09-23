@@ -45,7 +45,7 @@ hooks:
 > - "add the hosting layer"
 > - "register the endpoint"
 
-> **This is a kit add-on**, written and verified by the Agent 365 Onboarding Kit against a real tenant on 2026-09-04. It is not one of Microsoft's seven skills. Report issues to the kit repository, not upstream.
+> **This is a kit add-on**, written and verified by the Agent 365 Onboarding Kit against a real tenant on 2026-09-04. It is not one of Microsoft's skills. Report issues to the kit repository, not upstream.
 
 ## Why this exists
 

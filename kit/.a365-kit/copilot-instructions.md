@@ -267,7 +267,7 @@ wrapping.
 9. **Final summary calls out MAC visibility expectations:** 15-90 min indexing lag from first export to spans surfacing in `admin.cloud.microsoft → Advanced Hunting → CloudAppEvents`; instance-approval prerequisite; KQL filter MUST use the runtime AUID (`recipient.agenticAppId`), NOT the blueprint id (which `a365 setup all` stamps into `.env` as `agent365Observability__agentId`).
 10. Validates the build passes
 
-**Auth mode note:** All three `authMode` values use an auth handler reference in SDK code — the difference is Azure AD provisioning, not code structure. For .NET OBO: `authHandlerName` comes from config (`AgentApplication:AgenticAuthHandlerName`), not hardcoded. For Node.js OBO: pass `agentApplication.authorization` (the auth object, not a string) to `AgenticTokenCacheInstance.RefreshObservabilityToken`. For Python OBO: use `auth_handler_id=self.auth_handler_name` (from config) in `exchange_token()` — never hardcode `"AGENTIC"`. Agent IDs are always resolved dynamically from TurnContext (`agenticAppId` / `agentic_app_id`), never from config. S2S is supported for .NET, Node.js, and Python.
+**Auth mode note:** All three `authMode` values use an auth handler reference in SDK code — the difference is Azure AD provisioning, not code structure. For .NET OBO: `authHandlerName` comes from config (`AgentApplication:AgenticAuthHandlerName`), not hardcoded. For Node.js OBO: pass `agentApplication.authorization` (the auth object, not a string) to `AgenticTokenCacheInstance.refreshObservabilityToken`. For Python OBO: use `auth_handler_id=self.auth_handler_name` (from config) in `exchange_token()` — never hardcode `"AGENTIC"`. Agent IDs are always resolved dynamically from TurnContext (`agenticAppId` / `agentic_app_id`), never from config. S2S is supported for .NET, Node.js, and Python.
 
 **Prerequisite:** `a365-setup` must be run first. Reads `.a365-workspace-detection.local.json` to skip re-detection.
 
@@ -429,3 +429,51 @@ purview-dlp-integration  (additive — run after the agent has a blueprint; inde
 
 test-local  (no prerequisite — works after any step)
 ```
+
+---
+
+## Kit add-ons
+
+These skills ship with the Agent 365 Onboarding Kit, not with Microsoft's skills. When a request matches one of them, follow its SKILL.md exactly.
+
+## Add-on: a365-kit
+
+**Full instructions:** [.a365-kit/addons/a365-kit/SKILL.md](../.a365-kit/addons/a365-kit/SKILL.md)
+
+Maintains the Agent 365 Onboarding Kit itself from inside your coding CLI: check prerequisites, report the installed kit and upstream versions, update the kit in place (only the kit's own files are replaced), and set where updates come from -- the public release or your organisation's own mirror. Use when the user says "update the Agent 365 kit", "check kit prerequisites", "which kit version is this", "set the kit update source", or when the session-start notice says a newer version is available. Kit add-on.
+
+## Add-on: add-java-agent
+
+**Full instructions:** [.a365-kit/addons/add-java-agent/SKILL.md](../.a365-kit/addons/add-java-agent/SKILL.md)
+
+Onboards a Java agent to Agent 365. Microsoft ships no Java SDK, so this builds the three things the SDKs would otherwise provide: an HTTP host serving /api/messages with inbound JWT validation, replies through the Connector API, and a direct OTLP exporter for the Agent 365 observability endpoint. Registration, identity, publishing and the admin-centre steps are language-agnostic and handled by the standard skills -- use those first and this one only for the code. Use when the project is Java (pom.xml or build.gradle) and the user says "onboard this Java agent" or "make this Java agent reachable in Teams". Kit add-on, not part of Microsoft's skills.
+
+## Add-on: add-lab-tools
+
+**Full instructions:** [.a365-kit/addons/add-lab-tools/SKILL.md](../.a365-kit/addons/add-lab-tools/SKILL.md)
+
+Adds local utility tools to an Agent 365 agent -- web fetch and page summarise, text encoders/decoders (base64, hex, url, rot13), hashing (md5/sha1/sha256/sha512), and text transforms (case, regex extract, counts). These are plain in-process function tools, not Work IQ MCP servers: no Entra consent, no tokens, no tenant setup. Use when the user says "add lab tools", "add a URL fetch tool", "let the agent summarise web pages", "add encoders", or wants utility/red-team capabilities beyond the built-in and Work IQ tools. Supports Python, Node.js and .NET. Kit add-on, not part of Microsoft's skills.
+
+## Add-on: add-mcp-server
+
+**Full instructions:** [.a365-kit/addons/add-mcp-server/SKILL.md](../.a365-kit/addons/add-mcp-server/SKILL.md)
+
+Connects an Agent 365 agent to an external / community MCP server -- anything beyond Microsoft's Work IQ set: filesystem, git, GitHub, Postgres/SQLite, web fetch and search, Slack, Playwright browser, memory, time, and any other Model Context Protocol server. Wires it as an stdio (npx/uvx) or streamable-HTTP server on the agent's framework, so its tools appear alongside the built-in, Work IQ and lab tools. Use when the user says "add an MCP server", "connect the filesystem/github/postgres MCP", "give the agent web search", or names any community MCP server. IMPORTANT: this DIRECT connection path does not register servers with Agent 365 or configure its tooling consent -- see the governance section. Supports Python, Node.js and .NET. Kit add-on, not part of Microsoft's skills.
+
+## Add-on: add-messaging-endpoint
+
+**Full instructions:** [.a365-kit/addons/add-messaging-endpoint/SKILL.md](../.a365-kit/addons/add-messaging-endpoint/SKILL.md)
+
+Makes an already-registered, blueprint-based (non-AI-Teammate) Agent 365 agent reachable from Microsoft Teams and Microsoft 365 Copilot. Adds an HTTP hosting layer serving /api/messages (Python aiohttp, Node.js Express, or ASP.NET Core), exposes it through a dev tunnel or a cloud URL, registers the endpoint on the blueprint with `a365 setup blueprint --update-endpoint ... --m365`, and hands off the one step that needs the Windows broker (`a365 setup permissions bot`). Use when the agent was onboarded with make-a365-agent and has no host, when "completed" is false in a365.generated.config.json, or when the user says "make this agent chattable in Teams". Not for AI Teammates -- their hosting layer comes from make-ai-teammate. Kit add-on, not part of Microsoft's skills.
+
+## Add-on: add-purview-dlp
+
+**Full instructions:** [.a365-kit/addons/add-purview-dlp/SKILL.md](../.a365-kit/addons/add-purview-dlp/SKILL.md)
+
+Adds Microsoft Purview processContent hooks for prompts (uploadText) and responses (downloadText), enforcing returned block actions where supported policies apply. Collection, Insider Risk visibility and blocking have separate policy and billing prerequisites. Two Microsoft Graph REST operations, no Graph SDK dependency; supports Python, Node.js and .NET. Grants the delegated scopes the actual OAuth client needs, wires the turn hooks, and hands off policy setup to an admin. Use when the user says "add DLP", "add Purview", "govern prompts and responses", or "make this agent visible to Insider Risk". Kit add-on, not part of Microsoft's skills.
+
+## Add-on: test-local-channel
+
+**Full instructions:** [.a365-kit/addons/test-local-channel/SKILL.md](../.a365-kit/addons/test-local-channel/SKILL.md)
+
+Adds a local dev channel so an agent can be chatted with on the developer's own machine with no tenant, no dev tunnel, no published manifest and no Teams. Covers the blueprint / OBO path, which Microsoft's test-local skill does not: that skill targets AI Teammates. Binds a separate loopback-only port, gated behind A365_DEV_CHANNEL=true and off by default, and leaves the real /api/messages endpoint fully authenticated. Use when the user says "let me test this agent locally", "I can't set up a tunnel", "test without Teams", or is blocked from reaching the tenant. Kit add-on, not part of Microsoft's skills.

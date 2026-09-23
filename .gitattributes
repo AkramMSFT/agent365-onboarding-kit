@@ -20,7 +20,7 @@
 # Everything listed in BUNDLE-MANIFEST.json (with a SHA-256 per file) is checked out
 # byte-for-byte, so the checksums verify on every platform and tools/prepare-workspace.mjs
 # can copy the kit and an example without a line-ending conversion changing a hash.
-# The build writes all of these with LF.
+# The build writes kit/ with LF; everything else keeps the bytes it was committed with.
 kit/**          -text
 examples/**     -text
 tools/**        -text

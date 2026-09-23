@@ -1,14 +1,14 @@
 name: Build
 
-# Smoke-check every push and pull request: the kit must still build and pass its
-# own verification against current upstream main.
+# Every push and pull request: rebuild the kit from the upstream commit it records and
+# require the committed kit/, BUNDLE-MANIFEST.json and SHA256SUMS.txt to match byte for
+# byte. Upstream drift is the nightly refresh's job, not this one's.
 
 on:
   push:
     branches: [main]
-    paths-ignore: ["kit/**", "*.md", "BUNDLE-MANIFEST.json", "SHA256SUMS.txt"]
+    tags: ["v*"]
   pull_request:
-    paths-ignore: ["kit/**", "*.md", "BUNDLE-MANIFEST.json", "SHA256SUMS.txt"]
 
 permissions:
   contents: read
@@ -18,9 +18,42 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Build
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Rebuild against the pinned upstream commit
         shell: pwsh
-        run: ./build/Build-Kit.ps1 -Zip
+        run: |
+          $raw = Get-Content kit/.a365-kit/KIT-VERSION.json -Raw
+          $commit = ([regex]'"upstreamCommit":\s*"([0-9a-f]{7,40})"').Match($raw).Groups[1].Value
+          $built  = ([regex]'"builtUtc":\s*"([^"]+)"').Match($raw).Groups[1].Value
+          if (-not $commit -or -not $built) { throw 'kit/.a365-kit/KIT-VERSION.json lacks upstreamCommit or builtUtc' }
+          ./build/Build-Kit.ps1 -UpstreamRef $commit -BuiltUtc $built -Zip
+
+      - name: Committed output matches the rebuild
+        shell: pwsh
+        run: |
+          $changes = git status --porcelain -- kit BUNDLE-MANIFEST.json SHA256SUMS.txt
+          if ($changes) {
+            $changes
+            git diff --stat -- kit BUNDLE-MANIFEST.json SHA256SUMS.txt
+            throw 'Committed output differs from a rebuild. Rebuild with the upstreamCommit and builtUtc from kit/.a365-kit/KIT-VERSION.json and commit kit/, BUNDLE-MANIFEST.json and SHA256SUMS.txt.'
+          }
+          "kit/, BUNDLE-MANIFEST.json and SHA256SUMS.txt match the rebuild"
+
+      - name: Version agrees everywhere
+        shell: pwsh
+        run: |
+          $kit = (Get-Content build/kit.version -Raw).Trim()
+          $installed = (Get-Content kit/.a365-kit/KIT-VERSION.json -Raw | ConvertFrom-Json).kitVersion
+          $bundle = Get-Content BUNDLE-MANIFEST.json -Raw | ConvertFrom-Json
+          if ($installed -ne $kit -or $bundle.kitVersion -ne $kit -or $bundle.bundleVersion -ne $kit) {
+            throw "build/kit.version ($kit), KIT-VERSION.json ($installed) and BUNDLE-MANIFEST.json ($($bundle.kitVersion)) disagree"
+          }
+          if ($env:GITHUB_REF_TYPE -eq 'tag' -and $env:GITHUB_REF_NAME -ne "v$kit") { throw "tag $env:GITHUB_REF_NAME does not match kit version $kit" }
+          "kit version $kit"
+
       - name: Launchers parse
         shell: pwsh
         run: |
@@ -28,6 +61,27 @@ jobs:
           [System.Management.Automation.Language.Parser]::ParseFile("$PWD/kit/agent365-kit.ps1", [ref]$null, [ref]$errs) | Out-Null
           if ($errs) { $errs | ForEach-Object { $_.ToString() }; exit 1 }
           bash -n kit/agent365-kit.sh
+
+      - name: Launcher works in Windows PowerShell 5.1 and PowerShell 7
+        shell: pwsh
+        run: |
+          $zip = (Resolve-Path "agent365-onboarding-kit-v$((Get-Content build/kit.version -Raw).Trim()).zip").Path
+          foreach ($shell in 'powershell.exe', 'pwsh') {
+            $dir = Join-Path $env:RUNNER_TEMP "launcher-$shell"
+            Expand-Archive -LiteralPath $zip -DestinationPath $dir
+            Push-Location $dir
+            & $shell -NoProfile -ExecutionPolicy Bypass -File agent365-kit.ps1 -SkipDoctor -WireCopilot
+            if ($LASTEXITCODE) { throw "$shell -WireCopilot failed" }
+            & $shell -NoProfile -ExecutionPolicy Bypass -File agent365-kit.ps1 -SetUpdateSource $zip
+            if ($LASTEXITCODE) { throw "$shell -SetUpdateSource failed" }
+            & $shell -NoProfile -ExecutionPolicy Bypass -File agent365-kit.ps1 -Update
+            if ($LASTEXITCODE) { throw "$shell -Update failed" }
+            foreach ($f in 'a365-kit.config.json', '.github/copilot-instructions.md') {
+              if ([IO.File]::ReadAllBytes((Join-Path $dir $f))[0] -eq 0xEF) { throw "$shell wrote a byte-order mark to $f" }
+            }
+            Pop-Location
+          }
+
       - name: Validators run
         shell: pwsh
         run: |
@@ -40,9 +94,21 @@ jobs:
             if ($out -notmatch '"ok"\s*:\s*(true|false)') { throw "validator produced no JSON verdict: $($_.Name)" }
           }
           "all validators emit a verdict"
-      - name: Workspace tool lists the examples
+
+      - name: Example dependencies use public registries
+        run: node build/check-examples.mjs
+
+      - name: Node.js example installs and passes its tests
+        working-directory: examples/nodejs-tool-agent
+        run: |
+          npm ci --no-audit --no-fund
+          npm test
+
+      - name: Workspace tool copies the kit and an example
         shell: pwsh
         run: |
           node tools/prepare-workspace.mjs --list
           node tools/prepare-workspace.mjs --example blank --destination "$env:RUNNER_TEMP/kit-only-check"
           if (-not (Test-Path "$env:RUNNER_TEMP/kit-only-check/.a365-kit/KIT-VERSION.json")) { throw "prepare-workspace did not copy the kit" }
+          node tools/prepare-workspace.mjs --example nodejs-tool-agent --destination "$env:RUNNER_TEMP/node-example-check"
+          if ($LASTEXITCODE) { throw "prepare-workspace failed for nodejs-tool-agent" }

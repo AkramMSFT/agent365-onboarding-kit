@@ -1,9 +1,9 @@
 {
-  "kitVersion": "0.2.0",
+  "kitVersion": "0.2.1",
   "upstreamRepo": "microsoft/agent365-skills",
   "upstreamVersion": "1.0.2",
   "upstreamCommit": "07a0304",
-  "builtUtc": "2026-09-23T05:01:57Z",
+  "builtUtc": "2026-09-23T11:34:26Z",
   "updateSource": "https://github.com/AkramMSFT/agent365-onboarding-kit/releases/latest/download/agent365-onboarding-kit-latest.zip",
   "skills": [
     "a365-code-validator",

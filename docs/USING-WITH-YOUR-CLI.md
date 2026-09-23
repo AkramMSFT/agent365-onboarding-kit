@@ -32,7 +32,7 @@ Anything not listed still works — see [Any other agentic CLI](#any-other-agent
 
 ## Step 1 — Get the kit into your project
 
-Download `agent365-onboarding-kit-v<version>.zip` from the [releases page](../../releases) and extract it into the **root of your agent project** — the folder that contains your agent's source.
+Download [`agent365-onboarding-kit-latest.zip`](https://github.com/AkramMSFT/agent365-onboarding-kit/releases/latest/download/agent365-onboarding-kit-latest.zip) from the [latest release](https://github.com/AkramMSFT/agent365-onboarding-kit/releases/latest) and extract it into the **root of your agent project** — the folder that contains your agent's source.
 
 Extract into the project root itself, not a subfolder. The archive has no wrapper directory, so extracting in place produces:
 
@@ -132,7 +132,7 @@ The launcher can do it for you:
 .\agent365-kit.ps1 -Launch claude
 ```
 
-**Verify the skills loaded** — ask `What Agent 365 skills do you have?` You should see all fifteen: `a365-setup`, `make-a365-agent`, `make-ai-teammate`, `instrument-observability`, `add-workiq-tools`, `a365-code-validator`, `test-local`.
+**Verify the skills loaded** — ask `What Agent 365 skills do you have?` You should see all fifteen. Microsoft's eight: `a365-setup`, `make-a365-agent`, `make-ai-teammate`, `instrument-observability`, `add-workiq-tools`, `a365-code-validator`, `purview-dlp-integration`, `test-local`. The kit's seven add-ons: `a365-kit`, `add-java-agent`, `add-lab-tools`, `add-mcp-server`, `add-messaging-endpoint`, `add-purview-dlp`, `test-local-channel`.
 
 You can also invoke them directly as slash commands: `/a365-setup`, `/make-ai-teammate`, and so on.
 
@@ -208,7 +208,7 @@ This **creates `.github/copilot-instructions.md`, or appends to yours if you alr
 1. Open the project folder in VS Code (`code .` from the project root).
 2. Open Copilot Chat.
 3. Switch the mode selector to **Agent**.
-4. Confirm the skills are visible with `/skills list` — you should see the seven Agent 365 skills.
+4. Confirm the skills are visible with `/skills list` — you should see all fifteen Agent 365 skills.
 5. Ask using the trigger phrase.
 
 Skills come from `.agents/skills/`, which VS Code agent mode reads at project scope. If they don't appear, reload the window — VS Code scans the folder at load.

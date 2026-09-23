@@ -44,7 +44,7 @@ hooks:
 > - "govern the prompts and responses"
 > - "make this agent visible to Insider Risk Management"
 
-> **This is a kit add-on.** The Python implementation is adapted from the Agent 365 + Claude reference deployment that ran against a live tenant; the .NET and Node.js ports use the same two REST operations. Not one of Microsoft's seven skills.
+> **This is a kit add-on.** The Python implementation is adapted from the author's own Agent 365 deployment (not published), which ran against a live tenant; the .NET and Node.js ports use the same two REST operations. Not one of Microsoft's skills.
 
 ## What it does, in one paragraph
 

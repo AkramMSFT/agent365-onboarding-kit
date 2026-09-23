@@ -44,7 +44,7 @@ hooks:
 > real network-egress surface and the classic prompt-injection / data-exfil vector -- which
 > is exactly why it is useful for exercising Defender and Purview detection on a tenant you
 > control. Add it only to agents you operate, for testing you are authorised to run. It is
-> not part of Microsoft's seven skills.
+> not part of Microsoft's skills.
 
 ## What it adds
 

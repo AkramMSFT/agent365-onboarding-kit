@@ -26,7 +26,8 @@
     a shallow clone into a temp folder and removes it afterwards.
 
 .PARAMETER UpstreamRef
-    Branch or tag to clone when -UpstreamPath is not supplied. Default: main.
+    Branch, tag or commit to build when -UpstreamPath is not supplied. Default: main.
+    A commit (7 to 40 hex characters) is checked out from a full clone.
 
 .PARAMETER OutDir
     Output directory. Default: <repo>/kit
@@ -36,7 +37,11 @@
     agent365-onboarding-bundle-<version>.zip (kit + examples + tools + docs) at the repo root.
 
 .PARAMETER KitVersion
-    Version stamp for this kit. Default: read from build/kit.version, else 0.1.0.
+    Version stamp for this kit. Default: read from build/kit.version.
+
+.PARAMETER BuiltUtc
+    Timestamp written to KIT-VERSION.json. Default: now. CI passes the committed value so a
+    rebuild of the pinned upstream commit can be compared byte for byte with kit/.
 
 .PARAMETER UpdateSource
     Where the launchers' -Update / --update fetch the kit from, baked into KIT-VERSION.json as
@@ -51,6 +56,7 @@
 .EXAMPLE
     .\build\Build-Kit.ps1 -Zip
 #>
+#Requires -Version 7.0
 [CmdletBinding()]
 param(
     [string] $UpstreamPath,
@@ -58,6 +64,7 @@ param(
     [string] $OutDir,
     [switch] $Zip,
     [string] $KitVersion,
+    [string] $BuiltUtc,
     [string] $UpdateSource = 'https://github.com/AkramMSFT/agent365-onboarding-kit/releases/latest/download/agent365-onboarding-kit-latest.zip'
 )
 
@@ -78,10 +85,11 @@ function Fail { param([string] $T) Write-Host "    [FAIL] $T" -ForegroundColor R
 
 if (-not $KitVersion) {
     $versionFile = Join-Path $RepoRoot 'build\kit.version'
-    $KitVersion = if (Test-Path -LiteralPath $versionFile) {
-        (Get-Content -LiteralPath $versionFile -Raw).Trim()
-    } else { '0.1.0' }
+    if (-not (Test-Path -LiteralPath $versionFile)) { throw 'build/kit.version not found; the kit version must be explicit.' }
+    $KitVersion = (Get-Content -LiteralPath $versionFile -Raw).Trim()
 }
+if ($KitVersion -notmatch '^\d+\.\d+\.\d+$') { throw "Kit version '$KitVersion' is not MAJOR.MINOR.PATCH." }
+if (-not $BuiltUtc) { $BuiltUtc = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ') }
 
 Write-Host ''
 Write-Host 'Agent 365 Onboarding Kit -- build' -ForegroundColor White
@@ -102,12 +110,20 @@ if ($UpstreamPath) {
     Ok "Using existing clone: $Upstream"
 } else {
     $TempClone = Join-Path ([IO.Path]::GetTempPath()) ("a365-upstream-" + [Guid]::NewGuid().ToString('N').Substring(0, 8))
-    Info "Shallow-cloning $UpstreamRef into $TempClone"
     # core.longpaths: the upstream repo is fine today, but this costs nothing and
     # has bitten other Agent 365 clones on Windows (MAX_PATH).
-    & git -c core.longpaths=true clone --depth 1 --branch $UpstreamRef `
-        https://github.com/microsoft/agent365-skills.git $TempClone 2>&1 | Out-Null
-    if ($LASTEXITCODE -ne 0) { throw "git clone failed (exit $LASTEXITCODE)" }
+    if ($UpstreamRef -match '^[0-9a-f]{7,40}$') {
+        Info "Cloning upstream and checking out commit $UpstreamRef into $TempClone"
+        & git -c core.longpaths=true clone --quiet https://github.com/microsoft/agent365-skills.git $TempClone 2>&1 | Out-Null
+        if ($LASTEXITCODE -ne 0) { throw "git clone failed (exit $LASTEXITCODE)" }
+        & git -C $TempClone -c advice.detachedHead=false checkout --quiet $UpstreamRef 2>&1 | Out-Null
+        if ($LASTEXITCODE -ne 0) { throw "upstream commit $UpstreamRef not found" }
+    } else {
+        Info "Shallow-cloning $UpstreamRef into $TempClone"
+        & git -c core.longpaths=true clone --depth 1 --branch $UpstreamRef `
+            https://github.com/microsoft/agent365-skills.git $TempClone 2>&1 | Out-Null
+        if ($LASTEXITCODE -ne 0) { throw "git clone failed (exit $LASTEXITCODE)" }
+    }
     $Upstream = $TempClone
     Ok "Cloned $UpstreamRef"
 }
@@ -122,8 +138,8 @@ foreach ($required in @('skills', 'shared', 'hooks', '.claude-plugin\plugin.json
 
 $UpstreamVersion = (Get-Content -LiteralPath (Join-Path $PluginRoot '.claude-plugin\plugin.json') -Raw |
     ConvertFrom-Json).version
-$UpstreamCommit = (& git -C $Upstream rev-parse --short HEAD 2>$null)
-if ($LASTEXITCODE -ne 0) { $UpstreamCommit = 'unknown' }
+$UpstreamCommit = (& git -C $Upstream rev-parse --short=7 HEAD 2>$null)
+if ($LASTEXITCODE -ne 0 -or -not $UpstreamCommit) { throw "Cannot read the upstream commit from $Upstream; it must be a git checkout." }
 
 Ok "upstream agent365-skills v$UpstreamVersion ($UpstreamCommit)"
 Ok "building kit v$KitVersion"
@@ -306,51 +322,6 @@ const hasPyproject  = fs.existsSync(path.join(cwd, 'pyproject.toml'))
         issues.push(`${pkg} not found in ${path.basename(depFile)} dependencies`);
       }
     }
-  }
-'@
-    }
-    @{
-        # BUG FIX -- NOTICE.md section 9. Node.js branch: the check tests only that the
-        # key EXISTS. The a365 CLI stamps ENABLE_A365_OBSERVABILITY_EXPORTER=false, and
-        # instrument-observability deliberately preserves an existing value, so an agent
-        # that exports nothing passes validation as fully instrumented.
-        File = 'hooks\stop\validate-instrument-observability.js'
-        Find = @'
-  const hasEnvConfig = envFiles.some(f =>
-    fileContains(f, 'ENABLE_A365_OBSERVABILITY_EXPORTER'));
-  if (!hasEnvConfig) {
-    issues.push('.env / .env.example does not contain ENABLE_A365_OBSERVABILITY_EXPORTER');
-  }
-'@
-        Replace = @'
-  const hasEnvConfig = envFiles.some(f =>
-    fileContains(f, 'ENABLE_A365_OBSERVABILITY_EXPORTER'));
-  if (!hasEnvConfig) {
-    issues.push('.env / .env.example does not contain ENABLE_A365_OBSERVABILITY_EXPORTER');
-  } else if (!envFiles.some(f => { try { return /ENABLE_A365_OBSERVABILITY_EXPORTER\s*=\s*true/i.test(fs.readFileSync(f, 'utf8')); } catch { return false; } })) {
-    // Kit fix-up: the value must be true or nothing is ever exported.
-    issues.push('ENABLE_A365_OBSERVABILITY_EXPORTER is present but not "true" -- the agent is instrumented but exports nothing; set it to true and restart');
-  }
-'@
-    }
-    @{
-        # BUG FIX -- NOTICE.md section 9. Python branch: same defect.
-        File = 'hooks\stop\validate-instrument-observability.js'
-        Find = @'
-  const hasEnvConfig = envFiles.some(f =>
-    fileContains(f, 'ENABLE_A365_OBSERVABILITY_EXPORTER'));
-  if (!hasEnvConfig) {
-    issues.push('.env does not contain ENABLE_A365_OBSERVABILITY_EXPORTER');
-  }
-'@
-        Replace = @'
-  const hasEnvConfig = envFiles.some(f =>
-    fileContains(f, 'ENABLE_A365_OBSERVABILITY_EXPORTER'));
-  if (!hasEnvConfig) {
-    issues.push('.env does not contain ENABLE_A365_OBSERVABILITY_EXPORTER');
-  } else if (!envFiles.some(f => { try { return /ENABLE_A365_OBSERVABILITY_EXPORTER\s*=\s*true/i.test(fs.readFileSync(f, 'utf8')); } catch { return false; } })) {
-    // Kit fix-up: the value must be true or nothing is ever exported.
-    issues.push('ENABLE_A365_OBSERVABILITY_EXPORTER is present but not "true" -- the agent is instrumented but exports nothing; set it to true and restart');
   }
 '@
     }
@@ -805,12 +776,63 @@ if (Test-Path -LiteralPath $readmeSrc) {
 }
 Ok 'doctor.js, kit-version.js, settings-fragment.json, launchers'
 
+# The kit redistributes Microsoft's MIT-licensed skills, so both licences and the
+# notice travel inside .a365-kit/ (never the project root, where they would collide
+# with the user's own LICENSE). The launchers replace .a365-kit/ whole on update.
+function Write-Lf([string] $Path, [string] $Text) {
+    [IO.File]::WriteAllText($Path, $Text.Replace("`r`n", "`n"), [Text.UTF8Encoding]::new($false))
+}
+$upstreamLicense = Join-Path $Upstream 'LICENSE'
+if (-not (Test-Path -LiteralPath $upstreamLicense)) { throw 'Upstream LICENSE not found; the kit cannot be redistributed without it.' }
+Write-Lf (Join-Path $KitPath 'LICENSE-agent365-skills') ([IO.File]::ReadAllText($upstreamLicense))
+Write-Lf (Join-Path $KitPath 'LICENSE') ([IO.File]::ReadAllText((Join-Path $RepoRoot 'LICENSE')))
+$repoUrl = 'https://github.com/AkramMSFT/agent365-onboarding-kit/blob/main/'
+$notice = [IO.File]::ReadAllText((Join-Path $RepoRoot 'NOTICE.md'))
+$notice = [regex]::Replace($notice, '\]\((?!https?://|#|mailto:)([^)\s]+)\)', { param($m) "]($repoUrl$($m.Groups[1].Value))" })
+Write-Lf (Join-Path $KitPath 'NOTICE.md') $notice
+Ok 'LICENSE, LICENSE-agent365-skills, NOTICE.md'
+
+# GitHub Copilot reads only .github/copilot-instructions.md, never SKILL.md discovery
+# folders, so the add-ons are listed there too. Links are relative to .github/.
+function Get-SkillFrontMatter([string] $Path) {
+    $lines = [IO.File]::ReadAllText($Path).Replace("`r`n", "`n").Split("`n")
+    if ($lines[0] -ne '---') { throw "No front matter: $Path" }
+    $fm = @{}; $key = $null
+    for ($i = 1; $i -lt $lines.Count -and $lines[$i] -ne '---'; $i++) {
+        $line = $lines[$i]
+        if ($line -match '^([A-Za-z_-]+):\s*(.*)$') {
+            $key = $Matches[1]; $val = $Matches[2].Trim()
+            $fm[$key] = if ($val -in @('>', '|', '>-', '|-')) { '' } else { $val.Trim('"', "'") }
+        } elseif ($key -and $line -match '^\s+(\S.*)$') {
+            $fm[$key] = ($fm[$key] + ' ' + $Matches[1].Trim()).Trim()
+        }
+    }
+    return $fm
+}
+$copilotPath = Join-Path $KitPath 'copilot-instructions.md'
+$addonRoot = Join-Path $KitPath 'addons'
+if ((Test-Path -LiteralPath $copilotPath) -and (Test-Path -LiteralPath $addonRoot)) {
+    $sb = [Text.StringBuilder]::new()
+    [void]$sb.Append("`n---`n`n## Kit add-ons`n`n")
+    [void]$sb.Append("These skills ship with the Agent 365 Onboarding Kit, not with Microsoft's skills. When a request matches one of them, follow its SKILL.md exactly.`n")
+    foreach ($dir in Get-ChildItem -LiteralPath $addonRoot -Directory | Sort-Object Name) {
+        $fm = Get-SkillFrontMatter (Join-Path $dir.FullName 'SKILL.md')
+        if ($fm['name'] -ne $dir.Name -or -not $fm['description']) { throw "Add-on front matter incomplete: $($dir.Name)" }
+        [void]$sb.Append("`n## Add-on: $($dir.Name)`n`n")
+        [void]$sb.Append("**Full instructions:** [$KIT_DIR/addons/$($dir.Name)/SKILL.md](../$KIT_DIR/addons/$($dir.Name)/SKILL.md)`n`n")
+        [void]$sb.Append("$($fm['description'])`n")
+    }
+    $copilotText = [IO.File]::ReadAllText($copilotPath).Replace("`r`n", "`n").TrimEnd() + "`n" + $sb.ToString()
+    Write-Lf $copilotPath $copilotText
+    Ok 'copilot-instructions.md lists the kit add-ons'
+}
+
 $manifest = [ordered]@{
     kitVersion      = $KitVersion
     upstreamRepo    = 'microsoft/agent365-skills'
     upstreamVersion = $UpstreamVersion
     upstreamCommit  = $UpstreamCommit
-    builtUtc        = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
+    builtUtc        = $BuiltUtc
     updateSource    = $UpdateSource
     skills          = @(Get-ChildItem -Path (Join-Path $KitPath 'skills') -Directory | ForEach-Object { $_.Name })
     addons          = @(if (Test-Path -LiteralPath (Join-Path $KitPath 'addons')) {
@@ -865,7 +887,10 @@ $problems = @()
 #     A bare `process.env.CLAUDE_PLUGIN_ROOT` read is fine and deliberate -- path-guard.js
 #     still honours the variable when someone does load the skills as a plugin. It is the
 #     ${...} interpolation form that silently resolves to nothing in a drop-in install.
+# NOTICE.md quotes both forms on purpose, to document the rewrite.
+$noticeCopy = Join-Path $KitPath 'NOTICE.md'
 $leftovers = Get-ChildItem -Path $OutDir -Recurse -File -Include '*.md', '*.js', '*.json' |
+    Where-Object { $_.FullName -ne $noticeCopy } |
     Select-String -Pattern '${CLAUDE_PLUGIN_ROOT}' -SimpleMatch
 if ($leftovers) {
     foreach ($hit in $leftovers) {
@@ -877,6 +902,7 @@ if ($leftovers) {
 
 # (a2) No plugin command namespace remains.
 $nsLeft = Get-ChildItem -Path $OutDir -Recurse -File -Include '*.md', '*.js' |
+    Where-Object { $_.FullName -ne $noticeCopy } |
     Select-String -Pattern '/agent365:' -SimpleMatch
 if ($nsLeft) {
     foreach ($hit in $nsLeft) { $problems += "leftover /agent365: namespace: $($hit.Path):$($hit.LineNumber)" }
@@ -941,6 +967,32 @@ foreach ($hit in $hookCmds) {
 }
 Ok "$($hookCmds.Count) hook commands repointed to `${CLAUDE_PROJECT_DIR}"
 
+# (f) Claims the fix-ups retracted must not survive anywhere in the shipped guidance.
+$retracted = @(
+    @{ Pattern = 'auto-registers `IExporterTokenCache'; Why = '.NET token cache is registered explicitly, not by the distro' },
+    @{ Pattern = 'Auto-registered by the Microsoft.OpenTelemetry distro'; Why = '.NET token cache is registered explicitly, not by the distro' },
+    @{ Pattern = 'cache is auto-registered by `UseMicrosoftOpenTelemetry'; Why = '.NET token cache is registered explicitly, not by the distro' },
+    @{ Pattern = 'RefreshObservabilityToken('; Why = 'the Node.js method is refreshObservabilityToken (camelCase)'; CaseSensitive = $true }
+)
+foreach ($r in $retracted) {
+    $hits = Get-ChildItem -Path $KitPath -Recurse -File -Include '*.md' |
+        Select-String -Pattern $r.Pattern -SimpleMatch -CaseSensitive:([bool]$r['CaseSensitive'])
+    foreach ($hit in $hits) { $problems += "retracted claim '$($r.Pattern)' ($($r.Why)): $($hit.Path):$($hit.LineNumber)" }
+}
+Ok 'no retracted claims remain in shipped guidance'
+
+# (g) Licences, notice, and the Copilot add-on list.
+foreach ($f in @('LICENSE', 'LICENSE-agent365-skills', 'NOTICE.md')) {
+    if (-not (Test-Path -LiteralPath (Join-Path $KitPath $f))) { $problems += "missing $KIT_DIR/$f" }
+}
+if (Test-Path -LiteralPath (Join-Path $KitPath 'addons')) {
+    $copilotText = [IO.File]::ReadAllText((Join-Path $KitPath 'copilot-instructions.md'))
+    foreach ($a in (Get-ChildItem -LiteralPath (Join-Path $KitPath 'addons') -Directory).Name) {
+        if (-not $copilotText.Contains("## Add-on: $a")) { $problems += "copilot-instructions.md does not list add-on $a" }
+    }
+}
+Ok 'licences present; Copilot instructions list every add-on'
+
 if ($problems.Count -gt 0) {
     Write-Host ''
     Fail "$($problems.Count) problem(s):"
@@ -975,14 +1027,16 @@ if ((Resolve-Path -LiteralPath $OutDir).Path.TrimEnd('\') -eq (Join-Path $RepoRo
     $manifestFiles = @()
     $sumLines = @()
     $roots = @('kit', 'examples', 'tools', 'docs', 'README.md', 'GUIDE.md', 'NOTICE.md', 'CONTRIBUTING.md', 'SECURITY.md', 'LICENSE', '.gitattributes')
+    # Only files git would publish: tracked or new, never ignored. A maintainer's .env,
+    # a365 config or build output inside examples/ therefore never reaches a release.
     foreach ($root in $roots) {
-        $abs = Join-Path $RepoRoot $root
-        if (-not (Test-Path -LiteralPath $abs)) { continue }
-        $items = if (Test-Path -LiteralPath $abs -PathType Container) { Get-ChildItem -Path $abs -Recurse -File } else { @(Get-Item -LiteralPath $abs) }
-        foreach ($f in $items) {
-            $rel = $f.FullName.Substring($RepoRoot.Length).TrimStart('\', '/').Replace('\', '/')
-            if ($rel -match '(^|/)(bin|obj|target|node_modules|\.venv|__pycache__)(/|$)') { continue }
-            $hash = (Get-FileHash -LiteralPath $f.FullName -Algorithm SHA256).Hash.ToLower()
+        $listed = (& git -C $RepoRoot -c core.quotepath=off ls-files --cached --others --exclude-standard -z -- $root) -split "`0"
+        if ($LASTEXITCODE -ne 0) { throw "git ls-files failed for $root" }
+        foreach ($rel in ($listed | Where-Object { $_ } | Sort-Object -Unique -CaseSensitive)) {
+            $abs = Join-Path $RepoRoot $rel
+            if (-not (Test-Path -LiteralPath $abs -PathType Leaf)) { continue }
+            $f = Get-Item -LiteralPath $abs -Force
+            $hash = (Get-FileHash -LiteralPath $abs -Algorithm SHA256).Hash.ToLower()
             $manifestFiles += [ordered]@{ path = $rel; bytes = $f.Length; sha256 = $hash }
             $sumLines += "$hash  $rel"
         }
@@ -1007,9 +1061,14 @@ if ((Resolve-Path -LiteralPath $OutDir).Path.TrimEnd('\') -eq (Join-Path $RepoRo
     if ($Zip) {
         $bundleZip = Join-Path $RepoRoot "agent365-onboarding-bundle-v$KitVersion.zip"
         if (Test-Path -LiteralPath $bundleZip) { Remove-Item -LiteralPath $bundleZip -Force }
-        $bundleItems = @('kit', 'examples', 'tools', 'docs', 'README.md', 'GUIDE.md', 'NOTICE.md', 'CONTRIBUTING.md', 'SECURITY.md', 'LICENSE', '.gitattributes', 'BUNDLE-MANIFEST.json', 'SHA256SUMS.txt') |
-            ForEach-Object { Join-Path $RepoRoot $_ } | Where-Object { Test-Path -LiteralPath $_ }
-        Compress-Archive -Path $bundleItems -DestinationPath $bundleZip -Force
+        $bundleRel = @($manifestFiles | ForEach-Object { $_.path }) + @('BUNDLE-MANIFEST.json', 'SHA256SUMS.txt')
+        Add-Type -AssemblyName System.IO.Compression.FileSystem
+        $archive = [IO.Compression.ZipFile]::Open($bundleZip, [IO.Compression.ZipArchiveMode]::Create)
+        try {
+            foreach ($rel in $bundleRel) {
+                [void][IO.Compression.ZipFileExtensions]::CreateEntryFromFile($archive, (Join-Path $RepoRoot $rel), $rel, [IO.Compression.CompressionLevel]::Optimal)
+            }
+        } finally { $archive.Dispose() }
         Ok "agent365-onboarding-bundle-v$KitVersion.zip ($([math]::Round((Get-Item -LiteralPath $bundleZip).Length / 1KB)) KB)"
     }
 }

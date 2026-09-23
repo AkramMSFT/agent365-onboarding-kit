@@ -463,11 +463,11 @@ flag live in the references — see the "Required packages" section of:
 
 **TaskCreate** — "Implement agentic token resolver with caching"
 
-For AI Teammate agents and Standard agents on the OBO/agentic-user path, the built-in token cache handles caching automatically — no custom resolver needed. With the **`Microsoft.OpenTelemetry` distro** the cache is auto-registered by `UseMicrosoftOpenTelemetry(...)` (Phase 3). With the **legacy individual packages** it's registered explicitly via `AddAgenticTracingExporter` (.NET), `AgenticTokenCacheInstance` (Node.js), or `AgenticTokenCache` (Python). Skip to step 3 for these agents.
+For AI Teammate agents and Standard agents on the OBO/agentic-user path, the built-in token cache handles caching automatically — no custom resolver needed. With the **`Microsoft.OpenTelemetry` distro** the cache is registered explicitly in Phase 3 (`AddSingleton<IExporterTokenCache<AgenticTokenStruct>, AgenticTokenCache>()`); `UseMicrosoftOpenTelemetry(...)` does not register it. With the **legacy individual packages** it's registered explicitly via `AddAgenticTracingExporter` (.NET), `AgenticTokenCacheInstance` (Node.js), or `AgenticTokenCache` (Python). Skip to step 3 for these agents.
 
 ### For .NET AgentFramework (hosting path)
 
-1. The distro's `builder.UseMicrosoftOpenTelemetry(...)` call (Phase 3) **auto-registers `IExporterTokenCache<AgenticTokenStruct>`** in DI — no separate `AddAgenticTracingExporter()` call is needed. If you're on the legacy two-package wiring, `AddAgenticTracingExporter()` provides the same DI instance.
+1. Phase 3 registers `IExporterTokenCache<AgenticTokenStruct>` explicitly with `builder.Services.AddSingleton<IExporterTokenCache<AgenticTokenStruct>, AgenticTokenCache>()` and points `o.Agent365.TokenResolver` at the same instance. `builder.UseMicrosoftOpenTelemetry(...)` alone does not register it (checked against `Microsoft.OpenTelemetry` 1.0.3 and 1.0.7). If you're on the legacy two-package wiring, `AddAgenticTracingExporter()` provides the same DI instance.
 
 2. In the agent class, inject `IExporterTokenCache<AgenticTokenStruct>` in the constructor and call `RegisterObservability(...)` per turn (already done in Phase 4).
 

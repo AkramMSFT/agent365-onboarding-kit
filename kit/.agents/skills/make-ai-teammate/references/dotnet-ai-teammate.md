@@ -272,7 +272,7 @@ namespace YourNamespace.Agent
         private readonly IChatClient? _chatClient;
         private readonly IMcpToolRegistrationService _toolService;
         private readonly IConfiguration? _configuration;
-        // Auto-registered by the Microsoft.OpenTelemetry distro. Held here so the
+        // Registered by instrument-observability (Phase 3, AgenticTokenCache). Held here so the
         // observability skill can wire RegisterObservability(...) per turn without
         // having to reopen the constructor.
         private readonly IExporterTokenCache<AgenticTokenStruct>? _agentTokenCache;
@@ -294,7 +294,7 @@ namespace YourNamespace.Agent
         {
             _chatClient = chatClient;
             _configuration = configuration;
-            // Auto-registered by the Microsoft.OpenTelemetry distro — used by instrument-observability
+            // Registered by instrument-observability (Phase 3) — used by instrument-observability
             // for per-turn RegisterObservability(...) calls. Inject up-front so the constructor doesn't
             // need to be reopened when the observability skill runs later.
             _agentTokenCache = agentTokenCache;

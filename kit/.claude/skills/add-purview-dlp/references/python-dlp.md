@@ -1,6 +1,6 @@
 # Purview runtime DLP -- Python
 
-Adapted from the Agent 365 + Claude reference deployment (`purview_dlp.py`), which ran against a live tenant with Purview collection and Risky Agents policies. Transport is `httpx`; the caller supplies the Graph bearer token.
+Adapted from `purview_dlp.py` in the author's own Agent 365 deployment (not published), which ran against a live tenant with Purview collection and Risky Agents policies. Transport is `httpx`; the caller supplies the Graph bearer token.
 
 ## `purview_dlp.py` (project root)
 
