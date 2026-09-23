@@ -195,7 +195,7 @@ Use the URL from the `Connect via browser:` line `devtunnel host` prints — `ht
 a365 setup blueprint --update-endpoint https://<your-host>/api/messages --m365
 ```
 
-**`--m365` is required.** Without it the CLI silently skips the Teams Graph re-registration and Teams keeps routing to nothing. Run this every time the URL changes — dev tunnels rotate on restart — and run it even when the config already shows the right value; the disk copy can be stale. It is idempotent. Afterwards, `a365.generated.config.json` has `messagingEndpoint` set, `completed` flips to `true`, and the file is authoritative. The CLI also re-stamps `.env`; a `PORT` line you added survives.
+**`--m365` is required** (verified on CLI 1.1.221; newer documentation says endpoint-only updates infer it, so keep it explicit and it works on both). Without it the CLI silently skips the Teams Graph re-registration and Teams keeps routing to nothing. Run this every time the URL changes — dev tunnels rotate on restart — and run it even when the config already shows the right value; the disk copy can be stale. It is idempotent. Afterwards, `a365.generated.config.json` has `messagingEndpoint` set, `completed` flips to `true`, and the file is authoritative. The CLI also re-stamps `.env`; a `PORT` line you added survives.
 
 > **Verified: this one runs fine from inside a coding-agent's shell.** Unlike `a365 setup all`, endpoint registration authenticates with the cached Azure CLI context and never touches the Windows broker. The broker boundary is precise: **creating OAuth2 grants and admin consent** need it; **endpoint registration and inheritable-permission configuration** do not.
 

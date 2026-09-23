@@ -211,6 +211,52 @@ Found 2026-09-04 while checking whether sections 11 and 12 left .NET exposed.
 
 ---
 
+### 14. Environment-value validation — active settings, not comments or examples
+
+The exporter checks in sections 9 and 13 accepted a commented-out `true`, a value merely beginning with `true`, an earlier assignment superseded by a later `false`, or an enabled `.env.example` beside a disabled `.env`, and rejected a valid quoted value. A disabled exporter could pass and a correctly configured one could fail.
+
+The kit-authored `hooks/lib/env-config.js` parses assignments, honours quoting and `export`, ignores comments, takes the last assignment, and prefers the project's `.env` over example files. The Node.js and Python observability validators use it through fix-ups; the Java and dev-channel validators use it directly. The dev-channel check still inspects both `.env` and `.env.example`, because neither should enable an unauthenticated listener by default.
+
+### 15. `path-guard.js` — nested new paths and Windows casing
+
+Section 3's fallback resolved only the immediate parent of a new file. A new path with several missing directories beneath a junction or symlink fell back to the unexpanded path, so a location lexically inside the project could resolve outside it. String-prefix containment also rejected legitimate paths whose Windows casing differed from the project root, and would have treated `C:\proj2` as inside `C:\proj`.
+
+The guard now resolves the nearest existing ancestor before appending the missing components, compares containment with `path.relative`, and ignores malformed or non-tool events instead of crashing. The drop-in protection from section 3 is unchanged.
+
+### 16. `validate-add-workiq-tools.js` — honour the S2S early exit
+
+The skill deliberately exits without changes on an S2S project, because this kit's Work IQ wiring needs a delegated user token. Its validator then demanded a manifest and MCP wiring anyway, blocking the session after the skill had correctly refused. The validator now reads the cached auth mode and returns a non-blocking verdict for S2S; OBO and agentic-user validation are unchanged.
+
+### 17. Setup diagnostics — `completed:false` is not a consent failure
+
+Two validators read `completed:false` in the generated config as proof that OAuth consent was missing and sent the operator to an administrator. It equally reflects a skipped endpoint or hosting step, as the live runs in this repository showed. The warnings now direct the reader to check setup, endpoint and consent results separately. An unconditional warning that an App Service managed identity was required for observability is removed; Azure hosting is optional and other credentials are supported.
+
+### 18. SDK and playbook corrections — the September 2026 audit
+
+An audit of the bundled skills against the released SDKs found instructions and samples that could not work as written. The corrections are applied to the canonical files before the discovery copies are made and are recorded in `build/upstream-fixups.json`, each with an id and an exact expected match count, so an upstream rewording fails the build rather than silently shipping a stale patch.
+
+| Area | What was wrong | Correction |
+|---|---|---|
+| .NET observability | Samples set `o.Agent365.Exporter.TokenResolver` and `o.Agent365.Exporter.UseS2SEndpoint`, a property path that does not exist in the shipped distro; the OBO cache was described as auto-registered when it is not | `o.Agent365.TokenResolver` / `o.Agent365.UseS2SEndpoint`, verified against the distro's own type documentation; explicit `IExporterTokenCache<AgenticTokenStruct>` registration |
+| Node.js clients | LangChain returned a content union where the host needed a string; the Claude sample used the Messages constructor on the Agent SDK package; notifications and Work IQ called a client method that does not exist | Union flattened to text; `query()` from the Claude Agent SDK; `client.invoke` |
+| Node.js managed identity | MSAL silently discards the `fmiPath` option | The token request serialises `fmi_path` in the form POST directly |
+| Work IQ, Python | `ENV=development` where the SDK reads `PYTHON_ENVIRONMENT` | `PYTHON_ENVIRONMENT=Development`, which is also what drove the Work IQ 401s recorded earlier in this repository |
+| Framework detection | Hosting and notification packages classified Semantic Kernel, OpenAI, Claude and ADK projects as Agent Framework | Detection keys on the LLM framework package |
+| Validation commands | `npm run build \|\| npm run compile \|\| echo` turned a failed build into success; an unquoted `\|` in a log-level value was a shell pipe; one `dotnet add package` named two packages | Explicit script checks that preserve exit codes; quoted value; one package per command |
+| Playground | `@microsoft/agentsplayground` is not the package name | `@microsoft/m365agentsplayground`; the executable is still `agentsplayground` |
+| Local testing | The `-c emulator` flag was described as bypassing server authentication, and ports were assumed per language | The flag selects the client channel only; the actual listening port is inspected; a health check must return 200 first |
+| Exporter checks | Environment-only checks ignored explicit code options; Node's `enableConsoleExporters` belongs at the top level, not inside `a365`; .NET's explicit `o.Exporters` selection overrides the legacy root flag | Code and environment are both read; console-only intent is recorded as `observabilityExportMode` and validated without demanding a remote token |
+
+What this repository does **not** carry from that audit: the pinned Python Agents 1.6 profile and the rule that only that profile is generated for Python AI Teammates. Those are a policy about which frameworks to support, not defects, so they stay out of Microsoft's text. The profile ships as the runnable `examples/python-teammate` and as kit-authored guidance in `shared/local-runtime-lessons.md`, which the skills point to.
+
+### 19. Guarded setup and the observability access-package hand-off
+
+When `a365 setup` reports that the blueprint needs consent for `maven-prod [Agent365.Observability.OtelWrite]`, the CLI can still exit zero, and an assistant reading only the exit code reports setup as complete. The kit-authored `run-a365.mjs` forwards approved setup commands to the installed CLI, recognises that message even in coloured or chunked output, prints the administrator steps from `shared/observability-access-package.md`, and exits 2 so automation cannot mistake the hand-off for success. It does not sign in, retry, create packages or grant anything. The recovery itself is an Entra access package with the exact resource role, an initial policy, and an assignment to the blueprint that reaches **Delivered**; approval alone is not enough.
+
+Sections 14 to 19 are the work of Gerard Salvador Lopez, contributed in September 2026 with offline regression fixtures for each change.
+
+---
+
 ## Kit add-ons — not Microsoft's
 
 Everything under `.a365-kit/addons/` (and its copies in `.claude/skills/` and `.agents/skills/`) plus the two validators `validate-add-messaging-endpoint.js` and `validate-add-purview-dlp.js` is **written for this kit**, copyright Akram Eleyan, MIT. They follow upstream's skill format so every CLI discovers them the same way, but they are not part of `microsoft/agent365-skills` and should not be reported there.
@@ -223,18 +269,24 @@ Everything under `.a365-kit/addons/` (and its copies in `.claude/skills/` and `.
 | `add-mcp-server` | Connects the agent to any external / community MCP server (filesystem, git, GitHub, Postgres, web fetch, Slack, Playwright, …) beyond Microsoft's Work IQ set. Governance boundary: external servers are NOT registered in Agent 365 or gated by Entra; opt-in, clearly labelled, paired with DLP guidance. | Python wiring pattern API-verified on the live SDK (`MCPServerStdio`/`StreamableHttp`); Node.js and .NET are faithful ports awaiting a run. |
 | `test-local-channel` | Microsoft's `test-local` is written throughout for the AI Teammate path, so a blueprint agent had no local test route at all: its host rejects every unauthenticated request, which is deliberate. Adds a dev channel on its own loopback-bound port, off unless `A365_DEV_CHANNEL=true`, leaving `/api/messages` fully authenticated. | Python module run and verified: with the flag unset the port refuses connections; with it set, `/dev/health` returns 200, `/dev/chat` answers without a token, a request carrying `X-Forwarded-For` is refused 403, the socket is bound to 127.0.0.1 rather than the wildcard, and the production endpoint still returns 401. Node.js and .NET are faithful ports awaiting a run. |
 | `add-java-agent` | Microsoft ships no Java SDK, so a Java agent can be registered and published but has no host, no inbound token validation and no way to export telemetry. Adds all three. Registration and the portal steps are language-agnostic and stay with the Microsoft skills. | Compiled on JDK 21 and run: health 200, anonymous POST 401, forged bearer 401, GET 405. The OTLP encoder was matched field by field against the Python SDK's output. Dry-run end to end through GitHub Copilot CLI on a fresh Maven project: the CLI found the skill, wrote the five classes, wired them to the project's own agent class rather than a stub, added both dependencies, compiled, and reproduced the non-standard wire format correctly. Not yet exercised against a tenant from Java -- a real inbound activity and Connector reply need a published agent. |
-| `add-purview-dlp` | Upstream has no Purview coverage. Evaluates every prompt and response against tenant DLP via two Graph calls; grants the scopes; hands off the portal policy. | Python adapted from the Agent 365 + Claude reference deployment's `purview_dlp.py`, which ran against a live tenant. The Node.js and .NET files are faithful ports of the same two REST calls, **not yet run against a tenant**; each marks the token-exchange line as the one to verify against the local SDK. |
+| `add-purview-dlp` | Evaluates every prompt and response against tenant DLP via two Graph calls; grants the scopes; hands off the portal policy. | Python adapted from the Agent 365 + Claude reference deployment's `purview_dlp.py`, which ran against a live tenant. The Node.js and .NET files are faithful ports of the same two REST calls, **not yet run against a tenant**; each marks the token-exchange line as the one to verify against the local SDK. |
 
-The seven Microsoft skills are untouched by the add-ons: they reference upstream files, never modify them.
+The eight Microsoft skills are untouched by the add-ons: they reference upstream files, never modify them. Upstream added its own `purview-dlp-integration` skill in September 2026; the kit's `add-purview-dlp` predates it, overlaps with it, and is kept because it is the one exercised on a live tenant. Both are discoverable and the add-on's description says which is which.
+
+The September 2026 audit also re-verified the add-ons offline: every Python, Node.js and .NET reference was compiled or executed against the released SDK versions it names, and the Java host was compiled on JDK 21 with Maven 3.9 and its five classes verified. These are compile and mocked-boundary checks, not live-tenant runs, except where the table says otherwise.
+
+## Examples and the workspace tool
+
+`examples/` holds seven starter agents in six languages and `tools/prepare-workspace.mjs` copies the kit and one example into a new directory, verifying every file against `BUNDLE-MANIFEST.json`. Both are kit-authored, MIT, contributed by Gerard Salvador Lopez, and contain no tenant, user, tunnel or credential values; the model keys they read are supplied by the person running them. The SDKs they declare are restored from their registries, not redistributed.
 
 ---
 
 ## What is *not* changed
 
 - No phase ordering, decision matrix, or trigger phrases.
-- No code patterns in `references/` beyond the token-resolver fix in section 11.
+- No code patterns in `references/` beyond the token-resolver fix in section 11 and the SDK corrections itemised in section 18, all of which are asserted against upstream's text on every build.
 - No skill logic beyond the exporter switch in section 10, which is applied to bring the Node.js and Python paths into line with what upstream's .NET path already does.
-- No validator check logic beyond the bug fixes in sections 8, 9, 11, 12 and 13, and no code pattern beyond the token-resolver fix in section 11 — the validators otherwise enforce exactly what upstream enforces.
+- No validator check logic beyond the fixes in sections 8, 9, 11 to 17 and 19, and no code pattern beyond the token-resolver fix in section 11 and the SDK corrections in section 18 — the validators otherwise enforce exactly what upstream enforces.
 - Nothing added to the skills. This kit contributes no Purview, hosting, or hardening content of its own to them; that lives in the separately labelled add-ons above.
 
 ## Reporting issues

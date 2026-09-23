@@ -139,6 +139,8 @@ devtunnel user login
 
 ## Step 1 — Put the kit in your agent project
 
+> Starting from one of the repository's samples instead of your own agent? Use the workspace tool described in the README's *Start from a sample instead*; it places the kit for you. Then continue from Step 2 in that directory.
+
 > **Do not use GitHub's green Code → Download ZIP button.** That gives you
 > `agent365-onboarding-kit-main.zip`, which is the whole *repository* inside a wrapper
 > folder. Extracting it puts the skills where no CLI looks, and the failure is silent: the
@@ -229,7 +231,7 @@ Cursor, Codex, Gemini CLI, Amp, Cline, OpenCode, Warp and Antigravity all read
 `copilot skill list` in a separate terminal; in Claude Code just ask *What Agent 365 skills
 do you have?*
 
-You should see fourteen — seven Microsoft skills plus seven kit add-ons. If you see none, the
+You should see fifteen — eight Microsoft skills plus seven kit add-ons. If you see none, the
 kit was extracted somewhere other than this folder; check that `.agents` and `.claude` sit
 beside your agent's source, not inside a subfolder.
 
@@ -268,7 +270,7 @@ The `a365-setup` skill detects your stack and asks three things:
 |---|---|
 | Confirm what it detected | `yes`, or correct it |
 | Capabilities: Register · Observability · WorkIQ · AI Teammate | `1, 2` for a first run; add WorkIQ for M365 data; AI Teammate only if the agent needs its own mailbox and UPN |
-| Auth mode (not asked for AI Teammate) | **OBO** — no admin consent needed |
+| Auth mode (not asked for AI Teammate) | **OBO** — on the tenants we ran, the CLI created the delegated grants itself. Your tenant may still require an administrator to consent to the blueprint's resource permissions; setup says so if it does. |
 
 It writes config and code, then reaches `a365 setup all`. **This command must run in your own terminal** — it signs in through the Windows broker, which cannot show a prompt inside a CLI's shell:
 
@@ -404,17 +406,17 @@ The `add-messaging-endpoint` add-on:
 a365 setup blueprint --update-endpoint https://<host>/api/messages --m365
 ```
 
-`--m365` is required — without it the Teams routing is silently skipped.
+`--m365` is required — without it the Teams routing is silently skipped. Verified on CLI 1.1.221; newer CLI documentation says endpoint-only updates infer it, so keeping the flag explicit costs nothing and works on both.
 
 If you are tunnelling, that is three commands in a terminal of their own, left running:
 
 ```bash
-devtunnel create --allow-anonymous
-devtunnel port create -p 3979
-devtunnel host
+devtunnel create <agent-name>-tunnel --allow-anonymous
+devtunnel port create <agent-name>-tunnel -p 3978 --protocol http
+devtunnel host <agent-name>-tunnel
 ```
 
-Take the public URL from the line `devtunnel host` prints. Do not build it from the tunnel name — a recreated tunnel can land in a different cluster and the derived URL will be wrong.
+Use the port your host actually binds; `3978` is the generated default. `--protocol http` matters: without it the relay attempts TLS to a plain-HTTP host and Teams sees a 502. Take the public URL from the line `devtunnel host` prints. Do not build it from the tunnel name — a recreated tunnel can land in a different cluster and the derived URL will be wrong.
 
 **Confirm the registration landed.** `a365.generated.config.json` in your project should now show your URL under `messagingEndpoint` and `"completed": true` at the root. If `completed` is `false` or the endpoint is empty, the command did not finish — re-run it rather than moving on.
 
@@ -445,7 +447,7 @@ This decides what happens in Steps 8–9. It was set by your capability choice i
 | Identity | service principal, created at setup | agentic user with UPN + mailbox, minted at instance creation |
 | Acts as | the signed-in user (delegated) | itself |
 | Use when | the agent runs elsewhere, or should chat as the caller | the agent should be a member of the org, receive email, be @mentioned |
-| Publish command | `a365 publish --aiteammate true` | `a365 publish` |
+| Publish command | `a365 publish --aiteammate true` (verified; see the note under Step 8) | `a365 publish` |
 
 Both paths require the package upload (Step 8) to appear in Teams and Copilot. The difference is only the publish flag and when the identity is created.
 
@@ -458,13 +460,19 @@ a365 publish                    # AI Teammate
 a365 publish --aiteammate true  # blueprint / OBO agent (flag selects the package format; does not change the agent's kind)
 ```
 
+That flag is the one thing that got a blueprint agent into Teams on CLI 1.1.221 (verified 2026-09-04, and again in the September audit). Two cautions: check `a365 publish --help` on a newer CLI before assuming the flag still means only a package format, and after publishing re-read `a365.config.json` to confirm `aiTeammate` is still `false`. If you see "Nothing to publish", that is this case, not a broken setup.
+
+```bash
+# (continued)
+```
+
 This writes `manifest/manifest.json` and `manifest/manifest.zip`. Edit `name.short` (30 chars max), the description and icons in `manifest/manifest.json` if you want, then run it again.
 
 <!-- ![a365 publish output](images/05-publish.png) -->
 
 ## Step 9 — Upload, activate, create the instance  [admin]
 
-Portal only — there is no CLI upload API.
+Portal only — there is no CLI upload API. The roles that can manage agents in the admin center are **AI Administrator** and **Global Administrator**; older guidance naming Teams Administrator alone is out of date.
 
 1. **Microsoft 365 admin center → Agents → All agents → Upload custom agent** — upload `manifest/manifest.zip`.
 2. **Activate** — scope the audience (start with yourself), grant the requested permissions.
@@ -484,10 +492,14 @@ Provisioning is asynchronous — a few minutes, occasionally longer. If **Reques
 
 The `add-purview-dlp` add-on grants the agent identity two Graph scopes, and wires each prompt and response through Purview: `protectionScopes/compute` then `processContent`, blocking on policy. Then the portal steps [admin]:
 
-1. Purview → Settings → **Audit** on.
-2. Purview → **Collection policy** capturing AI app interactions (UploadText + DownloadText) for the agent's app location.
-3. Purview → **Insider Risk Management** → policy from the *Risky Agents (preview)* template, indicator *Exposing agent to risky prompt*.
-4. IRM → **Defender XDR alert sharing** on.
+1. An administrator consents `ProtectionScopes.Compute.User` and `Content.Process.User` for the agent identity if the add-on could not grant them.
+2. Purview → Settings → **Audit** on.
+3. Purview → **Collection policy** capturing AI app interactions (UploadText + DownloadText) for the agent's app location.
+4. For *blocking*, not just visibility: a DLP administrator creates an app-scoped policy and rule through the documented `New-DlpCompliancePolicy` / `New-DlpComplianceRule` workflow with the *Applications* workload and the *Application* enforcement plane, targeting the same application id. Audit and collection alone do not block anything.
+5. Purview → **Insider Risk Management** → policy from the *Risky Agents (preview)* template, indicator *Exposing agent to risky prompt*.
+6. IRM → **Defender XDR alert sharing** on.
+
+Then test one benign prompt and one deliberately policy-matching prompt with synthetic content. A 200 from Graph is not proof of blocking; the returned action being enforced is.
 
 Allow up to 24 hours for the first evaluation.
 
@@ -520,7 +532,7 @@ Everything else is done by the CLI or a portal. These four need your own termina
 |---|---|
 | `claude` / `a365` / `copilot` "not found" but installed | Elevated shell. Use a normal one. |
 | `a365 setup all` times out / `MSAL … Status 17` | It authenticates via the broker; run it in your own terminal, not through the CLI. |
-| `a365 publish` says "Nothing to publish for blueprint-based agents" | Use `a365 publish --aiteammate true` on the blueprint path. |
+| `a365 publish` says "Nothing to publish for blueprint-based agents" | Use `a365 publish --aiteammate true` on the blueprint path (verified on CLI 1.1.221); confirm `a365.config.json` still says `aiTeammate: false` afterwards. |
 | Agent registered but not in Teams | The package must be uploaded and activated (Steps 8–9) on both paths. |
 | WorkIQ tools all return 401; agent says it has none | Set `PYTHON_ENVIRONMENT=Production` in `.env`, then restart the host. |
 | `UserError: Duplicate tool names across MCP servers` | Several WorkIQ servers collide; the add-on sets `include_server_in_tool_names` — re-run it. |

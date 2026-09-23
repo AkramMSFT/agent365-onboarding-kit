@@ -4,15 +4,16 @@ Thanks for taking a look. This repository has one unusual rule that is worth rea
 
 ## Where a change belongs
 
-Most of what ships is **generated**. `dist/` is rebuilt from scratch on every build, so edits made there are silently discarded the next time anyone runs the build.
+Most of what ships is **generated**. `kit/`, `BUNDLE-MANIFEST.json` and `SHA256SUMS.txt` are rebuilt from scratch on every build, so edits made there are silently discarded the next time anyone runs the build.
 
 | You want to change | Edit |
 |---|---|
-| Microsoft's skill content | the fix-up list in [`build/Build-Kit.ps1`](build/Build-Kit.ps1) |
+| Microsoft's skill content | a packaging fix-up in [`build/Build-Kit.ps1`](build/Build-Kit.ps1), or an SDK/playbook correction in [`build/upstream-fixups.json`](build/upstream-fixups.json) |
 | An add-on, launcher, or validator written for this kit | [`payload/`](payload/) |
 | Build behaviour or a verification check | [`build/Build-Kit.ps1`](build/Build-Kit.ps1) |
+| An example agent or the workspace tool | [`examples/`](examples/), [`tools/`](tools/), and the catalog in [`build/bundle-examples.json`](build/bundle-examples.json) |
 | Documentation | `README.md`, `GUIDE.md`, `NOTICE.md`, `docs/` |
-| Anything in `dist/` | nothing — rebuild instead |
+| Anything in `kit/`, the manifest or the checksums | nothing — rebuild instead |
 
 ## Issues that belong upstream
 
@@ -40,7 +41,21 @@ Every edit to upstream content is a **fix-up**: an entry in the `$fixups` array 
 
 The `Find` block must match upstream exactly. If it does not, the build throws rather than continuing, which is deliberate: an upstream rewording should stop the build loudly instead of producing a patched file that no longer says what we assumed.
 
-Three things are expected of a fix-up:
+SDK and playbook corrections use `build/upstream-fixups.json` instead, applied after the packaging fix-ups and the Copilot instructions are staged:
+
+```json
+{
+  "id": "skills.test-local.SKILL.md#h5",
+  "path": "skills\\test-local\\SKILL.md",
+  "find": "exact upstream text, with enough surrounding lines to be unique",
+  "replace": "the corrected text",
+  "expectedCount": 1
+}
+```
+
+The build counts matches of `find` and fails unless the count equals `expectedCount`, so a patch can neither miss nor apply twice.
+
+Three things are expected of a fix-up, whichever file it lives in:
 
 1. **A comment above it** naming the defect and the `NOTICE.md` section that documents it.
 2. **An entry in [`NOTICE.md`](NOTICE.md)** explaining the failure it prevents, with upstream's own justification where one exists — several fixes exist only to make one language behave the way another already does.

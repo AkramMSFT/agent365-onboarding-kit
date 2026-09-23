@@ -15,15 +15,20 @@ download  ->  extract into your agent project  ->  run the launcher  ->  "Onboar
 - [What it does](#what-it-does)
 - [Prerequisites](#prerequisites)
 - [Quick start](#quick-start)
+- [Start from a sample instead](#start-from-a-sample-instead)
+- [Before you start: what to have ready](#before-you-start-what-to-have-ready)
 - [How it works](#how-it-works)
 - [What you can ask for](#what-you-can-ask-for)
 - [What is included](#what-is-included)
 - [Supported CLIs](#supported-clis)
 - [Language support](#language-support)
+- [Examples](#examples)
 - [Relationship to Microsoft's skills](#relationship-to-microsofts-skills)
 - [Building and self-hosting](#building-and-self-hosting)
 - [Repository layout](#repository-layout)
 - [Verification](#verification)
+- [What local success does not prove](#what-local-success-does-not-prove)
+- [Contributors](#contributors)
 - [Licence](#licence)
 
 ---
@@ -115,6 +120,49 @@ Onboard this agent to Agent 365.
 
 It reads the skills from the folder you just extracted, detects your stack, and works through the stages with you.
 
+## Start from a sample instead
+
+If you have no agent yet, the repository carries seven runnable starters in six languages. This is the one path where GitHub's **Code → Download ZIP** is fine, because the repository itself is the bundle: `kit/` plus `examples/` plus the workspace tool.
+
+```powershell
+git clone https://github.com/AkramMSFT/agent365-onboarding-kit.git
+cd agent365-onboarding-kit
+node tools\prepare-workspace.mjs --list
+node tools\prepare-workspace.mjs --example python-teammate --destination ..\my-agent
+```
+
+```bash
+git clone https://github.com/AkramMSFT/agent365-onboarding-kit.git
+cd agent365-onboarding-kit
+node tools/prepare-workspace.mjs --list
+node tools/prepare-workspace.mjs --example python-teammate --destination ../my-agent
+```
+
+The tool copies the kit and one example into a **new** directory, verifying every file against the SHA-256 recorded in `BUNDLE-MANIFEST.json`, and refuses to overwrite anything. `--example blank` gives a kit-only workspace. Then work in that directory exactly as above: run the launcher, open your CLI, and say what you want. The catalog is in [`docs/AGENT-EXAMPLES.md`](docs/AGENT-EXAMPLES.md).
+
+## Before you start: what to have ready
+
+Onboarding creates real objects in a real tenant. Having these ready avoids stopping halfway.
+
+| For every onboarding | Have ready |
+|---|---|
+| Your agent | Source path, language and framework, dependency file, and the command that starts it |
+| Tenant and account | Entra tenant id, tenant domain, and the work account you will sign in with. Confirm it is the intended tenant. |
+| An administrator | Someone who can grant consent, approve an access package if setup asks for one, and upload the package. Know who before you start. |
+| Agent details | Display name, description, and an accountable owner or sponsor with a resolvable UPN |
+| Capabilities | Registration only, observability, Work IQ, Teams reachability, DLP. For a non-Teammate agent, OBO or S2S. |
+| Model access | Provider, model or deployment name, and its key or identity. The kit does not supply a model. |
+
+| Optional capability | Additional information |
+|---|---|
+| Work IQ | Which catalog servers you want, and the acting user's Microsoft 365 Copilot entitlement |
+| Teams reachability | A public HTTPS endpoint, or a dev-tunnel sign-in and a free local port |
+| Observability | At least one user in the tenant with Microsoft Agent 365 or Microsoft 365 E7 **assigned**. An unassigned subscription is not enough. |
+| Purview DLP | A policy owner, the entitlement or pay-as-you-go billing, and the Entra application id the policy will target |
+| External MCP servers | Approved server URLs or commands and their own credentials. These sit outside the Entra model. |
+
+Everything else is generated during onboarding. Do not invent blueprint ids, secrets, or object ids, and keep model keys and client secrets out of Git.
+
 **[`GUIDE.md`](GUIDE.md) is the full walkthrough** — ten steps from your agent's source to a registered, observable, tool-enabled agent chatting in Teams with Purview and Defender watching. Start there.
 
 ## How it works
@@ -177,14 +225,14 @@ From there it previews `a365 setup all` with `--dry-run`, shows exactly what wil
 
 ## What is included
 
-**Microsoft's seven skills**, unchanged except for the modifications recorded in [`NOTICE.md`](NOTICE.md): `a365-setup`, `make-a365-agent`, `make-ai-teammate`, `instrument-observability`, `add-workiq-tools`, `a365-code-validator`, `test-local`.
+**Microsoft's eight skills**, unchanged except for the modifications recorded in [`NOTICE.md`](NOTICE.md): `a365-setup`, `make-a365-agent`, `make-ai-teammate`, `instrument-observability`, `add-workiq-tools`, `a365-code-validator`, `test-local`, and `purview-dlp-integration`, which upstream added in September 2026.
 
 **Seven add-ons written for this kit**, discovered the same way and clearly separated in `NOTICE.md`:
 
 | Add-on | Fills this gap |
 |---|---|
 | `add-messaging-endpoint` | Upstream registers a blueprint agent but never hosts it, leaving it reachable by nothing. Adds the `/api/messages` host, the tunnel, and the endpoint registration. |
-| `add-purview-dlp` | Upstream has no Purview coverage. Evaluates every prompt and response against tenant DLP through two Graph calls. |
+| `add-purview-dlp` | Evaluates every prompt and response against tenant DLP through two Graph calls, grants the scopes the agent identity needs, and hands the policy work to an administrator. It predates upstream's `purview-dlp-integration`; the two overlap, and the add-on stays because it is the one verified on a live tenant. |
 | `add-mcp-server` | Connects the agent to any external MCP server, with the governance boundary stated plainly: these are **not** registered in Agent 365 or gated by Entra. |
 | `add-lab-tools` | Local in-process utilities an agent otherwise lacks: web fetch, encoders, hashing, text transforms. Opt-in and dual-use. |
 | `add-java-agent` | Java has no Agent 365 SDK. Adds the HTTP host, inbound token validation, and a direct OTLP exporter. |
@@ -212,7 +260,23 @@ The skills themselves are plain Markdown. Only the validator hooks are Claude Co
 
 Agent 365 ships SDKs for **Python, Node.js / TypeScript and .NET**. Within those, framework coverage is broad and detected automatically: LangChain, OpenAI Agents SDK, Claude Agent SDK, Google ADK, Semantic Kernel and Microsoft Agent Framework.
 
-Most of onboarding never reads your source. The blueprint, identity, agentic user, endpoint registration, manifest, upload and instance are Entra, CLI and portal operations, so an agent in **any** language can be registered, published and made reachable in Teams. Only observability, Work IQ tools and the generated host are SDK-bound. Java is covered by the `add-java-agent` add-on, and [`GUIDE.md`](GUIDE.md#which-languages-this-covers) documents the wire contract other languages would need.
+Most of onboarding never reads your source. The blueprint, identity, agentic user, endpoint registration, manifest, upload and instance are Entra, CLI and portal operations, so an agent in **any** language can be registered, published and made reachable in Teams. Only observability, Work IQ tools and the generated host are SDK-bound. Java is covered by the `add-java-agent` add-on, and [`GUIDE.md`](GUIDE.md#which-languages-this-covers) documents the wire contract other languages would need. Console starters for Java, Go and Rust live under `examples/`; Go and Rust are manual-integration stacks, and a validator reporting `ok` on them is not evidence of onboarding.
+
+## Examples
+
+Seven runnable starters, each with an offline mode that needs no key and no tenant, plus opt-in live inference. Prepare one with `tools/prepare-workspace.mjs`; see [`docs/AGENT-EXAMPLES.md`](docs/AGENT-EXAMPLES.md).
+
+| Example | Language | What it shows |
+|---|---|---|
+| `python-teammate` | Python 3.12 | Authenticated aiohttp host, pinned Agent Framework and SDK contracts, token store and telemetry, optional Work IQ |
+| `dotnet-agent365-lab` | C# / .NET 8 | Opt-in Teams host, Work IQ, telemetry, agent mailbox and Purview patterns with offline checks |
+| `dotnet-tool-agent` | C# / .NET 8 | Small Agent Framework console agent with an offline SDK self-test |
+| `nodejs-tool-agent` | JavaScript / Node 24 | OpenAI Agents SDK tools and an in-memory model, tool, model turn |
+| `java-tool-agent` | Java 21 / Maven | HttpClient and Gson model, tool loop with JUnit tests |
+| `go-tool-agent` | Go 1.24+ | Standard-library model, tool loop with tests |
+| `rust-tool-agent` | Rust 1.88+ | Native-TLS and serde_json model, tool loop with Cargo tests |
+
+The examples and the workspace tool were contributed by Gerard Salvador Lopez.
 
 ## Relationship to Microsoft's skills
 
@@ -234,11 +298,11 @@ Requires PowerShell 7+, Git and Node.js.
 .\build\Build-Kit.ps1 -Zip
 ```
 
-The first builds from a local clone of upstream; the second clones upstream itself and produces a release archive. Output lands in `dist/`, and `-Zip` also writes the archive at the repository root.
+The first builds from a local clone of upstream; the second clones upstream itself and produces the release archives. Output lands in `kit/`, and `-Zip` also writes two archives at the repository root: `agent365-onboarding-kit-v<version>.zip` (the kit alone, for extracting into an existing project) and `agent365-onboarding-bundle-v<version>.zip` (kit, examples, tools and docs). Building into `kit/` also regenerates `BUNDLE-MANIFEST.json` and `SHA256SUMS.txt`, which the workspace tool verifies against.
 
-The build refuses to emit output it cannot prove coherent. It verifies that no `${CLAUDE_PLUGIN_ROOT}` path tokens or `/agent365:` command references survive, that every path a skill references exists, that every bundled JS file parses, that the discovery copies match, and that every hook command was repointed.
+The build refuses to emit output it cannot prove coherent. It verifies that no `${CLAUDE_PLUGIN_ROOT}` path tokens or `/agent365:` command references survive, that every path a skill references exists, that every bundled script parses, that the discovery copies match, and that every hook command was repointed. Corrections to Microsoft's files live in two places, both asserted against upstream's exact text on every build: the packaging fix-ups in `Build-Kit.ps1`, and the SDK and playbook corrections in `build/upstream-fixups.json`, each with an id and an expected match count.
 
-**Staying current.** `.github/workflows/refresh-upstream.yml` runs daily, compares upstream `main` against the recorded commit, and when it moves it rebuilds, commits `dist/` and cuts a release. If a fix-up assertion fails it opens an issue instead.
+**Staying current.** `.github/workflows/refresh-upstream.yml` runs daily, compares upstream `main` against the recorded commit, and when it moves it rebuilds, commits `kit/` with the manifest, and cuts a release with both archives. If a fix-up assertion fails it opens an issue instead.
 
 **Updating in place.** `.\agent365-kit.ps1 -Update`, or *"update the Agent 365 kit"* from inside your CLI. Only the kit's own paths are replaced, never your agent, `.env`, config, or skills you added.
 
@@ -257,26 +321,52 @@ A network share holding `agent365-onboarding-kit-latest.zip` works with no web s
 
 | Path | Purpose |
 |---|---|
-| `build/Build-Kit.ps1` | the build — derives `dist/` from upstream |
+| `build/Build-Kit.ps1` | the build — derives `kit/` from upstream |
+| `build/upstream-fixups.json` | SDK and playbook corrections to Microsoft's files, each asserted by id and match count |
+| `build/bundle-examples.json` | the example catalog written into the manifest |
 | `build/kit.version` | this kit's packaging version |
-| `payload/` | files authored here and copied into every build: add-ons, validators, launchers, prerequisite checker |
-| `dist/` | built output, committed so the repository can be used directly |
+| `payload/` | files authored here and copied into every build: add-ons, validators, launchers, helpers, prerequisite checker |
+| `kit/` | built output, committed so the repository can be used directly and cloned as a bundle |
+| `examples/` | seven runnable starter agents |
+| `tools/prepare-workspace.mjs` | copies the kit and one example into a new directory, verifying every file's hash |
+| `BUNDLE-MANIFEST.json`, `SHA256SUMS.txt` | generated by the build; what the workspace tool verifies against |
 | `GUIDE.md` | the end-to-end walkthrough |
 | `NOTICE.md` | attribution and every modification made to upstream |
 | `docs/` | deeper references: per-CLI setup, lifecycle, design |
 
-`dist/` is generated. Changes to Microsoft's skills go in the fix-up list in `build/Build-Kit.ps1`; changes to the kit's own content go in `payload/`.
+`kit/`, the manifest and the checksums are generated. Changes to Microsoft's skills go in `build/Build-Kit.ps1` or `build/upstream-fixups.json`; changes to the kit's own content go in `payload/`.
 
 ## Verification
 
 Built against upstream `agent365-skills` v1.0.2 and verified on Windows 11.
 
-- **Discovery.** Claude Code and GitHub Copilot CLI both list all fourteen skills from the extracted folder with no install step. Copilot loads referenced files by relative path, which is what confirms the path-rewrite strategy works outside Claude Code.
+- **Discovery.** Claude Code and GitHub Copilot CLI both list all fifteen skills from the extracted folder with no install step. Copilot loads referenced files by relative path, which is what confirms the path-rewrite strategy works outside Claude Code.
 - **Onboarding.** Driven end to end through Copilot CLI against a live tenant on a Python agent: blueprint, agent identity, eleven delegated permission grants, observability instrumentation, Work IQ tool wiring, messaging endpoint, published package, and an agent answering in Teams.
+- **Node.js and .NET.** Both driven through Copilot CLI against the live tenant: the Node run confirmed the exporter switch and the per-turn token refresh land in generated code; the .NET run confirmed the validator's exporter and per-turn registration checks on a hosted agent.
 - **Java.** The `add-java-agent` output compiles on JDK 21 and runs: health check returns 200, an anonymous request returns 401, a forged bearer returns 401. Its OTLP encoder was matched field by field against the Python SDK's output.
+- **Examples.** The .NET, Node and Python examples build here; the Java example compiles and passes its five tests. Go and Rust were built by their contributor with isolated toolchains and are not re-verified on every build.
+- **Workspace tool.** `prepare-workspace.mjs` copies an example from a clone with every hash verified, and refuses an existing destination.
 - **Guard behaviour.** The patched path guard blocks writes into the kit and outside the project, and allows writes to agent source.
 
 Not yet exercised: the `.agents/skills/` path under Cursor, Codex, Gemini CLI, Amp, Cline, OpenCode, Warp and Antigravity, and a Java agent taken all the way to a live tenant.
+
+## What local success does not prove
+
+The kit gives you source and a guided workflow, not a pre-provisioned agent.
+
+| What you have | What it does not show |
+|---|---|
+| A passing offline demo or self-test | That a model was invoked, that it has quota, or that any tenant was configured |
+| A registered endpoint, a manifest, or an HTTP 200 | Administrator approval, correct runtime grants, an authorised Teams reply, or telemetry visible in the service |
+| DLP code and successful Graph calls | That an app-scoped blocking policy exists and its returned action is enforced |
+| A validator reporting `ok` on a Go or Rust project | Anything about onboarding. Those are manual-integration stacks. |
+
+Before declaring an agent done: confirm the tenant, blueprint and identity ids from real setup output; have the administrator review the actual scopes requested; send one authorised message through Teams and see the reply; and check that a turn produced telemetry for that agent id, not merely an exporter 200.
+
+## Contributors
+
+- **Akram Eleyan** — author and maintainer.
+- **Gerard Salvador Lopez** ([@gerardsl](https://github.com/gerardsl)) — the September 2026 audit: the SDK and playbook corrections in `build/upstream-fixups.json`, the hardened launchers and version check, the environment parser and console-mode checks, the setup runner for the observability access-package hand-off, the seven examples and the workspace tool, and the runtime lessons the skills now point to.
 
 ## Licence
 

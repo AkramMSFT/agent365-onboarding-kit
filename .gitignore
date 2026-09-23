@@ -22,3 +22,11 @@ a365-kit.config.json
 node_modules/
 target/
 __pycache__/
+
+# Example projects: build output and dependency caches, never the sources or lockfiles
+examples/**/bin/
+examples/**/obj/
+examples/**/target/
+examples/**/node_modules/
+examples/**/.venv/
+examples/**/__pycache__/

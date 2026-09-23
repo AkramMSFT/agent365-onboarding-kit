@@ -6,9 +6,9 @@ name: Build
 on:
   push:
     branches: [main]
-    paths-ignore: ["dist/**", "*.md"]
+    paths-ignore: ["kit/**", "*.md", "BUNDLE-MANIFEST.json", "SHA256SUMS.txt"]
   pull_request:
-    paths-ignore: ["dist/**", "*.md"]
+    paths-ignore: ["kit/**", "*.md", "BUNDLE-MANIFEST.json", "SHA256SUMS.txt"]
 
 permissions:
   contents: read
@@ -25,18 +25,24 @@ jobs:
         shell: pwsh
         run: |
           $errs = $null
-          [System.Management.Automation.Language.Parser]::ParseFile("$PWD/dist/agent365-kit.ps1", [ref]$null, [ref]$errs) | Out-Null
+          [System.Management.Automation.Language.Parser]::ParseFile("$PWD/kit/agent365-kit.ps1", [ref]$null, [ref]$errs) | Out-Null
           if ($errs) { $errs | ForEach-Object { $_.ToString() }; exit 1 }
-          bash -n dist/agent365-kit.sh
+          bash -n kit/agent365-kit.sh
       - name: Validators run
         shell: pwsh
         run: |
           $env:VALIDATE_SKIP_EXEC = "1"
-          Get-ChildItem dist/.a365-kit/hooks/stop/*.js | ForEach-Object {
-            Push-Location dist
+          Get-ChildItem kit/.a365-kit/hooks/stop/*.js | ForEach-Object {
+            Push-Location kit
             # Some validators pretty-print their verdict across several lines; join before matching.
             $out = (node $_.FullName 2>$null) -join "`n"
             Pop-Location
             if ($out -notmatch '"ok"\s*:\s*(true|false)') { throw "validator produced no JSON verdict: $($_.Name)" }
           }
           "all validators emit a verdict"
+      - name: Workspace tool lists the examples
+        shell: pwsh
+        run: |
+          node tools/prepare-workspace.mjs --list
+          node tools/prepare-workspace.mjs --example blank --destination "$env:RUNNER_TEMP/kit-only-check"
+          if (-not (Test-Path "$env:RUNNER_TEMP/kit-only-check/.a365-kit/KIT-VERSION.json")) { throw "prepare-workspace did not copy the kit" }

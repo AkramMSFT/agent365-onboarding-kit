@@ -8,6 +8,7 @@
 
 # Node reads either, but the hooks are invoked cross-platform -- keep them LF.
 *.js text eol=lf
+*.mjs text eol=lf
 
 # PowerShell is Windows-native; CRLF is the least surprising there.
 *.ps1 text eol=crlf
@@ -15,5 +16,21 @@
 # Markdown and JSON: leave to the platform default.
 *.md  text
 *.json text
+
+# Everything listed in BUNDLE-MANIFEST.json (with a SHA-256 per file) is checked out
+# byte-for-byte, so the checksums verify on every platform and tools/prepare-workspace.mjs
+# can copy the kit and an example without a line-ending conversion changing a hash.
+# The build writes all of these with LF.
+kit/**          -text
+examples/**     -text
+tools/**        -text
+docs/**         -text
+README.md       -text
+GUIDE.md        -text
+NOTICE.md       -text
+CONTRIBUTING.md -text
+SECURITY.md     -text
+LICENSE         -text
+.gitattributes  -text
 
 *.zip binary

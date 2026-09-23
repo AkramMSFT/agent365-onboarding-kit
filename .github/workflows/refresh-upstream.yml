@@ -44,7 +44,7 @@ jobs:
         id: probe
         shell: pwsh
         run: |
-          $bundled = (Get-Content dist/.a365-kit/KIT-VERSION.json -Raw | ConvertFrom-Json).upstreamCommit
+          $bundled = (Get-Content kit/.a365-kit/KIT-VERSION.json -Raw | ConvertFrom-Json).upstreamCommit
           $remote  = (git ls-remote https://github.com/microsoft/agent365-skills.git "refs/heads/$env:UPSTREAM_REF").Split("`t")[0]
           if (-not $remote) { $remote = (git ls-remote https://github.com/microsoft/agent365-skills.git "refs/tags/$env:UPSTREAM_REF").Split("`t")[0] }
           $short = $remote.Substring(0, 7)
@@ -64,19 +64,19 @@ jobs:
         shell: pwsh
         run: |
           ./build/Build-Kit.ps1 -UpstreamRef $env:UPSTREAM_REF -Zip
-          $m = Get-Content dist/.a365-kit/KIT-VERSION.json -Raw | ConvertFrom-Json
+          $m = Get-Content kit/.a365-kit/KIT-VERSION.json -Raw | ConvertFrom-Json
           "kit=$($m.kitVersion)"           >> $env:GITHUB_OUTPUT
           "upstream=$($m.upstreamVersion)" >> $env:GITHUB_OUTPUT
           "commit=$($m.upstreamCommit)"    >> $env:GITHUB_OUTPUT
 
-      - name: Commit the rebuilt dist
+      - name: Commit the rebuilt kit
         if: steps.probe.outputs.changed == 'true'
         shell: pwsh
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add dist
-          if (git diff --cached --quiet) { Write-Host "dist unchanged after rebuild"; exit 0 }
+          git add kit BUNDLE-MANIFEST.json SHA256SUMS.txt
+          if (git diff --cached --quiet) { Write-Host "kit unchanged after rebuild"; exit 0 }
           git commit -m "Refresh from upstream agent365-skills v${{ steps.build.outputs.upstream }} (${{ steps.build.outputs.commit }})"
           git push
 
@@ -88,8 +88,9 @@ jobs:
         run: |
           $tag = "v${{ steps.build.outputs.kit }}-upstream.${{ steps.build.outputs.commit }}"
           $zip = "agent365-onboarding-kit-v${{ steps.build.outputs.kit }}.zip"
+          $bundle = "agent365-onboarding-bundle-v${{ steps.build.outputs.kit }}.zip"
           Copy-Item $zip agent365-onboarding-kit-latest.zip
-          gh release create $tag $zip agent365-onboarding-kit-latest.zip `
+          gh release create $tag $zip agent365-onboarding-kit-latest.zip $bundle `
             --title "Kit v${{ steps.build.outputs.kit }} · upstream v${{ steps.build.outputs.upstream }} (${{ steps.build.outputs.commit }})" `
             --notes "Rebuilt from microsoft/agent365-skills ``${{ env.UPSTREAM_REF }}`` at ``${{ steps.build.outputs.commit }}``.`n`nExtract into your agent project root, or run ``agent365-kit.ps1 -Update`` / ``agent365-kit.sh --update`` in a project that already has the kit."
 
@@ -100,7 +101,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           $title = "Upstream refresh failed for ${{ env.UPSTREAM_REF }} @ ${{ steps.probe.outputs.remote }}"
-          $body  = "The scheduled rebuild against microsoft/agent365-skills ``${{ env.UPSTREAM_REF }}`` (``${{ steps.probe.outputs.remote }}``) failed.`n`nMost likely an upstream rewording broke one of the asserted fix-ups in ``build/Build-Kit.ps1`` -- the log names the file. Update the fix-up (or delete it if upstream fixed the underlying bug) and re-run.`n`nRun: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          $body  = "The scheduled rebuild against microsoft/agent365-skills ``${{ env.UPSTREAM_REF }}`` (``${{ steps.probe.outputs.remote }}``) failed.`n`nMost likely an upstream rewording broke one of the asserted fix-ups in ``build/Build-Kit.ps1`` or ``build/upstream-fixups.json`` -- the log names the file and the fix-up id. Update the fix-up (or delete it if upstream fixed the underlying bug) and re-run.`n`nRun: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           $open = gh issue list --label upstream-refresh --state open --json number --jq '.[0].number'
           if ($open) { gh issue comment $open --body $body }
           else {

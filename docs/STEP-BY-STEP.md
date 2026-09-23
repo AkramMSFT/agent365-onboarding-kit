@@ -38,7 +38,7 @@ The `a365-setup` skill detects your language and framework, then asks three thin
 |---|---|
 | Confirm what it detected | `yes`, or correct it |
 | Capabilities (1 Register · 2 Observability · 3 WorkIQ · 4 AI Teammate) | `1, 2` for a first run; add `3` for M365 data access; `4` only if the agent should have its own mailbox and UPN |
-| Auth mode (not asked for AI Teammate) | **OBO** — no admin consent needed |
+| Auth mode (not asked for AI Teammate) | **OBO** — the CLI created the delegated grants itself on our tenants; yours may still require an administrator to consent, and setup says so if it does |
 
 > **What this choice decides — and what it doesn't.** Pick 1–3 (OBO or S2S) and the agent's identity is created during `a365 setup all`; it is registered and governable with nothing to upload. Pick 4 (AI Teammate) and the identity is minted later, when the admin creates the instance. **Either way, appearing in Teams and Copilot requires the app package** (`manifest.zip`) uploaded and activated in the admin centre — Stage 2 covers it for both paths. The only difference is the command: on the blueprint path plain `a365 publish` refuses ("nothing to publish for blueprint-based agents"), and `a365 publish --aiteammate true` builds the package without changing your agent's kind.
 
@@ -77,7 +77,7 @@ Then verify in the Teams Developer Portal (it gives you the link) that **Agent T
 **Then package and upload — the agent is not visible in Teams until this is done.** Plain `a365 publish` refuses on this path; use the flag (it does not change your agent's kind):
 
 ```
-a365 publish --aiteammate true       # writes manifest/manifest.zip; your own terminal
+a365 publish --aiteammate true       # writes manifest/manifest.zip; your own terminal. Verified on CLI 1.1.221; check --help on a newer CLI
 ```
 
 Edit `manifest/manifest.json` first if you want a better `name.short` (30 chars max), description or icons, then re-run. An admin uploads `manifest/manifest.zip` at **Microsoft 365 admin center → Agents → All agents → Upload custom agent**, activates it for an audience, and creates the instance if offered. Allow a few minutes.

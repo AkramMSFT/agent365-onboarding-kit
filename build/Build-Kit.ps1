@@ -29,10 +29,11 @@
     Branch or tag to clone when -UpstreamPath is not supplied. Default: main.
 
 .PARAMETER OutDir
-    Output directory. Default: <repo>/dist
+    Output directory. Default: <repo>/kit
 
 .PARAMETER Zip
-    Also produce dist/agent365-onboarding-kit-<version>.zip, ready to attach to a release.
+    Also produce agent365-onboarding-kit-<version>.zip (kit only) and
+    agent365-onboarding-bundle-<version>.zip (kit + examples + tools + docs) at the repo root.
 
 .PARAMETER KitVersion
     Version stamp for this kit. Default: read from build/kit.version, else 0.1.0.
@@ -65,7 +66,7 @@ Set-StrictMode -Version Latest
 
 $RepoRoot    = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 $PayloadDir  = Join-Path $RepoRoot 'payload'
-if (-not $OutDir) { $OutDir = Join-Path $RepoRoot 'dist' }
+if (-not $OutDir) { $OutDir = Join-Path $RepoRoot 'kit' }
 
 $KIT_DIR = '.a365-kit'   # canonical folder name inside the user's project
 
@@ -145,6 +146,25 @@ foreach ($dir in @('skills', 'shared', 'hooks')) {
     Copy-Item -LiteralPath (Join-Path $PluginRoot $dir) -Destination $KitPath -Recurse
     Ok "copied $dir/"
 }
+
+# Upstream commits some files with CRLF, and a Windows checkout of payload/ may too.
+# Every text file under the kit is normalised to LF so the build's output -- and
+# therefore the manifest hashes -- do not depend on the platform that produced it.
+function Convert-ToLf {
+    param([string]$Root, [string]$What)
+    $count = 0
+    foreach ($tf in Get-ChildItem -Path $Root -Recurse -File -Include '*.md', '*.js', '*.mjs', '*.json', '*.sh', '*.ps1', '*.py', '*.ts', '*.cs', '*.yml', '*.yaml', '*.txt') {
+        $bytes = [IO.File]::ReadAllBytes($tf.FullName)
+        $text  = [Text.Encoding]::UTF8.GetString($bytes)
+        if ($text.Contains("`r`n")) {
+            [IO.File]::WriteAllText($tf.FullName, $text.Replace("`r`n", "`n"), [Text.UTF8Encoding]::new($false))
+            $count++
+        }
+    }
+    if ($count) { Ok "normalised $count $What file(s) to LF" }
+}
+
+Convert-ToLf -Root $KitPath -What 'staged'
 
 # ---------------------------------------------------------------------------
 # 3. Rewrite plugin-root references
@@ -737,6 +757,38 @@ if (Test-Path -LiteralPath $copilotSrc) {
 }
 
 # ---------------------------------------------------------------------------
+# 5b. Upstream correctness fix-ups (build/upstream-fixups.json)
+# ---------------------------------------------------------------------------
+# SDK and playbook corrections to Microsoft's files, kept as data rather than code so
+# each one carries an id and an exact expected-count assertion. Applied after the
+# path-guard patch and the Copilot staging because some entries target those outputs.
+
+Step 'Applying upstream correctness fix-ups'
+
+$fixupFile = Join-Path (Join-Path $RepoRoot 'build') 'upstream-fixups.json'
+if (Test-Path -LiteralPath $fixupFile) {
+    $jsonFixups = Get-Content -LiteralPath $fixupFile -Raw -Encoding UTF8 | ConvertFrom-Json
+    $applied = 0
+    foreach ($fx in $jsonFixups) {
+        $target = Join-Path $KitPath $fx.path
+        if (-not (Test-Path -LiteralPath $target)) { throw "Fix-up target missing: $($fx.id) -> $($fx.path)" }
+        $content = (Get-Content -LiteralPath $target -Raw) -replace "`r`n", "`n"
+        $find    = ($fx.find    -replace "`r`n", "`n")
+        $replace = ($fx.replace -replace "`r`n", "`n")
+        $count   = ([regex]::Matches($content, [regex]::Escape($find))).Count
+        $want    = if ($null -ne $fx.expectedCount) { [int]$fx.expectedCount } else { 1 }
+        if ($count -ne $want) {
+            throw "Fix-up '$($fx.id)' matched $count time(s) in $($fx.path); expected $want. Upstream changed -- update build/upstream-fixups.json."
+        }
+        Set-Content -LiteralPath $target -Value $content.Replace($find, $replace) -NoNewline -Encoding UTF8
+        $applied++
+    }
+    Ok "$applied upstream fix-ups applied from upstream-fixups.json"
+} else {
+    Warn 'build/upstream-fixups.json not found -- no upstream correctness fix-ups applied'
+}
+
+# ---------------------------------------------------------------------------
 # 6. Kit payload
 # ---------------------------------------------------------------------------
 
@@ -803,6 +855,8 @@ if (Test-Path -LiteralPath (Join-Path $KitPath 'addons')) {
 # 8. Verify
 # ---------------------------------------------------------------------------
 
+Convert-ToLf -Root $OutDir -What 'payload'
+
 Step 'Verifying build'
 
 $problems = @()
@@ -857,12 +911,12 @@ if ($badRefs) {
 }
 
 # (c) Every JS file parses.
-$jsFiles = Get-ChildItem -Path $KitPath -Recurse -File -Filter '*.js'
+$jsFiles = @(Get-ChildItem -Path $KitPath -Recurse -File -Include '*.js', '*.mjs')
 foreach ($js in $jsFiles) {
     & node --check $js.FullName 2>&1 | Out-Null
     if ($LASTEXITCODE -ne 0) { $problems += "JS syntax error: $($js.FullName)" }
 }
-Ok "$($jsFiles.Count) JS files parse cleanly"
+Ok "$($jsFiles.Count) JS/MJS files parse cleanly"
 
 # (d) Discovery copies match the canonical set: the seven upstream skills plus kit add-ons.
 $canonicalNames = @((Get-ChildItem -Path (Join-Path $KitPath 'skills') -Directory).Name)
@@ -903,10 +957,61 @@ if ($Zip) {
     $zipName = "agent365-onboarding-kit-v$KitVersion.zip"
     $zipPath = Join-Path $RepoRoot $zipName
     if (Test-Path -LiteralPath $zipPath) { Remove-Item -LiteralPath $zipPath -Force }
-    # -Path with \* keeps the archive rooted at the payload, not at dist/.
+    # -Path with \* keeps the archive rooted at the kit contents, not at kit/.
     Compress-Archive -Path (Join-Path $OutDir '*') -DestinationPath $zipPath -Force
     $sizeKb = [math]::Round((Get-Item -LiteralPath $zipPath).Length / 1KB)
     Ok "$zipName ($sizeKb KB)"
+}
+
+# ---------------------------------------------------------------------------
+# 10. Bundle manifest and checksums (repo root)
+# ---------------------------------------------------------------------------
+# tools/prepare-workspace.mjs copies kit/** and examples/<id>/** as listed in
+# BUNDLE-MANIFEST.json, verifying each file's SHA-256. Emitted only when the kit was
+# built into the repository, because the manifest describes the repository layout.
+
+if ((Resolve-Path -LiteralPath $OutDir).Path.TrimEnd('\') -eq (Join-Path $RepoRoot 'kit')) {
+    Step 'Writing BUNDLE-MANIFEST.json and SHA256SUMS.txt'
+    $manifestFiles = @()
+    $sumLines = @()
+    $roots = @('kit', 'examples', 'tools', 'docs', 'README.md', 'GUIDE.md', 'NOTICE.md', 'CONTRIBUTING.md', 'SECURITY.md', 'LICENSE', '.gitattributes')
+    foreach ($root in $roots) {
+        $abs = Join-Path $RepoRoot $root
+        if (-not (Test-Path -LiteralPath $abs)) { continue }
+        $items = if (Test-Path -LiteralPath $abs -PathType Container) { Get-ChildItem -Path $abs -Recurse -File } else { @(Get-Item -LiteralPath $abs) }
+        foreach ($f in $items) {
+            $rel = $f.FullName.Substring($RepoRoot.Length).TrimStart('\', '/').Replace('\', '/')
+            if ($rel -match '(^|/)(bin|obj|target|node_modules|\.venv|__pycache__)(/|$)') { continue }
+            $hash = (Get-FileHash -LiteralPath $f.FullName -Algorithm SHA256).Hash.ToLower()
+            $manifestFiles += [ordered]@{ path = $rel; bytes = $f.Length; sha256 = $hash }
+            $sumLines += "$hash  $rel"
+        }
+    }
+    $examples = @()
+    $catalog = Join-Path (Join-Path $RepoRoot 'build') 'bundle-examples.json'
+    if (Test-Path -LiteralPath $catalog) { $examples = @(Get-Content -LiteralPath $catalog -Raw -Encoding UTF8 | ConvertFrom-Json) }
+    $manifest = [ordered]@{
+        schemaVersion   = 1
+        bundleVersion   = $KitVersion
+        kitVersion      = $KitVersion
+        upstreamRepo    = 'microsoft/agent365-skills'
+        upstreamVersion = $UpstreamVersion
+        upstreamCommit  = $UpstreamCommit
+        examples        = $examples
+        files           = $manifestFiles
+    }
+    (($manifest | ConvertTo-Json -Depth 6) -replace "`r`n", "`n") + "`n" | Set-Content -LiteralPath (Join-Path $RepoRoot 'BUNDLE-MANIFEST.json') -NoNewline -Encoding UTF8
+    (($sumLines -join "`n") + "`n") | Set-Content -LiteralPath (Join-Path $RepoRoot 'SHA256SUMS.txt') -NoNewline -Encoding UTF8
+    Ok "manifest lists $($manifestFiles.Count) files, $($examples.Count) examples"
+
+    if ($Zip) {
+        $bundleZip = Join-Path $RepoRoot "agent365-onboarding-bundle-v$KitVersion.zip"
+        if (Test-Path -LiteralPath $bundleZip) { Remove-Item -LiteralPath $bundleZip -Force }
+        $bundleItems = @('kit', 'examples', 'tools', 'docs', 'README.md', 'GUIDE.md', 'NOTICE.md', 'CONTRIBUTING.md', 'SECURITY.md', 'LICENSE', '.gitattributes', 'BUNDLE-MANIFEST.json', 'SHA256SUMS.txt') |
+            ForEach-Object { Join-Path $RepoRoot $_ } | Where-Object { Test-Path -LiteralPath $_ }
+        Compress-Archive -Path $bundleItems -DestinationPath $bundleZip -Force
+        Ok "agent365-onboarding-bundle-v$KitVersion.zip ($([math]::Round((Get-Item -LiteralPath $bundleZip).Length / 1KB)) KB)"
+    }
 }
 
 Write-Host ''
