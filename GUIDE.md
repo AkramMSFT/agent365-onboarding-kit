@@ -231,7 +231,7 @@ Cursor, Codex, Gemini CLI, Amp, Cline, OpenCode, Warp and Antigravity all read
 `copilot skill list` in a separate terminal; in Claude Code just ask *What Agent 365 skills
 do you have?*
 
-You should see fourteen — eight Microsoft skills plus six kit add-ons. If you see none, the
+You should see fifteen — eight Microsoft skills plus seven kit add-ons. If you see none, the
 kit was extracted somewhere other than this folder; check that `.agents` and `.claude` sit
 beside your agent's source, not inside a subfolder.
 
@@ -280,6 +280,8 @@ It writes config and code, then reaches `a365 setup all`. **This command must ru
 4. Tell the CLI: *`a365 setup all` completed in a separate terminal. Read `a365.generated.config.json` and continue.*
 
 Optionally, in step 3, prefix the command with `node .a365-kit/run-a365.mjs` (for example `node .a365-kit/run-a365.mjs setup all …`). It runs the same CLI and sign-in, and exits with code 2 and the administrator steps if the blueprint still needs `maven-prod` observability consent, which the CLI alone reports with exit code 0.
+
+If setup reports that the blueprint needs consent for `maven-prod [Agent365.Observability.OtelWrite]`, it could not grant the observability permission itself, which happens whenever the account running setup is not a Global Administrator. Say *Grant observability access to this agent.* The kit checks what is missing, then an administrator runs one command, signs in and confirms. Java, Go and Rust agents also need the role on the blueprint, and the add-on includes it.
 
 This creates the **blueprint** (an Entra app registration) and, on the blueprint path, the **Agent ID** (a service-principal agent identity) in one run. For an AI Teammate the identity is a user with a UPN and mailbox, minted later at instance creation.
 
@@ -531,6 +533,7 @@ Everything else is done by the CLI or a portal. These four need your own termina
 | `a365 setup all` times out / `MSAL … Status 17` | It authenticates via the broker; run it in your own terminal, not through the CLI. |
 | `a365 publish` says "Nothing to publish for blueprint-based agents" | Use `a365 publish --aiteammate true` on the blueprint path (verified on CLI 1.1.221); confirm `a365.config.json` still says `aiTeammate: false` afterwards. |
 | Agent registered but not in Teams | The package must be uploaded and activated (Steps 8–9) on both paths. |
+| Span export returns 401 or 403, or setup mentions `maven-prod` | The observability permission is missing. Say *Grant observability access to this agent.* and have an administrator grant what it reports. |
 | WorkIQ tools all return 401; agent says it has none | Set `PYTHON_ENVIRONMENT=Production` in `.env`, then restart the host. |
 | `UserError: Duplicate tool names across MCP servers` | Several WorkIQ servers collide; the add-on sets `include_server_in_tool_names` — re-run it. |
 | Import fails on `microsoft_agents_a365.runtime` | Add `microsoft-agents-a365-runtime>=1.0.0` and install. |

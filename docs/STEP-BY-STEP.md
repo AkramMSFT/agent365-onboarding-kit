@@ -24,7 +24,7 @@ The phrases work verbatim in every supported CLI. Type them exactly; the skills 
    ```
 3. Sign in: `az login --allow-no-subscriptions`.
 4. **Once per tenant, by an admin:** `a365 setup requirements` (Application Administrator or above). Developers skip this; if a later step says `403` or "tenant not ready", send that line to your admin.
-5. Start your CLI in the project folder. Confirm it sees the skills — Copilot: `copilot skill list`; Claude Code: ask *What Agent 365 skills do you have?* Expect fourteen: eight Microsoft skills and six kit add-ons.
+5. Start your CLI in the project folder. Confirm it sees the skills — Copilot: `copilot skill list`; Claude Code: ask *What Agent 365 skills do you have?* Expect fifteen: eight Microsoft skills and seven kit add-ons.
 
 ---
 
@@ -48,6 +48,8 @@ It writes config and code, then reaches `a365 setup all`. **This is the first "l
 2. Decline it in the CLI.
 3. Paste it into a second normal terminal in the same folder. Answer its prompts and complete the sign-in pop-up.
 4. Back in the CLI, say: *`a365 setup all` completed in a separate terminal. Read `a365.generated.config.json` and continue.*
+
+If the setup output says the blueprint needs consent for `maven-prod [Agent365.Observability.OtelWrite]`, say *Grant observability access to this agent.* An administrator then runs the grant it prints, signs in and confirms.
 
 Optionally, in step 3, prefix the command with `node .a365-kit/run-a365.mjs` (for example `node .a365-kit/run-a365.mjs setup all …`). It runs the same CLI and sign-in, and exits with code 2 and the administrator steps if the blueprint still needs observability consent.
 

@@ -47,3 +47,7 @@ Use the manual Agent ID/HTTP/OTLP contracts with verified SDK/service documentat
 do not interpret an unknown-language validator's `ok` result as readiness. The kit
 is copied alongside the example for reference, not as proof that Go onboarding is
 automated. Do not switch this project to another framework silently.
+
+If you export telemetry with the blueprint's client id and secret, the blueprint needs the
+`Agent365.Observability.OtelWrite` application role, which some tenants show as "maven-prod".
+Ask your CLI: *Grant observability access to this agent.* and include the blueprint.

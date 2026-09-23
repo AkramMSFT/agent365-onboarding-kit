@@ -44,3 +44,7 @@ onboarding validators do not implement Rust integration. Use reviewed manual
 Agent ID/HTTP/OTLP integration and validate each tenant capability independently.
 An unknown-language static validator passing is not proof that Rust is onboarded.
 Keep the Rust architecture; do not silently regenerate it as another language.
+
+If you export telemetry with the blueprint's client id and secret, the blueprint needs the
+`Agent365.Observability.OtelWrite` application role, which some tenants show as "maven-prod".
+Ask your CLI: *Grant observability access to this agent.* and include the blueprint.

@@ -9,7 +9,7 @@ import {
 const help = [
   'Usage: node .a365-kit/run-a365.mjs setup <subcommand> [a365 options]',
   'Forwards setup arguments and output to the installed a365 CLI; stdin is inherited.',
-  'The maven-prod OtelWrite admin handoff prints access-package recovery steps.',
+  'The maven-prod OtelWrite admin handoff prints the grant command and the access-package alternative.',
   'A nonzero CLI exit code is preserved. If the CLI exits 0 with that handoff, this runner exits 2 (admin action pending).',
   'No tenant operation is retried and no generated/local files are changed by this runner.',
   'Use --explain-observability-consent to print the recovery steps without running a365.',

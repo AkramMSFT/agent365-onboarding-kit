@@ -27,6 +27,10 @@ export function createConsentDetector() {
 export function observabilityConsentGuidance() {
   return [
     '[Agent 365 kit] Observability consent is pending administrator action.',
+    'Grant it directly: node .a365-kit/grant-observability.mjs --check shows what is missing.',
+    'An administrator then runs, and confirms: az login --tenant <tenant id>; node .a365-kit/grant-observability.mjs --grant',
+    'Add --principals identity,blueprint for Java, Go or Rust agents, whose exporters sign in as the blueprint.',
+    'Or, if the tenant wants approvals and expiry, deliver it with an access package.',
     'In https://entra.microsoft.com, open ID Governance > Entitlement management > Access packages.',
     '1. Create an access package (or have an administrator verify a suitable existing one). Add this resource role:',
     '   Resource: maven-prod',
@@ -40,7 +44,7 @@ export function observabilityConsentGuidance() {
     '   Creating the policy or seeing Approved/Delivering is not delivery. Timing varies; inspect Requests/Assignments if delivery stalls.',
     '5. Only after Delivered, resume the affected setup step and verify effective permissions and telemetry ingestion.',
     'If maven-prod or the role is unavailable, contact the tenant/catalog administrator; do not invent resource IDs or bypass consent.',
-    'This runner does not create the package, grant permissions, poll delivery, or mark setup complete.',
+    'This runner does not grant permissions, create the package, poll delivery, or mark setup complete.',
     'Guide: .a365-kit/shared/observability-access-package.md'
   ].join('\n') + '\n';
 }

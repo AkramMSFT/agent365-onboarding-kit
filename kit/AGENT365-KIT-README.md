@@ -9,12 +9,17 @@ Custom permission configuration requires tenant admin action.
 An administrator must grant the blueprint consent for maven-prod [Agent365.Observability.OtelWrite] via the Entra portal.
 ```
 
-Have the administrator create an access package with **Resource: maven-prod**,
-**Type: OAuthApplication**, **Sub Type: API**, and
-**Role: Agent365.Observability.OtelWrite**. Create an initial policy, assign the
-package to the correct blueprint, and wait until that assignment is **Delivered**
-before resuming the affected setup step. Approval or policy creation is not delivery.
-See [.a365-kit/shared/observability-access-package.md](.a365-kit/shared/observability-access-package.md).
+ask your CLI: *Grant observability access to this agent.* It checks what is missing without changing anything, then an
+administrator grants it and confirms:
+
+```
+az login --tenant <your tenant id>
+node .a365-kit/grant-observability.mjs --grant
+```
+
+Add `--principals identity,blueprint` for Java, Go or Rust agents, whose exporters sign in as
+the blueprint. If the tenant wants approvals and expiry instead, deliver the same permission
+with an access package: [.a365-kit/shared/observability-access-package.md](.a365-kit/shared/observability-access-package.md).
 
 Use `node .\.a365-kit\run-a365.mjs setup ...` for consent-aware setup in PowerShell
 (Bash: `node ./.a365-kit/run-a365.mjs setup ...`), keeping the same approved arguments.
@@ -138,7 +143,7 @@ Confirm the kit landed, then start:
 
 ```bash
 cd your-agent-project
-copilot skill list     # fourteen skills in this build
+copilot skill list     # fifteen skills in this build
 copilot                # then type the trigger phrase
 ```
 

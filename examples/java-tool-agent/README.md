@@ -44,3 +44,7 @@ console starter is not already hosted or registered. Its custom model loop does
 not establish a LangChain4j contract. Adapt the hosting/authentication seam
 deliberately without replacing the agent's framework. Tenant consent, Teams replies,
 Work IQ, telemetry delivery and Purview are separate integrations and verifications.
+
+If you export telemetry with the blueprint's client id and secret, the blueprint needs the
+`Agent365.Observability.OtelWrite` application role, which some tenants show as "maven-prod".
+Ask your CLI: *Grant observability access to this agent.* and include the blueprint.

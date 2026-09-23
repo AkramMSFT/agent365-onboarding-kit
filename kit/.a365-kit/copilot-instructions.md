@@ -8,7 +8,7 @@ Skills for instrumenting and registering Microsoft Agent 365 agents. When a user
 
 Read `.a365-kit/shared/local-runtime-lessons.md` before onboarding, provisioning, hosting or capability changes. Apply its corrections when older snippets below conflict. Never infer a sender identity, license restriction, successful delivery, or a completed integration from an assistant response alone.
 
-> **maven-prod observability consent:** Run setup through `node .a365-kit/run-a365.mjs setup ...` with the same approved arguments. If the CLI says the blueprint needs `maven-prod [Agent365.Observability.OtelWrite]` consent, follow `.a365-kit/shared/observability-access-package.md`: create the access package (Resource=maven-prod, Type=OAuthApplication, Sub Type=API, Role=Agent365.Observability.OtelWrite), create an initial policy, assign the package to that blueprint, and wait for the assignment status **Delivered** before resuming. A policy creation, approval or CLI exit 0 is not completed consent.
+> **maven-prod observability consent:** Running setup through `node .a365-kit/run-a365.mjs setup ...` with the same approved arguments catches this hand-off. If the CLI says the blueprint needs `maven-prod [Agent365.Observability.OtelWrite]` consent, follow the `grant-observability-access` add-on: `node .a365-kit/grant-observability.mjs --check` shows what is missing, then an administrator runs it with `--grant` and confirms. An access package is an optional alternative, in `.a365-kit/shared/observability-access-package.md`. A CLI exit 0 is not completed consent: re-run `--check` until every line reads granted.
 
 ## Quick reference
 
@@ -465,6 +465,12 @@ Connects an Agent 365 agent to an external / community MCP server -- anything be
 **Full instructions:** [.a365-kit/addons/add-messaging-endpoint/SKILL.md](../.a365-kit/addons/add-messaging-endpoint/SKILL.md)
 
 Makes an already-registered, blueprint-based (non-AI-Teammate) Agent 365 agent reachable from Microsoft Teams and Microsoft 365 Copilot. Adds an HTTP hosting layer serving /api/messages (Python aiohttp, Node.js Express, or ASP.NET Core), exposes it through a dev tunnel or a cloud URL, registers the endpoint on the blueprint with `a365 setup blueprint --update-endpoint ... --m365`, and hands off the one step that needs the Windows broker (`a365 setup permissions bot`). Use when the agent was onboarded with make-a365-agent and has no host, when "completed" is false in a365.generated.config.json, or when the user says "make this agent chattable in Teams". Not for AI Teammates -- their hosting layer comes from make-ai-teammate. Kit add-on, not part of Microsoft's skills.
+
+## Add-on: grant-observability-access
+
+**Full instructions:** [.a365-kit/addons/grant-observability-access/SKILL.md](../.a365-kit/addons/grant-observability-access/SKILL.md)
+
+Checks and grants the Agent 365 observability permission (Agent365.Observability.OtelWrite on the Observability API, which some tenants show as "maven-prod") for an onboarded agent: the delegated consent on the blueprint and the application role on the agent identity, and on the blueprint when the agent's exporter signs in with the blueprint's own credentials (Java, Go, Rust, or any client-credentials exporter). Read-only check first; the grant needs an administrator signed in to az, who confirms it. Use when setup says "An administrator must grant the blueprint consent for maven-prod [Agent365.Observability.OtelWrite]", when span export returns 401 or 403, or when the user says "grant observability access", "fix the maven permission" or "the agent's telemetry is not authorised". Kit add-on, not part of Microsoft's skills.
 
 ## Add-on: test-local-channel
 

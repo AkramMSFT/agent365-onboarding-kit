@@ -142,6 +142,11 @@ Require the actual instance appId in `AGENT365_AGENT_ID`; do not silently fall b
 blueprint ID. The supplied client-credentials token provider uses the S2S
 `/observabilityService` route. OBO requires a different token provider, not just a flag.
 
+That token provider signs in as the **blueprint**, so the blueprint needs the
+`Agent365.Observability.OtelWrite` application role or every export returns 401 or 403. Check it
+with `node .a365-kit/grant-observability.mjs --check --principals blueprint` and, if it is
+missing, follow the `grant-observability-access` add-on.
+
 ## Phase 6: Tools -- what is possible
 
 Work IQ tools have no Java SDK. The servers are MCP over HTTP behind Entra, so a Java agent

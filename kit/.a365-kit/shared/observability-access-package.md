@@ -11,7 +11,35 @@ This is pending tenant administration, not evidence of a broken model, an invali
 API key, or a need to recreate the blueprint. Do not substitute this diagnosis for
 unrelated 401/403 errors, token-identity mismatches, or missing licences.
 
-## Create and assign the access package
+## Grant it directly (recommended)
+
+This is what `a365 setup all` does itself when a Global Administrator runs it. From the
+agent project folder:
+
+```
+node .a365-kit/grant-observability.mjs --check
+```
+
+The check only reads. It reports the delegated consent on the blueprint and the application
+role on the agent identity, plus the blueprint with `--principals identity,blueprint`, which
+Java, Go and Rust exporters need because they sign in as the blueprint. An administrator then
+signs in and grants what is missing, confirming at the prompt:
+
+```
+az login --tenant <tenant id>
+node .a365-kit/grant-observability.mjs --grant --principals identity,blueprint
+```
+
+The delegated consent needs Global Administrator; the application role needs Application
+Administrator or Global Administrator. Without the role, the tool prints an admin-consent link
+and PowerShell to hand to someone who has it. Re-run `--check` afterwards and restart the agent.
+
+## Or deliver it with an access package
+
+Use this route when the tenant wants approvals, expiry or access reviews on the permission.
+It needs Entra ID Governance licensing and a Global Administrator to add the API resource.
+
+### Create and assign the access package
 
 1. Have an authorized administrator sign in to [Microsoft Entra admin center](https://entra.microsoft.com)
    in the blueprint's tenant and open **ID Governance > Entitlement management >
@@ -84,8 +112,9 @@ It preserves a nonzero CLI exit status. If the CLI exits zero while emitting thi
 handoff, it returns **2 (administrator action pending)** so automation cannot
 mistake the handoff for completed setup.
 
-This helper does **not** create access packages, sign in, grant permissions, poll
-assignments, persist command output, or bypass consent. Direct `a365` calls remain
+This runner does **not** create access packages, sign in, grant permissions, poll
+assignments, persist command output, or bypass consent. Granting is done by
+`grant-observability.mjs`, run by an administrator. Direct `a365` calls remain
 unmodified. CLI behavior that depends on a TTY can differ because output is piped.
 An assistant must still surface the same handoff when the message appears outside
 the runner and must not report completion until delivery and the affected flow

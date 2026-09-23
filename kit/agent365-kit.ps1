@@ -589,6 +589,7 @@ $AddonPhrases = @{
   'add-lab-tools'          = @('"Add lab tools."', 'local utilities: web fetch, encoders, hashing, text transforms')
   'add-java-agent'         = @('"Onboard this Java agent."', 'hosting and telemetry for Java, which has no Microsoft SDK')
   'a365-kit'               = @('"Update the Agent 365 kit."', 'replaces only the kit files, never your agent')
+  'grant-observability-access' = @('"Grant observability access to this agent."', 'the maven-prod OtelWrite permission; an administrator confirms the grant')
 }
 if ($AddonNames.Count -gt 0) {
     Write-Host '  Add-ons in this kit' -ForegroundColor White
@@ -610,7 +611,7 @@ Write-Note 'you want, then hands off to make-ai-teammate or make-a365-agent.'
 Write-Note 'Run a365 setup in your own terminal when the skill asks. To have the kit catch'
 Write-Note 'the observability consent hand-off, prefix the same command with the wrapper:'
 Write-Cmd 'node .\.a365-kit\run-a365.mjs setup <subcommand> [options]'
-Write-Note 'If maven-prod OtelWrite needs admin consent, follow the access-package handoff and wait for Delivered.'
+Write-Note 'If setup says maven-prod OtelWrite needs admin consent, ask: "Grant observability access to this agent."'
 Write-Host ''
 
 # -- 6. Optional launch -------------------------------------------------------

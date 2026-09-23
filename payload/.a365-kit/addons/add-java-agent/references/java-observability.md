@@ -51,6 +51,12 @@ service-principal path `TokenProvider` from `java-endpoint.md` acquires it direc
 path exchanges the inbound user token, which the Java SDKs do not provide — an agent that
 needs user-attributed traces has to implement that exchange itself.
 
+Because the token is the blueprint's own, the blueprint must hold the
+`Agent365.Observability.OtelWrite` application role. `a365 setup all` grants it only when a
+Global Administrator runs setup; otherwise run
+`node .a365-kit/grant-observability.mjs --check --principals blueprint` and have an administrator
+grant what it reports.
+
 ## ObservabilityExporter
 
 ```java

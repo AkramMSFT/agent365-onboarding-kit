@@ -98,6 +98,9 @@ jobs:
       - name: Example dependencies use public registries
         run: node build/check-examples.mjs
 
+      - name: Observability grant tool tests
+        run: node --test build/test-grant-observability.mjs
+
       - name: Workspace tool copies the kit and an example
         shell: pwsh
         run: |

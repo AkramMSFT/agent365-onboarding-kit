@@ -921,7 +921,7 @@ foreach ($file in ($skillMdRoots | ForEach-Object { Get-ChildItem -Path $_ -Filt
     foreach ($m in [regex]::Matches($text, $refPattern)) {
         $rel = $m.Value.TrimEnd('.', ',', ')', '`')
         # Only verify concrete file references, not directory prose.
-        if ($rel -notmatch '\.(md|js|json)$') { continue }
+        if ($rel -notmatch '\.(md|js|mjs|json)$') { continue }
         $checked++
         $abs = Join-Path $OutDir ($rel -replace '/', '\')
         if (-not (Test-Path -LiteralPath $abs)) {

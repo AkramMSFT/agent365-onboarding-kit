@@ -20,7 +20,7 @@ The kit ships the skills into the two directories that coding agents actually re
 
 Anything not listed still works — see [Any other agentic CLI](#any-other-agentic-cli).
 
-> **Verified:** **Claude Code** (all fourteen skills discovered, validators firing) and
+> **Verified:** **Claude Code** (all fifteen skills discovered, validators firing) and
 > **GitHub Copilot CLI 1.0.81** (all skills listed as project skills; a dry run loaded
 > `.a365-kit/skills/a365-setup/SKILL.md`, correctly detected Python + OpenAI Agents SDK +
 > non-AI-Teammate, and routed to `make-a365-agent`).
@@ -132,7 +132,7 @@ The launcher can do it for you:
 .\agent365-kit.ps1 -Launch claude
 ```
 
-**Verify the skills loaded** — ask `What Agent 365 skills do you have?` You should see all fourteen. Microsoft's eight: `a365-setup`, `make-a365-agent`, `make-ai-teammate`, `instrument-observability`, `add-workiq-tools`, `a365-code-validator`, `purview-dlp-integration`, `test-local`. The kit's six add-ons: `a365-kit`, `add-java-agent`, `add-lab-tools`, `add-mcp-server`, `add-messaging-endpoint`, `test-local-channel`.
+**Verify the skills loaded** — ask `What Agent 365 skills do you have?` You should see all fifteen. Microsoft's eight: `a365-setup`, `make-a365-agent`, `make-ai-teammate`, `instrument-observability`, `add-workiq-tools`, `a365-code-validator`, `purview-dlp-integration`, `test-local`. The kit's seven add-ons: `a365-kit`, `add-java-agent`, `add-lab-tools`, `add-mcp-server`, `add-messaging-endpoint`, `grant-observability-access`, `test-local-channel`.
 
 You can also invoke them directly as slash commands: `/a365-setup`, `/make-ai-teammate`, and so on.
 
@@ -167,7 +167,7 @@ cd your-agent-project
 copilot skill list
 ```
 
-You should see all fourteen under **Project skills**. This is the fastest way to prove the kit landed correctly.
+You should see all fifteen under **Project skills**. This is the fastest way to prove the kit landed correctly.
 
 **3. Start onboarding:**
 
@@ -208,7 +208,7 @@ This **creates `.github/copilot-instructions.md`, or appends to yours if you alr
 1. Open the project folder in VS Code (`code .` from the project root).
 2. Open Copilot Chat.
 3. Switch the mode selector to **Agent**.
-4. Confirm the skills are visible with `/skills list` — you should see all fourteen Agent 365 skills.
+4. Confirm the skills are visible with `/skills list` — you should see all fifteen Agent 365 skills.
 5. Ask using the trigger phrase.
 
 Skills come from `.agents/skills/`, which VS Code agent mode reads at project scope. If they don't appear, reload the window — VS Code scans the folder at load.
@@ -224,7 +224,7 @@ All of these share `.agents/skills/` at project scope, so **the skills are alrea
 1. Open the project folder in your tool.
 2. Ask using the trigger phrase.
 
-If your tool has a skills listing command (often `/skills list`), use it to confirm the fourteen skills are visible first.
+If your tool has a skills listing command (often `/skills list`), use it to confirm the fifteen skills are visible first.
 
 Two caveats that apply to every non-Claude CLI:
 

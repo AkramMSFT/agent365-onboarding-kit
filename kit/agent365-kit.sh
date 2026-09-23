@@ -531,6 +531,9 @@ if [ -d "$KIT_ROOT/.a365-kit/addons" ]; then
       a365-kit)
         cmd_ '"Update the Agent 365 kit."'
         note_ '        replaces only the kit files, never your agent' ;;
+      grant-observability-access)
+        cmd_ '"Grant observability access to this agent."'
+        note_ '        the maven-prod OtelWrite permission; an administrator confirms the grant' ;;
       *)
         cmd_ "\"$addon_name\""
         note_ "        see .a365-kit/addons/$addon_name/SKILL.md" ;;
@@ -544,7 +547,7 @@ note_ 'a365-setup is the entry point. It checks prerequisites, asks which capabi
 note_ 'you want, then hands off to make-ai-teammate or make-a365-agent.'
 note_ 'For consent-aware setup, keep your approved options and use:'
 cmd_ 'node ./.a365-kit/run-a365.mjs setup <subcommand> [options]'
-note_ 'If maven-prod OtelWrite needs admin consent, follow the access-package handoff and wait for Delivered.'
+note_ 'If setup says maven-prod OtelWrite needs admin consent, ask: "Grant observability access to this agent."'
 echo ''
 
 # -- 5. Optional launch -------------------------------------------------------

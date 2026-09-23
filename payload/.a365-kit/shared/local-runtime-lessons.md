@@ -50,15 +50,14 @@ Purview protected-app location. Record how each value was obtained.
   `node .a365-kit/run-a365.mjs setup ...`, preserving all approved CLI arguments.
   The guarded runner keeps failures nonzero and prints the recovery steps for
   the specific `maven-prod [Agent365.Observability.OtelWrite]` administrator handoff.
-  If you ran `a365` directly and see that message, use
-  `node .a365-kit/run-a365.mjs --explain-observability-consent` rather than rerunning
-  provisioning just to display help. Follow
-  `.a365-kit/shared/observability-access-package.md`: create the access package
-  with Resource `maven-prod`, Type `OAuthApplication`, Sub Type `API`, Role
-  `Agent365.Observability.OtelWrite`; create an initial policy, assign the package
-  to the intended blueprint, and wait for its assignment status to be **Delivered**
-  before resuming the affected step. Do not mark setup or observability complete
-  merely because a policy exists, the assignment is approved, or the CLI exited zero.
+  If you ran `a365` directly and see that message, do not rerun provisioning just to
+  display help. Follow the `grant-observability-access` add-on:
+  `node .a365-kit/grant-observability.mjs --check` reports what is missing, and an
+  administrator grants it with `--grant`. Include the blueprint as a principal when the
+  exporter signs in with the blueprint's client secret (Java, Go, Rust). An access package
+  (`.a365-kit/shared/observability-access-package.md`) is the alternative when the tenant
+  wants approvals and expiry. Do not mark setup or observability complete until `--check`
+  reports every grant, whatever the CLI exit code.
 - Check available flags with `a365 ... --help`. Do not assume every command has
   `--device-code`; the token command does, while other commands may not.
 - Display device codes promptly. After a timeout, refresh only the failed resource.
