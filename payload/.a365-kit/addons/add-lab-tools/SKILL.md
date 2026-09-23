@@ -94,7 +94,7 @@ Rules, every language:
 Tell the user, briefly:
 
 - These tools run **in-process as the agent**, not through Work IQ or Entra, so Agent 365's
-  per-tool permission model does not gate them. `add-purview-dlp` evaluates the prompt and
+  per-tool permission model does not gate them. Purview DLP evaluates the prompt and
   final reply only; it neither scans every intermediate tool argument/result nor acts as
   an egress firewall. Tool-boundary checks and Defender coverage must be configured and
   verified separately.
@@ -107,6 +107,6 @@ Module      <path>   groups: <web|encoding|text>
 Agent       tools <before> -> <after>   (built-in + Work IQ preserved)
 Instructions updated: yes
 Verified    import/build OK; validator ok
-Posture     in-process (not Entra-gated); pair with add-purview-dlp; fetch_url is egress surface
+Posture     in-process (not Entra-gated); pair with purview-dlp-integration; fetch_url is egress surface
 Next        restart the host if it is running
 ```

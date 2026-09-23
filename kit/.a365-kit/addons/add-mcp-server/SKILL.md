@@ -47,7 +47,7 @@ hooks:
 > instead connects the framework to a server without adding Agent 365 registration,
 > approval or tooling-gateway routing. Existing server authentication is separate. Add external
 > servers only for agents you operate, prefer servers you trust or run yourself, and treat
-> their output as untrusted model input. `add-purview-dlp` evaluates the user prompt and
+> their output as untrusted model input. `purview-dlp-integration` evaluates the user prompt and
 > final reply, not intermediate MCP arguments/results; tool-boundary evaluation is
 > additional work. Not part of Microsoft's skills.
 

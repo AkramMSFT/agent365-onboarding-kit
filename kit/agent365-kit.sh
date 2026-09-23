@@ -502,6 +502,8 @@ cmd_ '"Add WorkIQ tools to this agent."'
 note_ '        Microsoft 365 data: mail, calendar, Teams, SharePoint'
 cmd_ '"Validate A365 code."'
 note_ '        read-only check of telemetry, identity binding and grants'
+cmd_ '"Add Purview DLP to my agent."'
+note_ '        Purview blocks sensitive prompts before the model; replies can be audited'
 echo ''
 
 if [ -d "$KIT_ROOT/.a365-kit/addons" ]; then
@@ -523,9 +525,6 @@ if [ -d "$KIT_ROOT/.a365-kit/addons" ]; then
       add-lab-tools)
         cmd_ '"Add lab tools."'
         note_ '        local utilities: web fetch, encoders, hashing, text transforms' ;;
-      add-purview-dlp)
-        cmd_ '"Add DLP to this agent."'
-        note_ '        Purview checks every prompt and response' ;;
       add-java-agent)
         cmd_ '"Onboard this Java agent."'
         note_ '        hosting and telemetry for Java, which has no Microsoft SDK' ;;

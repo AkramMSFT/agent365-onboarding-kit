@@ -69,6 +69,8 @@ hooks:
 > - "call the Graph processContent API from my agent"
 > - "add Purview blocking to my Node.js / Python / .NET agent"
 
+> **Kit notes:** Before Step 2, read `.a365-kit/shared/purview-kit-notes.md`. It covers projects already wired by the kit's retired DLP add-on, what the gate does not inspect, matching the application id, admin roles, and Insider Risk visibility.
+
 ---
 
 Add a Purview data-loss-prevention **gate** before an existing A365 agent's LLM call: each prompt

@@ -83,7 +83,7 @@ try {
 }
 ```
 
-`npx` ships with Node; `uvx` needs `uv`. Verify with `npm run build`, start the agent, confirm the server's tools list. Same governance as the Python reference: scope tightly, secrets from env, treat output as untrusted, pair with `add-purview-dlp`.
+`npx` ships with Node; `uvx` needs `uv`. Verify with `npm run build`, start the agent, confirm the server's tools list. Same governance as the Python reference: scope tightly, secrets from env, treat output as untrusted, pair with `purview-dlp-integration`.
 The session call and existing collections are adapter placeholders. Keep the `try/finally`
 around the real host lifetime, not just construction of `Agent`. Preserve any framework
 tool-name prefixing, and use fresh per-turn collections when attaching user-specific Work IQ

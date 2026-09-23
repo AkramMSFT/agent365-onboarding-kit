@@ -1,9 +1,9 @@
 {
-  "kitVersion": "0.2.1",
+  "kitVersion": "0.2.2",
   "upstreamRepo": "microsoft/agent365-skills",
   "upstreamVersion": "1.0.2",
   "upstreamCommit": "07a0304",
-  "builtUtc": "2026-09-23T11:36:26Z",
+  "builtUtc": "2026-09-23T12:45:22Z",
   "updateSource": "https://github.com/AkramMSFT/agent365-onboarding-kit/releases/latest/download/agent365-onboarding-kit-latest.zip",
   "skills": [
     "a365-code-validator",
@@ -21,7 +21,6 @@
     "add-lab-tools",
     "add-mcp-server",
     "add-messaging-endpoint",
-    "add-purview-dlp",
     "test-local-channel"
   ]
 }

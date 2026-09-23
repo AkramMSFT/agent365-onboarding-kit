@@ -466,12 +466,6 @@ Connects an Agent 365 agent to an external / community MCP server -- anything be
 
 Makes an already-registered, blueprint-based (non-AI-Teammate) Agent 365 agent reachable from Microsoft Teams and Microsoft 365 Copilot. Adds an HTTP hosting layer serving /api/messages (Python aiohttp, Node.js Express, or ASP.NET Core), exposes it through a dev tunnel or a cloud URL, registers the endpoint on the blueprint with `a365 setup blueprint --update-endpoint ... --m365`, and hands off the one step that needs the Windows broker (`a365 setup permissions bot`). Use when the agent was onboarded with make-a365-agent and has no host, when "completed" is false in a365.generated.config.json, or when the user says "make this agent chattable in Teams". Not for AI Teammates -- their hosting layer comes from make-ai-teammate. Kit add-on, not part of Microsoft's skills.
 
-## Add-on: add-purview-dlp
-
-**Full instructions:** [.a365-kit/addons/add-purview-dlp/SKILL.md](../.a365-kit/addons/add-purview-dlp/SKILL.md)
-
-Adds Microsoft Purview processContent hooks for prompts (uploadText) and responses (downloadText), enforcing returned block actions where supported policies apply. Collection, Insider Risk visibility and blocking have separate policy and billing prerequisites. Two Microsoft Graph REST operations, no Graph SDK dependency; supports Python, Node.js and .NET. Grants the delegated scopes the actual OAuth client needs, wires the turn hooks, and hands off policy setup to an admin. Use when the user says "add DLP", "add Purview", "govern prompts and responses", or "make this agent visible to Insider Risk". Kit add-on, not part of Microsoft's skills.
-
 ## Add-on: test-local-channel
 
 **Full instructions:** [.a365-kit/addons/test-local-channel/SKILL.md](../.a365-kit/addons/test-local-channel/SKILL.md)

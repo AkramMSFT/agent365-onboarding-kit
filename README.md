@@ -192,7 +192,7 @@ Each stage has a phrase. You do not need to know skill names.
 | *Add an MCP server.* | Any external MCP server: filesystem, git, GitHub, Postgres, Slack, Playwright |
 | *Add lab tools.* | Local utilities: web fetch, encoders, hashing, text transforms |
 | *Make this agent chattable in Teams.* | HTTP host, dev tunnel, and endpoint registration |
-| *Add DLP to this agent.* | Purview evaluation of every prompt and response |
+| *Add Purview DLP to my agent.* | Purview blocks sensitive prompts before the model and can audit replies (Microsoft's `purview-dlp-integration`) |
 | *Onboard this Java agent.* | Hosting layer and telemetry for Java, which has no Microsoft SDK |
 | *Let me test this agent locally.* | A loopback-only dev channel, so you can chat with the agent with no tenant, tunnel or Teams |
 | *Update the Agent 365 kit.* | Updates the kit in place, leaving your agent untouched |
@@ -227,12 +227,11 @@ From there it previews `a365 setup all` with `--dry-run`, shows exactly what wil
 
 **Microsoft's eight skills**, unchanged except for the modifications recorded in [`NOTICE.md`](NOTICE.md): `a365-setup`, `make-a365-agent`, `make-ai-teammate`, `instrument-observability`, `add-workiq-tools`, `a365-code-validator`, `test-local`, and `purview-dlp-integration`, which upstream added in September 2026.
 
-**Seven add-ons written for this kit**, discovered the same way and clearly separated in `NOTICE.md`:
+**Six add-ons written for this kit**, discovered the same way and clearly separated in `NOTICE.md`:
 
 | Add-on | Fills this gap |
 |---|---|
 | `add-messaging-endpoint` | Upstream registers a blueprint agent but never hosts it, leaving it reachable by nothing. Adds the `/api/messages` host, the tunnel, and the endpoint registration. |
-| `add-purview-dlp` | Evaluates every prompt and response against tenant DLP through two Graph calls, grants the scopes the agent identity needs, and hands the policy work to an administrator. It predates upstream's `purview-dlp-integration`; the two overlap, and the add-on stays because it is the one verified on a live tenant. |
 | `add-mcp-server` | Connects the agent to any external MCP server, with the governance boundary stated plainly: these are **not** registered in Agent 365 or gated by Entra. |
 | `add-lab-tools` | Local in-process utilities an agent otherwise lacks: web fetch, encoders, hashing, text transforms. Opt-in and dual-use. |
 | `add-java-agent` | Java has no Agent 365 SDK. Adds the HTTP host, inbound token validation, and a direct OTLP exporter. |
@@ -340,7 +339,7 @@ A network share holding `agent365-onboarding-kit-latest.zip` works with no web s
 
 Built against upstream `agent365-skills` v1.0.2 and verified on Windows 11.
 
-- **Discovery.** Claude Code and GitHub Copilot CLI both list all fifteen skills from the extracted folder with no install step. Copilot loads referenced files by relative path, which is what confirms the path-rewrite strategy works outside Claude Code.
+- **Discovery.** Claude Code and GitHub Copilot CLI both list all fourteen skills from the extracted folder with no install step. Copilot loads referenced files by relative path, which is what confirms the path-rewrite strategy works outside Claude Code.
 - **Onboarding.** Driven end to end through Copilot CLI against a live tenant on a Python agent: blueprint, agent identity, eleven delegated permission grants, observability instrumentation, Work IQ tool wiring, messaging endpoint, published package, and an agent answering in Teams.
 - **Node.js and .NET.** Both driven through Copilot CLI against the live tenant: the Node run confirmed the exporter switch and the per-turn token refresh land in generated code; the .NET run confirmed the validator's exporter and per-turn registration checks on a hosted agent.
 - **Java.** The `add-java-agent` output compiles on JDK 21 and runs: health check returns 200, an anonymous request returns 401, a forged bearer returns 401. Its OTLP encoder was matched field by field against the Python SDK's output.

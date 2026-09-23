@@ -577,6 +577,8 @@ Write-Cmd '"Add WorkIQ tools to this agent."'
 Write-Note '        Microsoft 365 data: mail, calendar, Teams, SharePoint'
 Write-Cmd '"Validate A365 code."'
 Write-Note '        read-only check of telemetry, identity binding and grants'
+Write-Cmd '"Add Purview DLP to my agent."'
+Write-Note '        Purview blocks sensitive prompts before the model; replies can be audited'
 Write-Host ''
 
 # Enumerated, not hardcoded: a new add-on appears here without touching the launcher.
@@ -585,7 +587,6 @@ $AddonPhrases = @{
   'test-local-channel'     = @('"Let me test this agent locally."', 'loopback-only dev channel: no tunnel, no tenant, no Teams')
   'add-mcp-server'         = @('"Add an MCP server."', 'any external MCP server -- not governed by Agent 365')
   'add-lab-tools'          = @('"Add lab tools."', 'local utilities: web fetch, encoders, hashing, text transforms')
-  'add-purview-dlp'        = @('"Add DLP to this agent."', 'Purview checks every prompt and response')
   'add-java-agent'         = @('"Onboard this Java agent."', 'hosting and telemetry for Java, which has no Microsoft SDK')
   'a365-kit'               = @('"Update the Agent 365 kit."', 'replaces only the kit files, never your agent')
 }

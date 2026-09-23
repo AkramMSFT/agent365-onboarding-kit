@@ -25,7 +25,7 @@ Two add-ons deliberately expand what an agent can reach. Both are opt-in and nei
 - **`add-lab-tools`** includes a web fetch and page summariser. That is outbound network access and a prompt-injection surface: content the agent fetches is untrusted input.
 - **`add-mcp-server`** connects the agent to external Model Context Protocol servers. These are **not** registered in Agent 365 and **not** gated by Entra, so they sit outside the governance model the rest of the kit works within.
 
-Both are worth pairing with `add-purview-dlp`, which evaluates every prompt and response against tenant policy. The add-ons say so in their own documentation.
+Both are worth pairing with Microsoft's `purview-dlp-integration` skill, which blocks sensitive prompts before the model. It does not inspect tool arguments or tool results, so it narrows the risk rather than closing it. The add-ons say so in their own documentation.
 
 ## Supported versions
 

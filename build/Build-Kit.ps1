@@ -944,7 +944,7 @@ foreach ($js in $jsFiles) {
 }
 Ok "$($jsFiles.Count) JS/MJS files parse cleanly"
 
-# (d) Discovery copies match the canonical set: the seven upstream skills plus kit add-ons.
+# (d) Discovery copies match the canonical set: the upstream skills plus kit add-ons.
 $canonicalNames = @((Get-ChildItem -Path (Join-Path $KitPath 'skills') -Directory).Name)
 if (Test-Path -LiteralPath (Join-Path $KitPath 'addons')) {
     $canonicalNames += @((Get-ChildItem -Path (Join-Path $KitPath 'addons') -Directory).Name)

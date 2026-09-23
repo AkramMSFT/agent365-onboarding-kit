@@ -167,24 +167,9 @@ Inspect the exact diagnostic message and do not resend automatically.
 
 ## Purview
 
-Keep the protected app location separate from the OAuth client and token user.
-Request only runtime `ProtectionScopes.Compute.User` and `Content.Process.User`;
-management consent permissions belong to an authorized management client.
-
-Check uploadText before the model and downloadText before returning a reply.
-Keep a stable correlation and increasing sequence for a stateful conversation.
-Honor block actions even alongside processing errors; handle 202/204 without
-parsing a body. Cache ETags and invalidate on modified policy state.
-Token/HTTP/processing failures obey the explicitly selected fail mode, with
-visible warnings for fail-open. Do not store a blocked reply in conversation history.
-
-Collection/`evaluateOffline` and HTTP 200 do not demonstrate inline blocking.
-For app-targeted sensitive-information prompt blocking, follow current
-`New-DlpCompliancePolicy`/`New-DlpComplianceRule` guidance: Applications workload,
-Application enforcement plane, and the confirmed app location. Verify billing,
-active policy-management roles, distribution, a benign prompt and a synthetic
-matching blocked prompt. An existing policy should be inspected, not overwritten.
-
-Prompt/reply checks are not a tool-boundary firewall and cannot undo a tool's side
-effects. Do not claim universal response blocking, IRM visibility, or Junk-folder
-avoidance from the local checks.
+Use Microsoft's `purview-dlp-integration` skill and its guard, scripts and wiring,
+and read `.a365-kit/shared/purview-kit-notes.md` before its Step 2. Do not store a
+blocked reply in conversation history. Collection and HTTP 200 do not demonstrate
+inline blocking; a synthetic matching prompt blocked before the model call does.
+An existing policy is inspected, never overwritten. Prompt checks are not a
+tool-boundary firewall and cannot undo a tool's side effects.

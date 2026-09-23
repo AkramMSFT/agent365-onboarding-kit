@@ -338,13 +338,13 @@ Already wired in Phase B. Every message, model call and tool call emits spans to
 
 ### E2. Purview DLP on prompts and responses
 
-Purview can inspect every prompt on the way in and every response on the way out, block on policy, and feed Insider Risk Management. **The kit's `add-purview-dlp` add-on does the grants and the code for Python, Node.js and .NET** — in your CLI: *"Add DLP to this agent."* Three parts:
+Purview can check every prompt before the model, block it on policy, audit replies, and feed Insider Risk Management. **Microsoft's `purview-dlp-integration` skill does the grants, the code and the policy for Python, Node.js and .NET** — in your CLI: *"Add Purview DLP to my agent."* Three parts:
 
-**Grants.** The agent's identity service principal needs two delegated Graph scopes: `ProtectionScopes.Compute.User` and `Content.Process.User`. Which principal depends on kind — the identity created at setup (blueprint-only / CEA) or the one minted at instance creation (AI Teammate). This is one `oauth2PermissionGrants` POST via `az rest`; the kit's DLP add-on and the reference deploy kit both automate it.
+**Grants.** A delegated agent needs `Content.Process.User` on Microsoft Graph, appended to its existing agentic grant by `Grant-DelegatedGraphScope.ps1`. An S2S agent needs the `Content.Process.All` application permission on its agent identity, granted by `Grant-ContentProcessAppRole.ps1`.
 
-**Code.** Two Graph REST calls — `dataSecurityAndGovernance/protectionScopes/compute` once per user, then `dataSecurityAndGovernance/processContent` per prompt and per response — with `PURVIEW_APP_LOCATION_ID` set to the agent identity's appId. No SDK dependency, so the same pattern applies to Python, .NET and Node.js.
+**Code.** One guard file per language calls Graph `processContent` before the model. A block stops the turn before the model is called. Replies can be submitted for audit, but this workload does not block them. No Graph SDK dependency.
 
-**Policy — portal only.** In Purview: Audit on; a **Collection policy** capturing AI app interactions (UploadText + DownloadText) so prompts and responses land in Activity Explorer; an **Insider Risk Management** policy from the *Risky Agents (preview)* template scoped to your agents with the *Exposing agent to risky prompt* indicator; IRM → Defender XDR alert sharing on. Allow up to 24 hours for the first evaluation.
+**Policy.** A DLP policy on the *Applications* workload, scoped to the agent's app id, with a *Restrict access → Block* rule on `UploadText`. `New-AiAppDlpPolicy.ps1` creates it, or you choose an existing policy. For Insider Risk visibility, also turn Audit on, create a policy from the *Risky Agents (preview)* template with the *Exposing agent to risky prompt* indicator, and turn on Defender XDR alert sharing. `.a365-kit/shared/purview-kit-notes.md` lists these steps. Allow up to 24 hours for the first Insider Risk evaluation.
 
 ### E3. The registry
 

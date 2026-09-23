@@ -231,7 +231,7 @@ Cursor, Codex, Gemini CLI, Amp, Cline, OpenCode, Warp and Antigravity all read
 `copilot skill list` in a separate terminal; in Claude Code just ask *What Agent 365 skills
 do you have?*
 
-You should see fifteen — eight Microsoft skills plus seven kit add-ons. If you see none, the
+You should see fourteen — eight Microsoft skills plus six kit add-ons. If you see none, the
 kit was extracted somewhere other than this folder; check that `.agents` and `.claude` sit
 beside your agent's source, not inside a subfolder.
 
@@ -486,18 +486,17 @@ Provisioning is asynchronous — a few minutes, occasionally longer. If **Reques
 
 ## Step 10 — Govern with Purview DLP  [CLI] + [admin]
 
-> **Add DLP to this agent.**
+> **Add Purview DLP to my agent.**
 
-The `add-purview-dlp` add-on grants the agent identity two Graph scopes, and wires each prompt and response through Purview: `protectionScopes/compute` then `processContent`, blocking on policy. Then the portal steps [admin]:
+Microsoft's `purview-dlp-integration` skill copies a guard into your agent and wires it before the model call: each prompt goes to Graph `processContent` and is blocked when a policy matches. Replies can be sent for audit, but this workload does not block them. The skill then runs two scripts, which need an administrator [admin]:
 
-1. An administrator consents `ProtectionScopes.Compute.User` and `Content.Process.User` for the agent identity if the add-on could not grant them.
-2. Purview → Settings → **Audit** on.
-3. Purview → **Collection policy** capturing AI app interactions (UploadText + DownloadText) for the agent's app location.
-4. For *blocking*, not just visibility: a DLP administrator creates an app-scoped policy and rule through the documented `New-DlpCompliancePolicy` / `New-DlpComplianceRule` workflow with the *Applications* workload and the *Application* enforcement plane, targeting the same application id. Audit and collection alone do not block anything.
-5. Purview → **Insider Risk Management** → policy from the *Risky Agents (preview)* template, indicator *Exposing agent to risky prompt*.
-6. IRM → **Defender XDR alert sharing** on.
+1. `Grant-DelegatedGraphScope.ps1` appends `Content.Process.User` to the agent's delegated grant. S2S agents use `Grant-ContentProcessAppRole.ps1` instead.
+2. `New-AiAppDlpPolicy.ps1` creates the app-scoped policy and blocking rule, or you pick an existing policy, or skip.
+3. Pay-as-you-go billing and DSPM for AI must be on; the skill's portal guide covers both.
 
-Then test one benign prompt and one deliberately policy-matching prompt with synthetic content. A 200 from Graph is not proof of blocking; the returned action being enforced is.
+The kit adds `.a365-kit/shared/purview-kit-notes.md`, which the skill reads first. It covers projects wired by the kit's earlier DLP add-on, the app id the policy must match, which admin roles each script needs, and the Insider Risk steps: Audit on, a policy from the *Risky Agents (preview)* template with the *Exposing agent to risky prompt* indicator, and Defender XDR alert sharing.
+
+Then test one benign prompt and one synthetic matching prompt such as a Luhn-valid test card number. Success is the agent's `[purview] uploadText -> BLOCKED` log line and no model call for that turn.
 
 Allow up to 24 hours for the first evaluation.
 

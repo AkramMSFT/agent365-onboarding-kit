@@ -148,4 +148,4 @@ Then start the agent (or `test-local`) and confirm the server's tools list witho
 - Scope every server to the least it needs: one directory, a read-only DB role, a single repo.
 - Put tokens and connection strings in `.env`; pass them through `params["env"]` for stdio, `params["headers"]` for HTTP. Never inline.
 - Set `client_session_timeout_seconds` so a hung server does not hang the turn.
-- Treat every tool result as untrusted model input; pair with `add-purview-dlp`.
+- Treat every tool result as untrusted model input; pair with `purview-dlp-integration`.

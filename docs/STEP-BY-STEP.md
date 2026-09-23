@@ -8,7 +8,7 @@ Three stages, each optional after the first. Stop at whichever finish line you n
 |---|---|---|
 | **1. Register** | Blueprint, Entra identity, permissions, telemetry code. The agent is in the Agent 365 registry and visible to security. | *Onboard this agent to Agent 365.* |
 | **2. Chat** | Users can talk to it in Teams and Microsoft 365 Copilot. | *Make this agent chattable in Teams.* |
-| **3. Govern** | Every prompt and response checked by Purview DLP; Insider Risk sees it. | *Add DLP to this agent.* |
+| **3. Govern** | Sensitive prompts blocked by Purview DLP before the model; Insider Risk sees the agent. | *Add Purview DLP to my agent.* |
 
 The phrases work verbatim in every supported CLI. Type them exactly; the skills match on them.
 
@@ -24,7 +24,7 @@ The phrases work verbatim in every supported CLI. Type them exactly; the skills 
    ```
 3. Sign in: `az login --allow-no-subscriptions`.
 4. **Once per tenant, by an admin:** `a365 setup requirements` (Application Administrator or above). Developers skip this; if a later step says `403` or "tenant not ready", send that line to your admin.
-5. Start your CLI in the project folder. Confirm it sees the skills — Copilot: `copilot skill list`; Claude Code: ask *What Agent 365 skills do you have?* Expect fifteen: eight Microsoft skills and seven kit add-ons.
+5. Start your CLI in the project folder. Confirm it sees the skills — Copilot: `copilot skill list`; Claude Code: ask *What Agent 365 skills do you have?* Expect fourteen: eight Microsoft skills and six kit add-ons.
 
 ---
 
@@ -105,16 +105,17 @@ Then an admin uploads `manifest.zip` at **Microsoft 365 admin center → Agents 
 
 ## Stage 3 — Govern with Purview DLP
 
-**Say:** *Add DLP to this agent.*
+**Say:** *Add Purview DLP to my agent.*
 
-The `add-purview-dlp` add-on finds your agent identity's appId (that is the Purview "app location"), grants it the two delegated Graph scopes, writes the config, and wires prompt (`uploadText`) and response (`downloadText`) evaluation into your turn for Python, Node.js or .NET. It runs entirely from the CLI's shell. It then hands you the **portal steps** — the only part with no API:
+Microsoft's `purview-dlp-integration` skill copies a guard into your agent, wires it before the model call, and sets `PURVIEW_DLP_ENABLED`. It asks whether to create a new DLP policy, use an existing one, or skip, and runs its scripts for the Graph grant and the policy; both need an administrator. It works for Python, Node.js or .NET.
+
+Then, for Insider Risk visibility [admin]:
 
 1. Purview → Settings → Audit: on.
-2. Purview → Data Loss Prevention → Collection policies: capture AI app interactions (UploadText + DownloadText) for your agent's app location.
-3. Purview → Insider Risk Management → new policy from **Risky Agents (preview)**, indicator *Exposing agent to risky prompt*.
-4. IRM settings → Defender XDR alert sharing: on.
+2. Purview → Insider Risk Management → new policy from **Risky Agents (preview)**, indicator *Exposing agent to risky prompt*.
+3. IRM settings → Defender XDR alert sharing: on.
 
-**Verify:** send the agent one message and look for `Purview protectionScopes/compute -> 200` in its log. `0 scope(s)` until a policy targets the app location; `1+` after. Allow up to 24 hours for the first Insider Risk evaluation.
+**Verify:** send an ordinary message, then one containing a Luhn-valid test card such as `4111 1111 1111 1111`. Expect `[purview] uploadText -> BLOCKED` for the second and no model call. `allowed (... 0 policyAction(s) ...)` means no policy matches the app id yet. Allow up to an hour for a new policy and up to 24 hours for the first Insider Risk evaluation.
 
 **Finish line: Governed.**
 

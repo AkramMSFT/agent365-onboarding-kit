@@ -13,8 +13,8 @@ Everything under `.a365-kit/skills/`, `.a365-kit/shared/`, `.a365-kit/hooks/` an
 
 - the launchers `agent365-kit.ps1` and `agent365-kit.sh`, and `AGENT365-KIT-README.md`
 - in `.a365-kit/`: `doctor.js`, `kit-version.js`, `run-a365.mjs`, `lib/`, `settings-fragment.json`, `KIT-VERSION.json` and `addons/`
-- `.a365-kit/hooks/lib/` and six validators in `.a365-kit/hooks/stop/`: `validate-add-java-agent.js`, `validate-add-lab-tools.js`, `validate-add-mcp-server.js`, `validate-add-messaging-endpoint.js`, `validate-add-purview-dlp.js` and `validate-test-local-channel.js`
-- `.a365-kit/shared/local-runtime-lessons.md` and `.a365-kit/shared/observability-access-package.md`
+- `.a365-kit/hooks/lib/` and five validators in `.a365-kit/hooks/stop/`: `validate-add-java-agent.js`, `validate-add-lab-tools.js`, `validate-add-mcp-server.js`, `validate-add-messaging-endpoint.js` and `validate-test-local-channel.js`
+- `.a365-kit/shared/local-runtime-lessons.md`, `.a365-kit/shared/observability-access-package.md` and `.a365-kit/shared/purview-kit-notes.md`
 - the "Kit add-ons" section at the end of `.a365-kit/copilot-instructions.md`
 
 Every build ships Microsoft's licence as `.a365-kit/LICENSE-agent365-skills`, the kit's licence as `.a365-kit/LICENSE`, and this notice as `.a365-kit/NOTICE.md`.
@@ -272,6 +272,7 @@ The kit adds short pointers to its own material in a few places, and nowhere els
 
 - Seven `SKILL.md` files and `copilot-instructions.md` open with a **Kit runtime corrections** note that tells the CLI to read `.a365-kit/shared/local-runtime-lessons.md` first.
 - `test-local` sends hosts that keep `/api/messages` authenticated, which includes every blueprint host, to the `test-local-channel` add-on instead of disabling authentication.
+- `purview-dlp-integration` tells the CLI to read `.a365-kit/shared/purview-kit-notes.md` before its Step 2.
 - `copilot-instructions.md` ends with a generated **Kit add-ons** section, because GitHub Copilot reads that file and not the skill folders.
 
 These change where a CLI looks, not what Microsoft's phases do.
@@ -280,7 +281,7 @@ These change where a CLI looks, not what Microsoft's phases do.
 
 ## Kit add-ons — not Microsoft's
 
-Everything under `.a365-kit/addons/` (and its copies in `.claude/skills/` and `.agents/skills/`) plus the six add-on validators listed at the top of this notice is **written for this kit** and MIT-licensed under the repository's `LICENSE`. They follow upstream's skill format so every CLI discovers them the same way, but they are not part of `microsoft/agent365-skills` and should not be reported there.
+Everything under `.a365-kit/addons/` (and its copies in `.claude/skills/` and `.agents/skills/`) plus the five add-on validators listed at the top of this notice is **written for this kit** and MIT-licensed under the repository's `LICENSE`. They follow upstream's skill format so every CLI discovers them the same way, but they are not part of `microsoft/agent365-skills` and should not be reported there.
 
 | Add-on | Fills this gap | Basis |
 |---|---|---|
@@ -290,9 +291,8 @@ Everything under `.a365-kit/addons/` (and its copies in `.claude/skills/` and `.
 | `add-mcp-server` | Connects the agent to any external / community MCP server (filesystem, git, GitHub, Postgres, web fetch, Slack, Playwright, …) beyond Microsoft's Work IQ set. Governance boundary: external servers are NOT registered in Agent 365 or gated by Entra; opt-in, clearly labelled, paired with DLP guidance. | Python wiring pattern API-verified on the live SDK (`MCPServerStdio`/`StreamableHttp`); Node.js and .NET are faithful ports awaiting a run. |
 | `test-local-channel` | Microsoft's `test-local` is written throughout for the AI Teammate path, so a blueprint agent had no local test route at all: its host rejects every unauthenticated request, which is deliberate. Adds a dev channel on its own loopback-bound port, off unless `A365_DEV_CHANNEL=true`, leaving `/api/messages` fully authenticated. | Python module run and verified: with the flag unset the port refuses connections; with it set, `/dev/health` returns 200, `/dev/chat` answers without a token, a request carrying `X-Forwarded-For` is refused 403, the socket is bound to 127.0.0.1 rather than the wildcard, and the production endpoint still returns 401. Node.js and .NET are faithful ports awaiting a run. |
 | `add-java-agent` | Microsoft ships no Java SDK, so a Java agent can be registered and published but has no host, no inbound token validation and no way to export telemetry. Adds all three. Registration and the portal steps are language-agnostic and stay with the Microsoft skills. | Compiled on JDK 21 and run: health 200, anonymous POST 401, forged bearer 401, GET 405. The OTLP encoder was matched field by field against the Python SDK's output. Dry-run end to end through GitHub Copilot CLI on a fresh Maven project: the CLI found the skill, wrote the five classes, wired them to the project's own agent class rather than a stub, added both dependencies, compiled, and reproduced the non-standard wire format correctly. Not yet exercised against a tenant from Java -- a real inbound activity and Connector reply need a published agent. |
-| `add-purview-dlp` | Evaluates every prompt and response against tenant DLP via two Graph calls; grants the scopes; hands off the portal policy. | Python adapted from the author's own Agent 365 deployment, which is not published and ran against a live tenant. The Node.js and .NET files are faithful ports of the same two REST calls, **not yet run against a tenant**; each marks the token-exchange line as the one to verify against the local SDK. |
 
-The eight Microsoft skills are untouched by the add-ons: they reference upstream files, never modify them. Upstream added its own `purview-dlp-integration` skill in September 2026; the kit's `add-purview-dlp` predates it, overlaps with it, and is kept because it is the one exercised on a live tenant. Both are discoverable and the add-on's description says which is which.
+The eight Microsoft skills are untouched by the add-ons: they reference upstream files, never modify them. Kit 0.2.1 and earlier also shipped an `add-purview-dlp` add-on. Upstream's `purview-dlp-integration` skill, added in September 2026, answers the same request with different wiring, so from 0.2.2 the add-on is retired. What it learned on a live tenant and upstream does not cover moved to `.a365-kit/shared/purview-kit-notes.md`, which also tells the CLI how to handle a project the add-on already wired.
 
 The September 2026 audit also re-verified the add-ons offline: every Python, Node.js and .NET reference was compiled or executed against the released SDK versions it names, and the Java host was compiled on JDK 21 with Maven 3.9 and its five classes verified. These are compile and mocked-boundary checks, not live-tenant runs, except where the table says otherwise.
 

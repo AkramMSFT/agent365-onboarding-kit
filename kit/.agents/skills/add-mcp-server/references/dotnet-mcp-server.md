@@ -92,7 +92,7 @@ await using var external = await ExternalMcpServers.BuildAsync();
 await app.RunAsync(); // keep clients alive until the existing host stops
 ```
 
-Prerequisites and governance match the Python reference: `npx`/`uvx` for stdio servers, secrets from the environment, scope every server tightly, treat output as untrusted, and pair with `add-purview-dlp`. Build with `dotnet build` and confirm the agent still starts and lists the new tools.
+Prerequisites and governance match the Python reference: `npx`/`uvx` for stdio servers, secrets from the environment, scope every server tightly, treat output as untrusted, and pair with `purview-dlp-integration`. Build with `dotnet build` and confirm the agent still starts and lists the new tools.
 Keep the disposable owner, not just the tool list. It closes all connected clients at
 shutdown, including clients created before a startup/list-tools failure. The model-facing
 names are prefixed per server; `WithName` preserves the original remote MCP tool name.

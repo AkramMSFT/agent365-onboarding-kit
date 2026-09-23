@@ -99,7 +99,7 @@ Three stages, each started by one phrase typed to your CLI. Stop at whichever fi
 |---|---|---|
 | **1. Register** — blueprint, identity, permissions, telemetry | *Onboard this agent to Agent 365.* | `a365 setup all …` when it asks (copy from the prompt); then install packages |
 | **2. Chat** in Teams & Copilot | *Make this agent chattable in Teams.* (blueprint path) or *Make this agent an AI Teammate.* | review bot grants with the administrator, confirm a supported publishing experience, then package/upload/approve |
-| **3. Govern** with Purview DLP | *Add DLP to this agent.* | authorized API consent, billing/entitlements and an app-scoped blocking policy via the documented Purview PowerShell workflow |
+| **3. Govern** with Purview DLP | *Add Purview DLP to my agent.* | authorized API consent, billing/entitlements and an app-scoped blocking policy via the documented Purview PowerShell workflow |
 
 Between stages: *Validate A365 code.*, *Add observability to this agent.*, *Test this agent locally.*, *Update the Agent 365 kit.* The full sequence with every question and hand-off is `docs/STEP-BY-STEP.md` in the kit repository.
 
@@ -138,7 +138,7 @@ Confirm the kit landed, then start:
 
 ```bash
 cd your-agent-project
-copilot skill list     # fifteen skills in this build
+copilot skill list     # fourteen skills in this build
 copilot                # then type the trigger phrase
 ```
 
