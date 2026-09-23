@@ -1,7 +1,8 @@
 # .NET — local dev channel
 
-A faithful port of the Python module, which is the version that was run. **Not yet executed**
-— check it against the four behaviours in the skill's Phase 3 before relying on it.
+The module was compiled and exercised with .NET 8 in offline loopback HTTP tests covering
+opt-in, valid/invalid chat bodies, forwarding-header rejection and shutdown. Recheck the
+skill's four behaviours in the consuming project; no tenant integration is claimed here.
 
 Uses only ASP.NET Core, already present in an Agent 365 .NET host.
 
@@ -12,6 +13,8 @@ Write this as `DevChannel.cs` beside `Program.cs`.
 ```csharp
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
@@ -25,8 +28,8 @@ public static class DevChannel
 {
     // devtunnel host runs on the developer's own machine and forwards to a local port, so a
     // request from the public internet still arrives with a remote address of 127.0.0.1. A
-    // loopback check alone would pass tunnelled traffic. These headers are the only reliable
-    // signal, and they are used to deny, never to grant.
+    // loopback check alone would pass tunnelled traffic. Header rejection is defense in depth:
+    // proxies can omit these headers, so never tunnel the dev port.
     private static readonly string[] ForwardingHeaders =
     {
         "X-Forwarded-For",
@@ -105,7 +108,12 @@ public static class DevChannel
             "development, and never point a tunnel at this port.",
             listenPort);
 
-        app.Start();
+        try { app.Start(); }
+        catch
+        {
+            app.DisposeAsync().AsTask().GetAwaiter().GetResult();
+            throw;
+        }
         return app;
     }
 
@@ -121,9 +129,24 @@ Call it once from `Program.cs`, after the production host is built:
 using Agent365.DevChannel;
 
 var devChannel = DevChannel.Start(text => Task.FromResult(agent.Ask(text)));
+try
+{
+    await app.RunAsync(); // the existing production host
+}
+finally
+{
+    if (devChannel is not null)
+    {
+        await devChannel.StopAsync();
+        devChannel.Dispose();
+    }
+}
 ```
 
-`agent.Ask` must be the same method the production handler calls.
+`agent.Ask` is an adapter placeholder, not an Agents SDK method. Use the same model/local-tool
+call as production; for an async method pass `text => agent.AskAsync(text)` directly, without
+`Task.FromResult`. Do not reuse per-user Work IQ clients or tokens for anonymous local turns.
+The dev route does not verify inbound authentication or auth-dependent Purview DLP.
 
 `Start` runs its own lightweight host on a separate port. It returns `null` when the flag is
 absent, so the call is safe to leave in permanently.
@@ -135,4 +158,5 @@ A365_DEV_CHANNEL=true dotnet run
 ```
 
 Then run the four checks from Phase 3 of the skill. The `X-Forwarded-For` request returning
-403 is the one that matters — the loopback bind alone does not protect the endpoint.
+403 is defense in depth — neither the loopback bind nor headers protect a dev port that
+you deliberately expose through a proxy which omits forwarding headers.

@@ -29,6 +29,11 @@ hooks:
 
 # Add lab tools
 
+> **Kit runtime corrections:** Read `.a365-kit/shared/local-runtime-lessons.md` first.
+> The extended .NET starter already includes all eight tools and their bounded
+> offline checks. Detect existing registration and do not duplicate them. Preserve
+> per-tool telemetry and re-check names after combining with namespaced Work IQ tools.
+
 > **Trigger phrases:**
 > - "add lab tools"
 > - "add a URL fetch tool" / "let the agent summarise web pages"
@@ -55,6 +60,10 @@ Plain in-process `@function_tool` (Python) / equivalent tools. **No** MCP server
 
 1. **Read** `.a365-workspace-detection.local.json` for `programmingLanguage`. If absent, detect from project files (`requirements.txt`/`pyproject.toml` → Python, `package.json` → Node.js, `.csproj` → .NET).
 2. Find the agent's tool list -- the file and the array passed as `tools=[...]` (Python/OpenAI Agents SDK), `tools: [...]` (Node.js), or the equivalent registration (.NET). This is usually the file the onboarding skills already edited (`src/agent.py` in the verified project).
+   Confirm the **framework**, not only the language. The Python/Node references target
+   OpenAI Agents; the .NET implementation uses `Microsoft.Extensions.AI`. For another
+   framework, adapt registration to that framework's documented tool API or explain the
+   unsupported seam. Do not replace the project's agent/framework to make an example fit.
 3. **Ask which groups** (AskUserQuestion) unless the argument already says: `web`, `encoding`, `text`, or `all`. If `web` is chosen, state plainly in the same prompt: *"`fetch_url` lets the agent retrieve arbitrary http/https URLs. Add it only for an agent you operate and testing you're authorised to run."*
 
 ## Phase 1 -- Add the tools
@@ -84,7 +93,11 @@ Rules, every language:
 
 Tell the user, briefly:
 
-- These tools run **in-process as the agent**, not through Work IQ or Entra, so Agent 365's per-tool permission model does not gate them. Governance for what they do (especially `fetch_url` egress and any content they pull in) comes from Purview DLP on the turn and from Defender -- which is a good reason to pair this with `add-purview-dlp`.
+- These tools run **in-process as the agent**, not through Work IQ or Entra, so Agent 365's
+  per-tool permission model does not gate them. `add-purview-dlp` evaluates the prompt and
+  final reply only; it neither scans every intermediate tool argument/result nor acts as
+  an egress firewall. Tool-boundary checks and Defender coverage must be configured and
+  verified separately.
 - `fetch_url` returning attacker-controlled page content into the model is a prompt-injection surface. That is intended for testing; in a real deployment, treat fetched content as untrusted.
 
 ## Summary to show the user

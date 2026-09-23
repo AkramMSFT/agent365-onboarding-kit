@@ -1,0 +1,61 @@
+[
+  {
+    "id": "nodejs-tool-agent",
+    "name": "Node.js word and time agent",
+    "path": "examples/nodejs-tool-agent",
+    "runtime": "Node.js 24 LTS",
+    "description": "OpenAI Agents SDK console agent; offline demonstration and opt-in live inference.",
+    "language": "JavaScript"
+  },
+  {
+    "id": "dotnet-tool-agent",
+    "name": ".NET word-count agent",
+    "path": "examples/dotnet-tool-agent",
+    "runtime": ".NET SDK 8 / net8.0",
+    "description": "Microsoft Agent Framework console agent; offline demonstration and opt-in live inference.",
+    "language": "C#"
+  },
+  {
+    "id": "python-teammate",
+    "name": "Python authenticated AI Teammate host",
+    "path": "examples/python-teammate",
+    "runtime": "Python 3.12",
+    "description": "Azure OpenAI/Agent Framework host with authenticated messaging, notifications and optional Work IQ.",
+    "language": "Python"
+  },
+  {
+    "id": "dotnet-agent365-lab",
+    "name": ".NET Agent 365 local lab",
+    "path": "examples/dotnet-agent365-lab",
+    "runtime": ".NET 8 SDK; Node 24 for kit tooling",
+    "language": "C#",
+    "description": "Opt-in authenticated local Teams host, configurable model provider, Work IQ, agent mailbox and Purview patterns. Offline modes need no tenant."
+  },
+  {
+    "id": "java-tool-agent",
+    "name": "Java text tool agent",
+    "path": "examples/java-tool-agent",
+    "runtime": "JDK 21 and Maven 3.9+",
+    "language": "Java",
+    "onboardingSupport": "manual",
+    "description": "Gson/HttpClient console agent with word-count and reverse-text tools, offline HTTP tests and opt-in provider inference. Java hosting requires deliberate adaptation."
+  },
+  {
+    "id": "go-tool-agent",
+    "name": "Go text tool agent",
+    "path": "examples/go-tool-agent",
+    "runtime": "Go 1.24+",
+    "language": "Go",
+    "onboardingSupport": "manual",
+    "description": "Standard-library console tool agent with offline and loopback tests and opt-in provider inference. Agent 365 integration is manual."
+  },
+  {
+    "id": "rust-tool-agent",
+    "name": "Rust text tool agent",
+    "path": "examples/rust-tool-agent",
+    "runtime": "Rust/Cargo 1.88+ and platform linker",
+    "language": "Rust",
+    "onboardingSupport": "manual",
+    "description": "Locked native-TLS console tool agent with offline and loopback tests and opt-in provider inference. Agent 365 integration is manual."
+  }
+]

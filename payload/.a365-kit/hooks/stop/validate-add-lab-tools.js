@@ -36,7 +36,7 @@ if (!moduleFiles.length) {
   const modText = moduleFiles.map(read).join('\n');
   // At least one recognised tool must be defined.
   const known = ['fetch_url', 'fetchUrl', 'FetchUrl', 'encode_text', 'encodeText', 'EncodeText',
-                 'hash_text', 'hashText', 'HashText', 'transform_text', 'transformText'];
+                 'hash_text', 'hashText', 'HashText', 'transform_text', 'transformText', 'TransformText'];
   if (!known.some(n => modText.includes(n))) {
     issues.push('lab-tools module exists but defines none of the expected tools');
   }

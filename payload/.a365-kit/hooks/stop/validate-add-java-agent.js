@@ -11,6 +11,7 @@
 const fs = require('fs');
 const path = require('path');
 const { scanProject } = require('../lib/project-scan');
+const { readEnvValue, selectEnvFiles, envFlagEnabled } = require('../lib/env-config');
 
 const cwd = process.cwd();
 const issues = [];
@@ -81,10 +82,9 @@ if (hasExporter) {
   if (anyJava('"stringValue"')) {
     issues.push('Exporter appears to emit OTLP keyValue attributes ("stringValue") -- Agent 365 expects a plain JSON object');
   }
-  const envFiles = ['.env', '.env.example'].map(f => path.join(cwd, f)).filter(exists);
-  const envText = envFiles.map(read).join('\n');
-  if (envText.includes('ENABLE_A365_OBSERVABILITY_EXPORTER') &&
-      !/ENABLE_A365_OBSERVABILITY_EXPORTER\s*=\s*true/i.test(envText)) {
+  const envFiles = selectEnvFiles(['.env', '.env.example'].map(f => path.join(cwd, f)).filter(exists));
+  if (envFiles.some(f => readEnvValue(f, 'ENABLE_A365_OBSERVABILITY_EXPORTER') !== undefined) &&
+      !envFlagEnabled(envFiles, 'ENABLE_A365_OBSERVABILITY_EXPORTER')) {
     issues.push('ENABLE_A365_OBSERVABILITY_EXPORTER is present but not "true" -- the agent is instrumented but exports nothing; set it to true and restart');
   }
 }

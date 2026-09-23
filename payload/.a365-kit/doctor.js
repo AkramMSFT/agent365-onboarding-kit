@@ -73,7 +73,9 @@ const CHECKS = [
       const found = [];
       if (probe('claude --version')) found.push('Claude Code');
       if (probe(isWin ? 'where copilot' : 'command -v copilot')) found.push('Copilot CLI');
+      else if (probe('gh copilot --help')) found.push('Copilot CLI (via gh)');
       if (probe(isWin ? 'where cursor-agent' : 'command -v cursor-agent')) found.push('Cursor');
+      if (probe(isWin ? 'where codex' : 'command -v codex')) found.push('Codex');
       if (probe(isWin ? 'where gemini' : 'command -v gemini')) found.push('Gemini CLI');
       return found.length ? found.join(', ') : null;
     },

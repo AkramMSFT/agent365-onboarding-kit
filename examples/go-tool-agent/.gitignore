@@ -1,0 +1,7 @@
+.env
+.env.*
+!.env.example
+*.exe
+*.log
+a365.generated.config.json
+.a365-workspace-detection.local.json

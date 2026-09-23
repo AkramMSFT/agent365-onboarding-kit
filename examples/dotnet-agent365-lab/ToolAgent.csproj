@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Microsoft.Agents.Hosting.AspNetCore" Version="1.4.83" />
+    <PackageReference Include="Microsoft.Agents.Authentication.Msal" Version="1.4.83" />
+    <PackageReference Include="Microsoft.Agents.A365.Tooling" Version="1.1.14-preview" />
+    <PackageReference Include="Microsoft.Agents.A365.Tooling.Extensions.AgentFramework" Version="1.1.14-preview" />
+    <PackageReference Include="Microsoft.Agents.AI" Version="1.6.2" />
+    <PackageReference Include="Microsoft.Extensions.AI.OpenAI" Version="10.10.0" />
+    <PackageReference Include="DotNetEnv" Version="3.1.1" />
+    <PackageReference Include="Microsoft.OpenTelemetry" Version="1.0.3" />
+    <PackageReference Include="Microsoft.Identity.Client" Version="4.83.1" />
+    <PackageReference Include="Azure.Identity" Version="1.17.1" Aliases="AzureIdentitySdk" />
+  </ItemGroup>
+</Project>

@@ -1,10 +1,48 @@
 # Agent 365 Onboarding Kit
 
+## Observability consent administrator handoff
+
+When setup reports:
+
+```text
+Custom permission configuration requires tenant admin action.
+An administrator must grant the blueprint consent for maven-prod [Agent365.Observability.OtelWrite] via the Entra portal.
+```
+
+Have the administrator create an access package with **Resource: maven-prod**,
+**Type: OAuthApplication**, **Sub Type: API**, and
+**Role: Agent365.Observability.OtelWrite**. Create an initial policy, assign the
+package to the correct blueprint, and wait until that assignment is **Delivered**
+before resuming the affected setup step. Approval or policy creation is not delivery.
+See [.a365-kit/shared/observability-access-package.md](.a365-kit/shared/observability-access-package.md).
+
+Use `node .\.a365-kit\run-a365.mjs setup ...` for consent-aware setup in PowerShell
+(Bash: `node ./.a365-kit/run-a365.mjs setup ...`), keeping the same approved arguments.
+It preserves CLI failures and returns 2 for this pending handoff even if the CLI
+returns zero. It does not create assignments or change permissions automatically.
+
 Drop-in skills that walk your coding CLI through onboarding an agent to **Microsoft Agent 365** — registering it, giving it an Entra identity, instrumenting observability, and wiring WorkIQ tools.
 
 No plugin install. No marketplace. Extract, then point your CLI at it.
 
 The skills themselves are Microsoft's official [`agent365-skills`](https://github.com/microsoft/agent365-skills), repackaged so they load from a project folder instead of requiring a plugin install. See `.a365-kit/KIT-VERSION.json` for the exact upstream version bundled here.
+
+## Prepare information and permissions
+
+Have your project/stack/start command, target tenant/account, owner/sponsor, capability/auth-mode choices, and runtime model configuration ready. Model access can use an API key or supported inference-authorized identity; it is separate from your coding CLI subscription. For optional messaging/tools/DLP, also collect approved resources/scopes, hosting URL/port, publishing audience, policy owner and relevant licences/billing. Keep real credentials out of source control.
+
+| Action | Required access or handoff |
+|---|---|
+| Extract/build/launch locally | Project filesystem and software-execution rights; no Entra administrator or Azure subscription role merely to copy the kit. |
+| CLI readiness | Current documentation prefers Microsoft's managed client. Use a consented tenant-owned public client only if needed; never supply a client secret for the interactive public CLI client. |
+| Register blueprint/identity | Agent ID Developer/appropriate ownership, or wider Agent ID administration. Client consent and runtime grants are separate; **OBO is not consent-free**. |
+| Consent | The current CLI's automatic consent flow is Global Administrator-gated. Manual delegated consent can use an authorized app administrator; Microsoft Graph application consent needs a suitably privileged role such as Privileged Role Administrator. |
+| Observability/Work IQ | Runtime grants, correct identity/data access, and applicable entitlements. Observability needs an assigned Agent 365/E7 user in the tenant; Work IQ requires the appropriate Copilot entitlement and delegated user context. |
+| Publish/instance | Local ZIP creation is not approval. Current general Microsoft 365 agent-management roles are AI Administrator/Global Administrator; the chosen agent-user experience also needs its Frontier/service licences and tenant policies. |
+| Purview | Both runtime API consent and Purview DLP policy authority, the correct user/application context, and any required PAYG billing. A collection/IRM policy or HTTP 200 alone is not blocking DLP. |
+| Azure hosting, if chosen | Appropriate deployment RBAC; assigning runtime roles requires role-assignment authority separately. Hosting need not be on Azure. |
+
+For current details, read [CLI setup](https://learn.microsoft.com/en-us/microsoft-agent-365/developer/reference/cli/setup), [agent administrator roles](https://learn.microsoft.com/en-us/microsoft-365/admin/manage/agent-roles-perms), and [custom-app Purview configuration](https://learn.microsoft.com/en-us/purview/developer/configurepurview). The repository README has the complete input checklist and permissions by onboarding step.
 
 ---
 
@@ -36,20 +74,22 @@ chmod +x agent365-kit.sh && ./agent365-kit.sh
 
 This checks every prerequisite, prints the exact install command for anything missing, detects which CLIs you have, and prints the activation steps below. It does not change your project.
 
-> **Windows:** run it from a **normal** PowerShell, not an Administrator one. Claude Code, `gh`, and the `a365` CLI install per-user, so an elevated shell usually cannot see them — tools that are installed will look missing. The script warns you if it detects this.
+> **Windows:** use your normal interactive PowerShell for onboarding. Approve OS elevation only for installers that require it; elevated sessions can use a different profile, PATH or sign-in context.
 
 **Required:** Node.js 18+, .NET SDK 8+ (not just the runtime), the `a365` CLI, Azure CLI, Git, and your chosen coding CLI.
 **Also needed:** a Microsoft Agent 365 tenant with developer access.
 
-### One-time tenant setup (admin)
+**New Python AI Teammates:** the verified generated profile requires **Python 3.12** and the pinned Agent Framework/Agents SDK dependencies in its reference. Other Python framework examples are migration references, not verified scaffolds for that matrix. Existing apps should not be silently migrated. The Python host keeps `/api/messages` authenticated even in Development; unsigned AgentsPlayground requests return 401.
 
-The `a365` CLI needs a custom Entra app registration in your tenant. This is **once per tenant, not once per developer** — after any admin runs it, everyone inherits the ready state:
+### Validate tenant/client readiness
+
+Run the installed CLI's readiness check:
 
 ```bash
 a365 setup requirements
 ```
 
-Requires **Application Administrator** (lightest sufficient role), Cloud Application Administrator, or Global Administrator. If you are a developer without admin rights and setup reports `403` or "tenant not ready", send that command to your tenant admin.
+If a custom client is required, manual configuration/delegated consent can use Cloud Application Administrator or Application Administrator; automatic creation/consent is currently Global Administrator-gated. Shared client readiness does not give every developer roles, resource consent or licences. Use an administrator handoff rather than granting the developer broad permanent privileges.
 
 ## 3. Start onboarding with your CLI
 
@@ -58,8 +98,8 @@ Three stages, each started by one phrase typed to your CLI. Stop at whichever fi
 | Stage | You say | Then you, in your own terminal |
 |---|---|---|
 | **1. Register** — blueprint, identity, permissions, telemetry | *Onboard this agent to Agent 365.* | `a365 setup all …` when it asks (copy from the prompt); then install packages |
-| **2. Chat** in Teams & Copilot | *Make this agent chattable in Teams.* (blueprint path) or *Make this agent an AI Teammate.* | `a365 setup permissions bot` (blueprint), then `a365 publish` (`--aiteammate true` on the blueprint path) and the admin-centre upload — both paths |
-| **3. Govern** with Purview DLP | *Add DLP to this agent.* | the Purview policies, in the portal |
+| **2. Chat** in Teams & Copilot | *Make this agent chattable in Teams.* (blueprint path) or *Make this agent an AI Teammate.* | review bot grants with the administrator, confirm a supported publishing experience, then package/upload/approve |
+| **3. Govern** with Purview DLP | *Add DLP to this agent.* | authorized API consent, billing/entitlements and an app-scoped blocking policy via the documented Purview PowerShell workflow |
 
 Between stages: *Validate A365 code.*, *Add observability to this agent.*, *Test this agent locally.*, *Update the Agent 365 kit.* The full sequence with every question and hand-off is `docs/STEP-BY-STEP.md` in the kit repository.
 
@@ -98,7 +138,7 @@ Confirm the kit landed, then start:
 
 ```bash
 cd your-agent-project
-copilot skill list     # all seven should appear under "Project skills"
+copilot skill list     # fifteen skills in this build
 copilot                # then type the trigger phrase
 ```
 
@@ -145,7 +185,7 @@ gh skill install --from-local .a365-kit --all --agent cursor --scope project
 
 ## The one command you must run yourself
 
-**`a365 setup all` cannot authenticate from inside any agentic CLI.** It signs in through the Windows account broker, which needs an interactive desktop session — a coding agent's shell doesn't have one. You'll see `Authentication timed out after 120 seconds` or `MSAL authentication failed: Unknown Status: 17`, and re-authenticating elsewhere won't help (different token cache).
+**Run interactive `a365 setup all` authentication in your own terminal.** Windows broker flows can fail in headless coding-agent shells with an authentication timeout or `MSAL ... Status: 17`. Azure CLI and A365 can use different token caches; follow the installed CLI's supported sign-in flow and tenant Conditional Access policy.
 
 When your CLI reaches that command: **copy it exactly from the approval prompt, decline it, run it in a second normal terminal in the same folder, then tell your CLI to continue from `a365.generated.config.json`.** Under a minute once the prompt has a window to appear in.
 
@@ -161,16 +201,16 @@ Two things the skills leave for you — check both before calling it done:
 
 ## After onboarding — making it chat in Teams and Copilot
 
-Onboarding gets the agent **registered**: blueprint, identity, permissions, instrumented code. Making it **reachable** — answering in Teams and Microsoft 365 Copilot — is four more steps, and two of them are portal-only:
+Registration and reachability are separate. To answer in Teams/Microsoft 365 Copilot, the agent additionally needs hosting, a supported package, approval, audience policies and appropriate entitlements:
 
 | Step | Command or place | Who |
 |---|---|---|
 | 1. Host `/api/messages` | AI Teammate path scaffolds it; otherwise add the hosting layer | you |
 | 2. Public HTTPS URL | `devtunnel` for dev, any HTTPS host for prod | you |
-| 3. Register the endpoint | `a365 setup blueprint --update-endpoint <url> --m365` — **`--m365` is required** or Teams routing is silently skipped. Works from your CLI agent's shell. | you |
-| 4. Bot API permissions *(blueprint-based / CEA)* | `a365 setup permissions bot` — creates the Messaging Bot API grant; needs the broker and a `y` | you, own terminal |
-| 5. Manifest + package | `a365 publish` → `manifest/manifest.zip`. On the blueprint path plain `publish` refuses; use `a365 publish --aiteammate true` (it does not change your agent's kind). | you, own terminal |
-| 6. Upload, activate, create instance | Microsoft 365 admin center → Agents → All agents → Upload custom agent → Activate → Instances → Create. **Required on both paths for the agent to appear in Teams and Copilot.** | admin |
+| 3. Register the endpoint | `a365 setup blueprint --update-endpoint <url> --m365`; keep the flag explicit for compatibility, although current endpoint-only updates infer it. | authorized blueprint operator |
+| 4. Bot API permissions *(blueprint-based / CEA)* | `a365 setup permissions bot`; review the actual Messaging Bot API/other resource grants before approval. | authorized consent administrator |
+| 5. Manifest + package | `a365 publish` for the supported experience. `--aiteammate true` selects an AI Teammate template branch, not a universally neutral OBO conversion. | you, own terminal |
+| 6. Upload, activate, create instance | Microsoft 365 admin-center approval and audience configuration; instance/user creation and service licences are separate and experience-dependent. | AI Administrator/GA and allowed requester, as applicable |
 | 7. Test | `agentsplayground` (`npm i -g @microsoft/m365agentsplayground`) against your host; Teams chat; Copilot agent picker | you |
 
 Like `a365 setup all`, run `a365 publish` and `a365 setup permissions bot` in your own terminal — the first block-buffers under chat tools, the second needs the Windows broker for its grant step.
@@ -181,7 +221,7 @@ The full walkthrough with every choice explained — agent kinds, identity, dev 
 
 ## Keeping the kit current — from your CLI
 
-Say *"update the Agent 365 kit"* (or run `.\agent365-kit.ps1 -Update` / `./agent365-kit.sh --update`). Only the kit's own files are replaced; your agent, `.env`, config and your own skills are untouched. If your organisation hosts the kit on its own server or a file share, set that once for the project — *"set the kit update source to …"*, or `-SetUpdateSource <zip-or-url>` — and commit the `a365-kit.config.json` it writes. *"Check the kit prerequisites"* and *"which kit version is installed"* work the same way.
+Say *"update the Agent 365 kit"* (or run `.\agent365-kit.ps1 -Update` / `./agent365-kit.sh --update`). Only kit-owned files should be replaced. To use a mirror, set `-SetUpdateSource <zip-or-url>` or `A365_KIT_UPDATE_SOURCE`. Share a project configuration only if the URL/path is credential-free and approved for source control; this repository ignores `a365-kit.config.json` by default. *"Check the kit prerequisites"* and *"which kit version is installed"* work the same way.
 
 ## What happens next
 

@@ -1,11 +1,24 @@
 # Java — Agent 365 hosting layer
 
-Every code block here was compiled against **JDK 21** and run: `/api/health` returns 200,
+First compiled against JDK 21 and run on 2026-09-11 (`/api/health` 200, anonymous POST 401,
+forged bearer 401, GET 405); a Copilot CLI dry run then reproduced it on a fresh Maven project.
+The classes below are the later audited revision.
+
+The original host was compiled against **JDK 21** and run: `/api/health` returned 200,
 an anonymous POST to `/api/messages` returns 401, a forged bearer returns 401, and a GET
 returns 405. What has **not** been exercised against a tenant is a real inbound activity
 from Teams and a real reply through the Connector API — those need a published agent.
 
+The current five reference classes also passed a **fresh compile-only check** with
+Microsoft OpenJDK **21.0.12.1**, Maven **3.9.11** and `javac --release 17`, using the dependency
+versions below. This check did not start the host or call a tenant, model or external service.
+
 Java 17 is the floor (`java.net.http.HttpClient`, records, `Map.of`).
+This is a **commercial-cloud, single-tenant Bot Connector** implementation, not a complete
+Java replacement for every Agents SDK authentication flow. Verify the registered inbound
+audience and outbound client identity from your connection configuration; they need not
+be the same. Emulator, agentic Entra issuers and channel-specific endorsement policies need
+their own supported validation implementation before exposing those flows.
 
 ## Dependencies
 
@@ -39,11 +52,17 @@ implementation 'com.nimbusds:nimbus-jose-jwt:9.40'
 | Variable | Value |
 |---|---|
 | `AGENT365_TENANT_ID` | tenant GUID |
-| `AGENT365_CLIENT_ID` | blueprint app id — also the expected inbound audience |
+| `AGENT365_CLIENT_ID` | app/client id for the outbound single-tenant credential |
 | `AGENT365_CLIENT_SECRET` | blueprint client secret |
-| `AGENT365_AGENT_ID` | instance appId for telemetry; defaults to the client id |
+| `AGENT365_AUDIENCE` | registered inbound bot/endpoint audience; confirm it, do not assume it equals the client id |
+| `AGENT365_AGENT_ID` | instance appId for telemetry; required when export is enabled |
 | `PORT` | listen port, default 3978 |
 | `ENABLE_A365_OBSERVABILITY_EXPORTER` | `true` to export |
+
+These `AGENT365_*` names are adapter-specific, not keys that `a365 setup` automatically
+creates. Map the generated connection/identity configuration into process environment
+variables. Java does **not** load `.env` automatically; export them in the launching shell or
+configure them in the host's secret/configuration provider.
 
 ## TokenProvider
 
@@ -112,9 +131,12 @@ public final class TokenProvider {
         JsonNode body = mapper.readTree(response.body());
         String token = body.path("access_token").asText();
         long expiresIn = body.path("expires_in").asLong(3600);
+        if (token.isBlank() || expiresIn <= 0) {
+            throw new IllegalStateException("Token response has no usable access token or lifetime");
+        }
 
         // Refresh five minutes early so a token never expires mid-flight.
-        cache.put(scope, new Entry(token, Instant.now().plusSeconds(Math.max(60, expiresIn - 300))));
+        cache.put(scope, new Entry(token, Instant.now().plusSeconds(Math.max(0, expiresIn - 300))));
         return token;
     }
 
@@ -127,8 +149,9 @@ public final class TokenProvider {
 ## InboundTokenValidator
 
 Azure Bot Service signs every inbound activity. This checks RS256 against the Bot Framework
-JWKS, the audience against the blueprint app id, the issuer, and expiry with five minutes of
-leeway — the same acceptance rules the Microsoft SDKs apply.
+JWKS, the configured inbound audience, issuer, expiry and not-before with five minutes of
+leeway. After parsing the activity, it also binds its `serviceUrl` to the signed claim before
+any reply credential is sent.
 
 **This is the security boundary.** A tunnelled endpoint without it treats any request that
 reaches the URL as a genuine Teams turn.
@@ -143,24 +166,23 @@ import com.nimbusds.jose.proc.JWSVerificationKeySelector;
 import com.nimbusds.jose.proc.SecurityContext;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.proc.DefaultJWTProcessor;
+import com.nimbusds.jwt.proc.DefaultJWTClaimsVerifier;
 
+import java.net.URI;
 import java.net.URL;
-import java.util.Date;
 import java.util.Set;
 
 /**
  * Validates the bearer token Azure Bot Service puts on every inbound activity.
  *
- * Mirrors what the Microsoft SDKs enforce: RS256 against the Bot Framework JWKS,
- * audience equal to this agent's blueprint app id, and five minutes of clock
+ * Validates RS256 against the Bot Framework JWKS,
+ * the configured inbound audience, and five minutes of clock
  * leeway. Without this check the endpoint accepts anything that can reach it.
  */
 public final class InboundTokenValidator {
 
     private static final String JWKS_URL = "https://login.botframework.com/v1/.well-known/keys";
     private static final Set<String> ISSUERS = Set.of("https://api.botframework.com");
-    private static final long LEEWAY_SECONDS = 300;
-
     private final DefaultJWTProcessor<SecurityContext> processor;
     private final String expectedAudience;
 
@@ -169,6 +191,11 @@ public final class InboundTokenValidator {
         JWKSource<SecurityContext> keys = new RemoteJWKSet<>(new URL(JWKS_URL));
         DefaultJWTProcessor<SecurityContext> p = new DefaultJWTProcessor<>();
         p.setJWSKeySelector(new JWSVerificationKeySelector<>(JWSAlgorithm.RS256, keys));
+        DefaultJWTClaimsVerifier<SecurityContext> claimsVerifier = new DefaultJWTClaimsVerifier<>(
+                new JWTClaimsSet.Builder().issuer("https://api.botframework.com").build(),
+                Set.of("iss", "aud", "exp", "nbf"));
+        claimsVerifier.setMaxClockSkew(300);
+        p.setJWTClaimsSetVerifier(claimsVerifier);
         this.processor = p;
     }
 
@@ -190,11 +217,23 @@ public final class InboundTokenValidator {
         if (!ISSUERS.contains(claims.getIssuer())) {
             throw new SecurityException("Unexpected issuer: " + claims.getIssuer());
         }
-        Date expiry = claims.getExpirationTime();
-        if (expiry == null || expiry.toInstant().plusSeconds(LEEWAY_SECONDS).isBefore(java.time.Instant.now())) {
-            throw new SecurityException("Token expired");
-        }
         return claims;
+    }
+
+    public void validateServiceUrl(JWTClaimsSet claims, String serviceUrl) {
+        try {
+            String signedUrl = claims.getStringClaim("serviceurl");
+            if (signedUrl == null) signedUrl = claims.getStringClaim("serviceUrl");
+            URI target = URI.create(serviceUrl);
+            if (!"https".equalsIgnoreCase(target.getScheme()) || target.getHost() == null
+                    || target.getUserInfo() != null || target.getFragment() != null
+                    || target.getQuery() != null || signedUrl == null
+                    || !target.equals(URI.create(signedUrl))) {
+                throw new SecurityException("Activity serviceUrl does not match the signed HTTPS URL");
+            }
+        } catch (Exception e) {
+            throw new SecurityException("Invalid activity serviceUrl", e);
+        }
     }
 }
 ```
@@ -244,8 +283,8 @@ public final class ConnectorClient {
         String conversationId = inboundActivity.path("conversation").path("id").asText();
         String activityId = inboundActivity.path("id").asText();
 
-        if (serviceUrl.isEmpty() || conversationId.isEmpty()) {
-            throw new IllegalArgumentException("Activity has no serviceUrl or conversation id");
+        if (serviceUrl.isEmpty() || conversationId.isEmpty() || activityId.isEmpty()) {
+            throw new IllegalArgumentException("Reply requires serviceUrl, conversation id and activity id");
         }
         String base = serviceUrl.endsWith("/") ? serviceUrl : serviceUrl + "/";
         String url = base + "v3/conversations/" + enc(conversationId) + "/activities/" + enc(activityId);
@@ -274,7 +313,7 @@ public final class ConnectorClient {
     }
 
     private static String enc(String value) {
-        return URLEncoder.encode(value, StandardCharsets.UTF_8);
+        return URLEncoder.encode(value, StandardCharsets.UTF_8).replace("+", "%20");
     }
 }
 ```
@@ -290,6 +329,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
+import com.nimbusds.jwt.JWTClaimsSet;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -299,6 +339,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ExecutorService;
 
 /**
  * Minimal Agent 365 host: serves /api/messages, validates the inbound token,
@@ -307,7 +348,7 @@ import java.util.concurrent.Executors;
  * Register this endpoint on the blueprint with:
  *   a365 setup blueprint --update-endpoint https://<host>/api/messages --m365
  */
-public final class AgentHost {
+public final class AgentHost implements AutoCloseable {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
@@ -316,6 +357,8 @@ public final class AgentHost {
     private final ObservabilityExporter observability;
     private final boolean observabilityEnabled;
     private final int port;
+    private HttpServer server;
+    private ExecutorService executor;
 
     public AgentHost(int port, InboundTokenValidator validator, ConnectorClient connector,
                      ObservabilityExporter observability, boolean observabilityEnabled) {
@@ -327,22 +370,29 @@ public final class AgentHost {
     }
 
     public HttpServer start() throws IOException {
-        HttpServer server = HttpServer.create(new InetSocketAddress(port), 0);
+        if (server != null) throw new IllegalStateException("Host already started");
+        server = HttpServer.create(new InetSocketAddress(port), 0);
         server.createContext("/api/health", exchange -> respond(exchange, 200, "{\"status\":\"ok\"}"));
         server.createContext("/api/messages", this::handleMessage);
-        server.setExecutor(Executors.newFixedThreadPool(8));
+        executor = Executors.newFixedThreadPool(8);
+        server.setExecutor(executor);
         server.start();
         System.out.println("Agent listening on http://localhost:" + port + "/api/messages");
         return server;
     }
 
     private void handleMessage(HttpExchange exchange) throws IOException {
+        if (!"/api/messages".equals(exchange.getRequestURI().getPath())) {
+            respond(exchange, 404, "{\"error\":\"not found\"}");
+            return;
+        }
         if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
             respond(exchange, 405, "{\"error\":\"method not allowed\"}");
             return;
         }
+        JWTClaimsSet claims;
         try {
-            validator.validate(exchange.getRequestHeaders().getFirst("Authorization"));
+            claims = validator.validate(exchange.getRequestHeaders().getFirst("Authorization"));
         } catch (SecurityException e) {
             // Anonymous or forged requests must never reach the agent.
             respond(exchange, 401, "{\"error\":\"unauthorized\"}");
@@ -357,11 +407,14 @@ public final class AgentHost {
 
         try {
             JsonNode activity = MAPPER.readTree(body);
+            validator.validateServiceUrl(claims, activity.path("serviceUrl").asText());
             if ("message".equals(activity.path("type").asText())) {
                 String text = activity.path("text").asText("");
                 connector.reply(activity, answer(text));
             }
             respond(exchange, 200, "{}");
+        } catch (SecurityException e) {
+            respond(exchange, 401, "{\"error\":\"unauthorized\"}");
         } catch (Exception e) {
             System.err.println("Turn failed: " + e.getMessage());
             respond(exchange, 500, "{\"error\":\"internal error\"}");
@@ -370,6 +423,12 @@ public final class AgentHost {
                 exportTurnSpan(startNanos);
             }
         }
+    }
+
+    @Override
+    public void close() {
+        if (server != null) server.stop(1);
+        if (executor != null) executor.shutdownNow();
     }
 
     /** Replace with the actual agent call. */
@@ -406,22 +465,25 @@ public final class AgentHost {
         String tenantId = env("AGENT365_TENANT_ID");
         String clientId = env("AGENT365_CLIENT_ID");
         String clientSecret = env("AGENT365_CLIENT_SECRET");
-        String agentId = System.getenv().getOrDefault("AGENT365_AGENT_ID", clientId);
+        String audience = env("AGENT365_AUDIENCE");
         int port = Integer.parseInt(System.getenv().getOrDefault("PORT", "3978"));
         boolean exporterOn = "true".equalsIgnoreCase(
                 System.getenv().getOrDefault("ENABLE_A365_OBSERVABILITY_EXPORTER", "false"));
+        String agentId = exporterOn ? env("AGENT365_AGENT_ID") : "";
 
         TokenProvider tokens = new TokenProvider(tenantId, clientId, clientSecret);
         ObservabilityExporter exporter = new ObservabilityExporter(
-                tenantId, agentId, false, tokens,
+                tenantId, agentId, true, tokens,
                 "api://9b975845-388f-4429-889e-eab1ef63949c/.default");
 
         if (!exporterOn) {
             System.out.println("Observability instrumented but disabled: "
                     + "set ENABLE_A365_OBSERVABILITY_EXPORTER=true to export.");
         }
-        new AgentHost(port, new InboundTokenValidator(clientId),
-                new ConnectorClient(tokens), exporter, exporterOn).start();
+        AgentHost host = new AgentHost(port, new InboundTokenValidator(audience),
+                new ConnectorClient(tokens), exporter, exporterOn);
+        Runtime.getRuntime().addShutdownHook(new Thread(host::close));
+        host.start();
         Thread.currentThread().join();
     }
 
@@ -434,3 +496,13 @@ public final class AgentHost {
     }
 }
 ```
+
+The `TokenProvider` uses client credentials, so `main` selects the **S2S**
+`/observabilityService` exporter route. A delegated exporter needs an actual OBO token
+provider, not just changing that boolean. Closing `HttpServer` alone does not terminate
+the custom executor; the shutdown hook closes both.
+
+API evidence: [Bot Connector authentication](https://learn.microsoft.com/en-us/azure/bot-service/rest-api/bot-framework-rest-connector-authentication)
+requires validity-period and signed service-URL checks. Offline syntax/contract checks do
+not establish successful Teams delivery, Connector replies, endorsement handling or live
+telemetry export.

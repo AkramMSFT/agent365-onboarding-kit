@@ -45,6 +45,8 @@
     or an HTTPS URL. Without it the source is resolved, in order, from the environment
     variable A365_KIT_UPDATE_SOURCE, this project's a365-kit.config.json, the default baked
     into the kit at build time, and finally the public GitHub release.
+    Relative paths saved in project config or the build manifest resolve from the project;
+    one-off and environment overrides resolve from the caller's working directory.
 
 .PARAMETER SetUpdateSource
     Persist an update source for this project in a365-kit.config.json (commit it so the whole
@@ -107,15 +109,19 @@ function Get-UpdateSource {
     if ($env:A365_KIT_UPDATE_SOURCE) { return @{ Value = $env:A365_KIT_UPDATE_SOURCE; Origin = 'A365_KIT_UPDATE_SOURCE' } }
     if (Test-Path -LiteralPath $KitConfigPath) {
         try {
-            $c = Get-Content -LiteralPath $KitConfigPath -Raw | ConvertFrom-Json
-            if ($c.updateSource) { return @{ Value = [string]$c.updateSource; Origin = 'a365-kit.config.json' } }
+            $c = Get-Content -LiteralPath $KitConfigPath -Raw | ConvertFrom-Json -NoEnumerate
+            if ($c -is [pscustomobject] -and $c.updateSource -is [string] -and -not [string]::IsNullOrWhiteSpace($c.updateSource)) {
+                return @{ Value = $c.updateSource; Origin = 'a365-kit.config.json' }
+            }
         } catch { Write-Warn "a365-kit.config.json is not valid JSON -- ignoring it" }
     }
     $m = Join-Path $KitRoot '.a365-kit\KIT-VERSION.json'
     if (Test-Path -LiteralPath $m) {
         try {
-            $mv = (Get-Content -LiteralPath $m -Raw | ConvertFrom-Json).updateSource
-            if ($mv) { return @{ Value = [string]$mv; Origin = 'kit build default' } }
+            $mv = Get-Content -LiteralPath $m -Raw | ConvertFrom-Json -NoEnumerate
+            if ($mv -is [pscustomobject] -and $mv.updateSource -is [string] -and -not [string]::IsNullOrWhiteSpace($mv.updateSource)) {
+                return @{ Value = $mv.updateSource; Origin = 'kit build default' }
+            }
         } catch { }
     }
     return @{ Value = $PublicSource; Origin = 'public GitHub release' }
@@ -125,16 +131,19 @@ if ($PSBoundParameters.ContainsKey('SetUpdateSource')) {
     Write-Head 'Kit update source'
     $cfg = @{}
     if (Test-Path -LiteralPath $KitConfigPath) {
-        try { $cfg = Get-Content -LiteralPath $KitConfigPath -Raw | ConvertFrom-Json -AsHashtable } catch { $cfg = @{} }
+        $cfg = Get-Content -LiteralPath $KitConfigPath -Raw | ConvertFrom-Json -AsHashtable -NoEnumerate
+        if ($cfg -isnot [System.Collections.IDictionary]) {
+            throw 'a365-kit.config.json must contain a JSON object; it was not changed.'
+        }
     }
     if ([string]::IsNullOrWhiteSpace($SetUpdateSource)) {
-        $cfg.Remove('updateSource')
+        $null = $cfg.Remove('updateSource')
         Write-Ok 'Cleared the project update source.'
     } else {
         $cfg['updateSource'] = $SetUpdateSource
         Write-Ok "Project update source set to: $SetUpdateSource"
     }
-    ($cfg | ConvertTo-Json) | Set-Content -LiteralPath $KitConfigPath -Encoding UTF8
+    ($cfg | ConvertTo-Json -Depth 100 -WarningAction Stop) | Set-Content -LiteralPath $KitConfigPath -Encoding UTF8
     Write-Note 'Written to a365-kit.config.json -- commit it so your whole team updates from the same place.'
     $r = Get-UpdateSource
     Write-Note "-Update will now use: $($r.Value)  [$($r.Origin)]"
@@ -152,56 +161,138 @@ if ($Update) {
     $resolved = Get-UpdateSource
     $UpdateFrom = $resolved.Value
     Write-Note "Source  : $UpdateFrom  [$($resolved.Origin)]"
-    $stage = Join-Path ([IO.Path]::GetTempPath()) ("a365-kit-update-" + [Guid]::NewGuid().ToString('N').Substring(0, 8))
-    New-Item -ItemType Directory -Force -Path $stage | Out-Null
+    if ($resolved.Origin -in @('a365-kit.config.json', 'kit build default') -and
+        $UpdateFrom -notmatch '^https?://' -and -not [IO.Path]::IsPathRooted($UpdateFrom)) {
+        $UpdateFrom = Join-Path $KitRoot $UpdateFrom
+    }
+
+    function Read-KitManifest([string] $Path) {
+        $data = Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json -AsHashtable -NoEnumerate
+        if ($data -isnot [System.Collections.IDictionary]) { throw "Invalid kit manifest: $Path" }
+        foreach ($field in @('kitVersion', 'upstreamVersion', 'upstreamCommit')) {
+            if ($data[$field] -isnot [string] -or [string]::IsNullOrWhiteSpace($data[$field])) {
+                throw "Invalid $field in kit manifest: $Path"
+            }
+        }
+        $seen = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+        foreach ($field in @('skills', 'addons')) {
+            if ($data[$field] -isnot [array]) { throw "Invalid $field array in kit manifest: $Path" }
+            foreach ($name in $data[$field]) {
+                if ($name -isnot [string] -or $name -cnotmatch '^[a-z0-9][a-z0-9_-]*$' -or -not $seen.Add($name)) {
+                    throw "Invalid or duplicate skill name in kit manifest: $Path"
+                }
+            }
+        }
+        if ($data.skills -cnotcontains 'a365-setup') { throw "Kit manifest is missing a365-setup: $Path" }
+        return $data
+    }
+
+    function Assert-UpdatePath([string] $Relative, [switch] $Directory) {
+        $item = Get-Item -LiteralPath (Join-Path $KitRoot $Relative) -Force -ErrorAction SilentlyContinue
+        if ($item -and ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+            throw "Refusing to replace a linked project path: $Relative"
+        }
+        if ($item -and $Directory -and -not $item.PSIsContainer) {
+            throw "Expected a project directory: $Relative"
+        }
+    }
+
+    $stage = Join-Path $KitRoot ('.a365-kit-update-' + [Guid]::NewGuid().ToString('N'))
+    New-Item -ItemType Directory -Path $stage | Out-Null
     $zip = Join-Path $stage 'kit.zip'
+    $backedUp = [Collections.Generic.List[string]]::new()
+    $installed = [Collections.Generic.List[string]]::new()
+    $keepBackup = $false
     try {
         if ($UpdateFrom -match '^https?://') {
             Write-Note "Downloading $UpdateFrom"
             Invoke-WebRequest -Uri $UpdateFrom -OutFile $zip -UseBasicParsing
         } else {
-            if (-not (Test-Path -LiteralPath $UpdateFrom)) { Write-Err "Not found: $UpdateFrom"; exit 1 }
+            if (-not (Test-Path -LiteralPath $UpdateFrom -PathType Leaf)) { throw "Not found: $UpdateFrom" }
             Copy-Item -LiteralPath $UpdateFrom -Destination $zip
         }
+        # Check archive paths before extraction, and completeness before moving any installed file.
+        $archive = [IO.Compression.ZipFile]::OpenRead($zip)
+        try {
+            $entries = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+            foreach ($entry in $archive.Entries) {
+                $name = $entry.FullName.Replace('\', '/').TrimEnd('/')
+                if (-not $name -or $name.StartsWith('/') -or $name.Contains(':') -or
+                    ($name.Split('/') | Where-Object { $_ -in @('', '.', '..') }) -or
+                    -not $entries.Add($name) -or
+                    (($entry.ExternalAttributes -shr 16) -band 0xf000) -eq 0xa000) {
+                    throw "Unsafe or duplicate archive path: $($entry.FullName)"
+                }
+            }
+        } finally { $archive.Dispose() }
         $new = Join-Path $stage 'new'
-        Expand-Archive -Path $zip -DestinationPath $new -Force
+        Expand-Archive -LiteralPath $zip -DestinationPath $new -Force
+        foreach ($item in Get-ChildItem -LiteralPath $new -Recurse -Force) {
+            if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw "Linked archive entry: $($item.FullName)" }
+        }
         $manifestPath = Join-Path $new '.a365-kit\KIT-VERSION.json'
-        if (-not (Test-Path -LiteralPath $manifestPath)) { Write-Err 'That archive is not an Agent 365 Onboarding Kit (no .a365-kit\KIT-VERSION.json).'; exit 1 }
-        $newManifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+        $newManifest = Read-KitManifest $manifestPath
         $oldManifestPath = Join-Path $KitRoot '.a365-kit\KIT-VERSION.json'
+        Assert-UpdatePath '.a365-kit'
+        Assert-UpdatePath '.a365-kit\KIT-VERSION.json'
+        $oldNames = @()
         $oldDesc = if (Test-Path -LiteralPath $oldManifestPath) {
-            $o = Get-Content -LiteralPath $oldManifestPath -Raw | ConvertFrom-Json
+            $o = Read-KitManifest $oldManifestPath
+            $oldNames = @($o.skills) + @($o.addons)
             "kit v$($o.kitVersion) / upstream v$($o.upstreamVersion) ($($o.upstreamCommit))"
         } else { 'no kit installed' }
         Write-Note "Current : $oldDesc"
         Write-Note "New     : kit v$($newManifest.kitVersion) / upstream v$($newManifest.upstreamVersion) ($($newManifest.upstreamCommit))"
 
-        $skillNames = @($newManifest.skills) + @($newManifest.addons)
-        if (Test-Path -LiteralPath $oldManifestPath) {
-            $o = Get-Content -LiteralPath $oldManifestPath -Raw | ConvertFrom-Json
-            $skillNames += @($o.skills) + @($o.addons)      # remove anything the new kit dropped
-        }
-        $skillNames = $skillNames | Where-Object { $_ } | Sort-Object -Unique
-
-        # 1. canonical folder
-        $dst = Join-Path $KitRoot '.a365-kit'
-        if (Test-Path -LiteralPath $dst) { Remove-Item -LiteralPath $dst -Recurse -Force }
-        Copy-Item -LiteralPath (Join-Path $new '.a365-kit') -Destination $dst -Recurse
-        # 2. discovery copies -- only the kit's own skill folders
-        foreach ($disc in @('.claude\skills', '.agents\skills')) {
-            $target = Join-Path $KitRoot $disc
-            New-Item -ItemType Directory -Force -Path $target | Out-Null
-            foreach ($name in $skillNames) {
-                $old = Join-Path $target $name
-                if (Test-Path -LiteralPath $old) { Remove-Item -LiteralPath $old -Recurse -Force }
-                $src = Join-Path (Join-Path $new $disc) $name
-                if (Test-Path -LiteralPath $src) { Copy-Item -LiteralPath $src -Destination $old -Recurse }
+        $newNames = @($newManifest.skills) + @($newManifest.addons)
+        $skillNames = @($newNames + $oldNames | Sort-Object -Unique)
+        $files = @('agent365-kit.ps1', 'agent365-kit.sh', 'AGENT365-KIT-README.md')
+        $required = $files + @('.a365-kit\doctor.js', '.a365-kit\kit-version.js',
+            '.a365-kit\settings-fragment.json', '.a365-kit\copilot-instructions.md')
+        foreach ($kind in @('skills', 'addons')) {
+            foreach ($name in $newManifest[$kind]) {
+                $required += ".a365-kit\$kind\$name\SKILL.md", ".claude\skills\$name\SKILL.md", ".agents\skills\$name\SKILL.md"
             }
         }
-        # 3. launchers + kit README
-        foreach ($f in @('agent365-kit.ps1', 'agent365-kit.sh', 'AGENT365-KIT-README.md')) {
-            $src = Join-Path $new $f
-            if (Test-Path -LiteralPath $src) { Copy-Item -LiteralPath $src -Destination (Join-Path $KitRoot $f) -Force }
+        foreach ($relative in $required) {
+            $file = Join-Path $new $relative
+            if (-not (Test-Path -LiteralPath $file -PathType Leaf) -or (Get-Item -LiteralPath $file -Force).Length -eq 0) {
+                throw "Incomplete kit archive: missing or empty $relative"
+            }
+        }
+
+        $operations = @(@{ Relative = '.a365-kit'; Install = $true })
+        foreach ($parent in @('.claude', '.agents')) {
+            $disc = "$parent\skills"
+            Assert-UpdatePath $parent -Directory
+            Assert-UpdatePath $disc -Directory
+            foreach ($name in $skillNames) {
+                $relative = "$disc\$name"
+                Assert-UpdatePath $relative
+                if ($name -notin $oldNames -and (Test-Path -LiteralPath (Join-Path $KitRoot $relative))) {
+                    throw "A new kit skill conflicts with a project-owned skill: $relative"
+                }
+                $operations += @{ Relative = $relative; Install = $name -in $newNames }
+            }
+        }
+        foreach ($file in $files) {
+            Assert-UpdatePath $file
+            $operations += @{ Relative = $file; Install = $true }
+        }
+        foreach ($operation in $operations) {
+            $relative = $operation.Relative
+            $dst = Join-Path $KitRoot $relative
+            if (Test-Path -LiteralPath $dst) {
+                $backup = Join-Path (Join-Path $stage 'backup') $relative
+                New-Item -ItemType Directory -Force -Path (Split-Path -Parent $backup) | Out-Null
+                Move-Item -LiteralPath $dst -Destination $backup
+                $backedUp.Add($relative)
+            }
+            if ($operation.Install) {
+                New-Item -ItemType Directory -Force -Path (Split-Path -Parent $dst) | Out-Null
+                $installed.Add($relative)
+                Move-Item -LiteralPath (Join-Path $new $relative) -Destination $dst
+            }
         }
         Write-Ok "Kit updated to v$($newManifest.kitVersion) (upstream v$($newManifest.upstreamVersion), $($newManifest.upstreamCommit))"
         Write-Note 'Your agent files, .env, a365 config and .claude\settings.json were not touched.'
@@ -209,8 +300,28 @@ if ($Update) {
         Write-Host ''
         exit 0
     }
+    catch {
+        $failure = $_
+        for ($i = $installed.Count - 1; $i -ge 0; $i--) {
+            try {
+                $dst = Join-Path $KitRoot $installed[$i]
+                if (Test-Path -LiteralPath $dst) { Remove-Item -LiteralPath $dst -Recurse -Force }
+            }
+            catch { $keepBackup = $true }
+        }
+        for ($i = $backedUp.Count - 1; $i -ge 0; $i--) {
+            $relative = $backedUp[$i]
+            try {
+                $dst = Join-Path $KitRoot $relative
+                if (Test-Path -LiteralPath $dst) { throw "Rollback destination still exists: $dst" }
+                Move-Item -LiteralPath (Join-Path (Join-Path $stage 'backup') $relative) -Destination $dst
+            } catch { $keepBackup = $true }
+        }
+        if ($keepBackup) { Write-Err "Rollback was incomplete; the original files remain under $stage\backup." }
+        throw $failure
+    }
     finally {
-        Remove-Item -LiteralPath $stage -Recurse -Force -ErrorAction SilentlyContinue
+        if (-not $keepBackup) { Remove-Item -LiteralPath $stage -Recurse -Force -ErrorAction SilentlyContinue }
     }
 }
 
@@ -234,9 +345,9 @@ if (-not (Test-Path -LiteralPath $Canonical)) {
     exit 1
 }
 
-$SkillCount = (Get-ChildItem -Path (Join-Path $KitRoot '.a365-kit\skills') -Directory).Count
+$SkillCount = @(Get-ChildItem -LiteralPath (Join-Path $KitRoot '.a365-kit\skills') -Directory).Count
 $AddonPath  = Join-Path $KitRoot '.a365-kit\addons'
-$AddonNames = @(if (Test-Path -LiteralPath $AddonPath) { (Get-ChildItem -Path $AddonPath -Directory).Name })
+$AddonNames = @(if (Test-Path -LiteralPath $AddonPath) { (Get-ChildItem -LiteralPath $AddonPath -Directory).Name })
 Write-Host ''
 Write-Ok "Kit layout looks correct ($($SkillCount + $AddonNames.Count) skills: $SkillCount Microsoft, $($AddonNames.Count) add-ons)"
 
@@ -250,9 +361,13 @@ if ((Get-Location).Path -ne $KitRoot) {
 # the per-user PATH entries are usually absent, so these tools look "not installed"
 # when they are simply not on the Administrator PATH.
 
-$identity  = [Security.Principal.WindowsIdentity]::GetCurrent()
-$principal = New-Object Security.Principal.WindowsPrincipal($identity)
-if ($principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+$isElevated = $false
+if ($IsWindows) {
+    $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+    $principal = [Security.Principal.WindowsPrincipal]::new($identity)
+    $isElevated = $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+}
+if ($isElevated) {
     Write-Host ''
     Write-Warn 'This is an ELEVATED (Administrator) PowerShell session.'
     Write-Host ''
@@ -310,22 +425,30 @@ if ($WireCopilot) {
     $dstDir = Join-Path $KitRoot '.github'
     $dst = Join-Path $dstDir 'copilot-instructions.md'
 
-    if (-not (Test-Path -LiteralPath $src)) {
+    if (-not (Test-Path -LiteralPath $src -PathType Leaf)) {
         Write-Err 'Missing .a365-kit\copilot-instructions.md -- kit may be incomplete.'
+        exit 1
     }
     else {
+        $instructions = Get-Content -LiteralPath $src -Raw
+        if ([string]::IsNullOrWhiteSpace($instructions)) { throw 'The kit Copilot instructions are empty.' }
+        $marker = '<!-- agent365-kit:copilot-instructions -->'
+        $existing = if (Test-Path -LiteralPath $dst) { [string](Get-Content -LiteralPath $dst -Raw) } else { '' }
+        $alreadyWired = $existing.Contains($marker) -or
+            $existing.Replace("`r`n", "`n").Contains($instructions.Replace("`r`n", "`n").TrimEnd())
+        $block = "$marker`n$instructions"
         New-Item -ItemType Directory -Force -Path $dstDir | Out-Null
         if (-not (Test-Path -LiteralPath $dst)) {
-            Copy-Item -LiteralPath $src -Destination $dst
+            Set-Content -LiteralPath $dst -Value $block -Encoding UTF8
             Write-Ok 'Created .github\copilot-instructions.md'
         }
-        elseif ((Get-Content -LiteralPath $dst -Raw) -match 'Agent 365 Skills') {
-            Write-Ok 'Already wired -- .github\copilot-instructions.md mentions Agent 365.'
+        elseif ($alreadyWired) {
+            Write-Ok 'Already wired -- .github\copilot-instructions.md contains the kit instructions.'
         }
         else {
             # Append rather than overwrite: this file is commonly project-owned.
             Add-Content -LiteralPath $dst -Value "`n`n---`n"
-            Add-Content -LiteralPath $dst -Value (Get-Content -LiteralPath $src -Raw)
+            Add-Content -LiteralPath $dst -Value $block
             Write-Ok 'Appended Agent 365 instructions to your existing .github\copilot-instructions.md'
         }
     }
@@ -336,6 +459,9 @@ if ($WireClaudeHook) {
     $fragment = Join-Path $KitRoot '.a365-kit\settings-fragment.json'
     $settings = Join-Path $KitRoot '.claude\settings.json'
     if (Test-Path -LiteralPath $settings) {
+        if (-not (Test-Path -LiteralPath $settings -PathType Leaf)) {
+            throw '.claude\settings.json exists but is not a file; it was not changed.'
+        }
         Write-Warn 'This project already has .claude\settings.json -- leaving it untouched.'
         Write-Note 'Merge the "hooks" block from .a365-kit\settings-fragment.json by hand.'
     }
@@ -364,26 +490,21 @@ $hasGh     = [bool](Get-Command gh     -ErrorAction SilentlyContinue)
 $hasCode   = [bool](Get-Command code   -ErrorAction SilentlyContinue)
 
 # `gh skill` and `gh copilot` are built into gh 2.98+, not extensions, and neither
-# supports --version: `gh skill --version` errors with "unknown flag", and
-# `gh copilot --version` reports on the *downloaded Copilot CLI*, not on gh itself.
-# Probe --help for availability, and --version only to tell whether the Copilot CLI
-# binary is actually present.
+# supports a read-only --version probe: `gh skill --version` errors, while
+# `gh copilot --version` can download the Copilot CLI. Use gh's own --help only.
 $hasGhSkill    = $false   # gh can install agent skills
 $hasGhCopilotL = $false   # gh can launch the Copilot CLI (downloads on first use)
 if ($hasGh) {
     $hasGhSkill    = Test-Cli 'gh' @('skill', '--help')
     $hasGhCopilotL = Test-Cli 'gh' @('copilot', '--help')
 }
-# The agentic Copilot CLI itself, either standalone on PATH or already downloaded by gh.
+# A standalone CLI is detectable without launching or downloading anything.
 $hasCopilotCli = [bool](Get-Command copilot -ErrorAction SilentlyContinue)
-if (-not $hasCopilotCli -and $hasGhCopilotL) {
-    $hasCopilotCli = Test-Cli 'gh' @('copilot', '--version')
-}
 
 Write-Head 'Detected CLIs'
 if ($hasClaude)     { Write-Ok 'Claude Code' }               else { Write-Note '  --   Claude Code (not installed)' }
 if ($hasCopilotCli) { Write-Ok 'GitHub Copilot CLI' }
-elseif ($hasGhCopilotL) { Write-Note '  ~    GitHub Copilot CLI (not installed; gh will fetch it on first use)' }
+elseif ($hasGhCopilotL) { Write-Note '  ~    GitHub Copilot CLI (available through gh copilot; resolved on first launch)' }
 else                { Write-Note '  --   GitHub Copilot CLI (not available)' }
 if ($hasGhSkill)    { Write-Ok 'gh skill (agent-skill installer)' } else { Write-Note '  --   gh skill (needs gh 2.98+)' }
 if ($hasCode)       { Write-Ok 'VS Code' }                   else { Write-Note '  --   VS Code (not installed)' }
@@ -469,6 +590,9 @@ if ($AddonNames.Count -gt 0) {
 Write-Host '  ---' -ForegroundColor DarkGray
 Write-Note 'a365-setup is the entry point. It checks prerequisites, asks which capabilities'
 Write-Note 'you want, then hands off to make-ai-teammate or make-a365-agent.'
+Write-Note 'For consent-aware setup, keep your approved options and use:'
+Write-Cmd 'node .\.a365-kit\run-a365.mjs setup <subcommand> [options]'
+Write-Note 'If maven-prod OtelWrite needs admin consent, follow the access-package handoff and wait for Delivered.'
 Write-Host ''
 
 # -- 6. Optional launch -------------------------------------------------------
@@ -485,3 +609,5 @@ if ($Launch -eq 'claude') {
     & claude $TRIGGER
     exit $LASTEXITCODE
 }
+
+exit 0

@@ -127,12 +127,12 @@ public final class ObservabilityExporter {
     public Map<String, Object> span(String name, String operationName, String traceId, String spanId,
                                     long startUnixNano, long endUnixNano, Map<String, Object> extraAttributes) {
         Map<String, Object> attributes = new LinkedHashMap<>();
-        attributes.put("gen_ai.operation.name", operationName);
-        attributes.put("microsoft.tenant.id", tenantId);
-        attributes.put("gen_ai.agent.id", agentId);
         if (extraAttributes != null) {
             attributes.putAll(extraAttributes);
         }
+        attributes.put("gen_ai.operation.name", operationName);
+        attributes.put("microsoft.tenant.id", tenantId);
+        attributes.put("gen_ai.agent.id", agentId);
         Map<String, Object> span = new LinkedHashMap<>();
         span.put("traceId", traceId);
         span.put("spanId", spanId);
@@ -176,7 +176,7 @@ public final class ObservabilityExporter {
             if (response.statusCode() / 100 == 2) {
                 return true;
             }
-            System.err.println("[observability] HTTP " + response.statusCode() + " " + response.body());
+            System.err.println("[observability] HTTP " + response.statusCode());
             return false;
         } catch (Exception e) {
             System.err.println("[observability] export failed: " + e.getMessage());

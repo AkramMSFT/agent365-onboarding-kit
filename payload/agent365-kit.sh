@@ -11,6 +11,7 @@
 #   ./agent365-kit.sh --doctor-only   check prerequisites and stop
 #   ./agent365-kit.sh --skip-doctor   skip the prerequisite check
 #   ./agent365-kit.sh --wire-copilot  create/append .github/copilot-instructions.md
+#   ./agent365-kit.sh --wire-claude-hook  add the optional notice without replacing settings
 #   ./agent365-kit.sh --launch claude launch Claude Code with the trigger phrase
 #   ./agent365-kit.sh --update        replace the kit with the latest release (kit paths only)
 #   ./agent365-kit.sh --update --update-from <zip|url>   ...one-off, from a local zip or another URL
@@ -18,6 +19,7 @@
 #                                     (a365-kit.config.json; commit it). Empty string clears it.
 #   Source resolution: --update-from > $A365_KIT_UPDATE_SOURCE > a365-kit.config.json
 #                      > build default in .a365-kit/KIT-VERSION.json > public GitHub release
+#   Saved relative paths resolve from the project; one-off/environment paths use the caller's cwd.
 
 set -euo pipefail
 
@@ -43,11 +45,17 @@ while [ $# -gt 0 ]; do
     --skip-doctor)        SKIP_DOCTOR=1 ;;
     --wire-copilot)       WIRE_COPILOT=1 ;;
     --wire-claude-hook)   WIRE_CLAUDE_HOOK=1 ;;
-    --launch)             shift; LAUNCH="${1:-}" ;;
+    --launch)
+      [ $# -ge 2 ] && [ "$2" = 'claude' ] || { echo 'Usage: --launch claude' >&2; exit 2; }
+      shift; LAUNCH="$1" ;;
     --update)             UPDATE=1 ;;
-    --update-from)        shift; UPDATE_FROM="${1:-}" ;;
-    --set-update-source)  shift; SET_UPDATE_SOURCE="${1:-}"; SET_UPDATE_SOURCE_GIVEN=1 ;;
-    -h|--help)            sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    --update-from|--set-update-source)
+      OPTION="$1"
+      [ $# -ge 2 ] && [[ "$2" != --* ]] || { echo "$OPTION requires a value (use \"\" to clear a saved source)." >&2; exit 2; }
+      shift
+      if [ "$OPTION" = '--update-from' ]; then UPDATE_FROM="$1"
+      else SET_UPDATE_SOURCE="$1"; SET_UPDATE_SOURCE_GIVEN=1; fi ;;
+    -h|--help)            sed -n '2,/^$/p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) echo "Unknown option: $1" >&2; exit 2 ;;
   esac
   shift
@@ -56,29 +64,45 @@ done
 # -- Update source ------------------------------------------------------------
 # Resolved so an organisation that mirrors the kit internally can pin it once.
 resolve_update_source() {
-  if [ -n "$UPDATE_FROM" ]; then echo "$UPDATE_FROM|--update-from"; return; fi
-  if [ -n "${A365_KIT_UPDATE_SOURCE:-}" ]; then echo "$A365_KIT_UPDATE_SOURCE|A365_KIT_UPDATE_SOURCE"; return; fi
+  local v
+  if [ -n "$UPDATE_FROM" ]; then RESOLVED_SOURCE="$UPDATE_FROM"; SOURCE_ORIGIN='--update-from'; return; fi
+  if [ -n "${A365_KIT_UPDATE_SOURCE:-}" ]; then RESOLVED_SOURCE="$A365_KIT_UPDATE_SOURCE"; SOURCE_ORIGIN='A365_KIT_UPDATE_SOURCE'; return; fi
   if [ -f "$KIT_CONFIG" ] && command -v node >/dev/null 2>&1; then
-    v="$(node -e 'try{const c=require(process.argv[1]);process.stdout.write(c.updateSource||"")}catch(e){}' "$KIT_CONFIG")"
-    if [ -n "$v" ]; then echo "$v|a365-kit.config.json"; return; fi
+    v="$(read_update_source "$KIT_CONFIG")"
+    if [ -n "$v" ]; then RESOLVED_SOURCE="$v"; SOURCE_ORIGIN='a365-kit.config.json'; return; fi
   fi
   if [ -f "$KIT_ROOT/.a365-kit/KIT-VERSION.json" ] && command -v node >/dev/null 2>&1; then
-    v="$(node -e 'try{const c=require(process.argv[1]);process.stdout.write(c.updateSource||"")}catch(e){}' "$KIT_ROOT/.a365-kit/KIT-VERSION.json")"
-    if [ -n "$v" ]; then echo "$v|kit build default"; return; fi
+    v="$(read_update_source "$KIT_ROOT/.a365-kit/KIT-VERSION.json")"
+    if [ -n "$v" ]; then RESOLVED_SOURCE="$v"; SOURCE_ORIGIN='kit build default'; return; fi
   fi
-  echo "$PUBLIC_SOURCE|public GitHub release"
+  RESOLVED_SOURCE="$PUBLIC_SOURCE"; SOURCE_ORIGIN='public GitHub release'
+}
+
+read_update_source() {
+  node -e '
+    try {
+      const c=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8").replace(/^\uFEFF/,""));
+      if(c && typeof c.updateSource==="string" && c.updateSource.trim()) process.stdout.write(c.updateSource);
+    } catch {}' "$1"
+}
+
+is_http_source() {
+  [[ "$1" =~ ^[Hh][Tt][Tt][Pp][Ss]?:// ]]
 }
 
 if [ "$SET_UPDATE_SOURCE_GIVEN" -eq 1 ]; then
   command -v node >/dev/null 2>&1 || { echo "  node is required (it is a kit prerequisite)" >&2; exit 1; }
   node -e '
     const fs=require("fs"); const p=process.argv[1]; const v=process.argv[2];
-    let c={}; try{ c=JSON.parse(fs.readFileSync(p,"utf8")); }catch(e){}
-    if (v.trim()==="") delete c.updateSource; else c.updateSource=v;
-    fs.writeFileSync(p, JSON.stringify(c,null,2)+"\n");' "$KIT_CONFIG" "$SET_UPDATE_SOURCE"
-  if [ -z "${SET_UPDATE_SOURCE// }" ]; then echo "  cleared the project update source."; else echo "  project update source set to: $SET_UPDATE_SOURCE"; fi
+    try {
+      const c=fs.existsSync(p) ? JSON.parse(fs.readFileSync(p,"utf8").replace(/^\uFEFF/,"")) : {};
+      if (!c || typeof c!=="object" || Array.isArray(c)) throw new Error("a365-kit.config.json must contain a JSON object; it was not changed.");
+      if (v.trim()==="") delete c.updateSource; else c.updateSource=v;
+      fs.writeFileSync(p, JSON.stringify(c,null,2)+"\n");
+    } catch(e) { console.error(e.message); process.exit(1); }' "$KIT_CONFIG" "$SET_UPDATE_SOURCE"
+  if [ -z "${SET_UPDATE_SOURCE//[[:space:]]/}" ]; then echo "  cleared the project update source."; else echo "  project update source set to: $SET_UPDATE_SOURCE"; fi
   echo "  written to a365-kit.config.json -- commit it so your whole team updates from the same place."
-  r="$(resolve_update_source)"; echo "  --update will now use: ${r%%|*}  [${r##*|}]"
+  resolve_update_source; echo "  --update will now use: $RESOLVED_SOURCE  [$SOURCE_ORIGIN]"
   exit 0
 fi
 
@@ -92,38 +116,184 @@ if [ "$UPDATE" -eq 1 ]; then
   # one JSON reader we can rely on. python3 is deliberately NOT used: on Windows it
   # often resolves to the Store alias stub, which prints an error and returns nothing.
   command -v node >/dev/null 2>&1 || { echo "  node is required to read the kit manifest (it is a kit prerequisite)" >&2; exit 1; }
-  r="$(resolve_update_source)"; UPDATE_FROM="${r%%|*}"
-  echo "  source  : $UPDATE_FROM  [${r##*|}]"
-  STAGE="$(mktemp -d)"
-  trap 'rm -rf "$STAGE"' EXIT
+  resolve_update_source; UPDATE_FROM="$RESOLVED_SOURCE"
+  echo "  source  : $UPDATE_FROM  [$SOURCE_ORIGIN]"
+  if [[ "$SOURCE_ORIGIN" == 'a365-kit.config.json' || "$SOURCE_ORIGIN" == 'kit build default' ]] && ! is_http_source "$UPDATE_FROM"; then
+    case "$UPDATE_FROM" in
+      /*|[A-Za-z]:[\\/]*|\\\\*) ;;
+      *) UPDATE_FROM="$KIT_ROOT/$UPDATE_FROM" ;;
+    esac
+  fi
+  STAGE="$(node -e 'const fs=require("fs"),p=require("path");console.log(fs.mkdtempSync(p.join(process.argv[1],".a365-kit-update-")).split(p.sep).join("/"))' "$KIT_ROOT")"
+  BACKED_UP=(); INSTALLED=(); UPDATE_DONE=0
+  cleanup_update() {
+    local status=$? failed=0 i relative
+    trap - EXIT
+    set +e
+    if [ "$UPDATE_DONE" -eq 0 ]; then
+      for ((i=${#INSTALLED[@]}-1; i>=0; i--)); do
+        rm -rf "$KIT_ROOT/${INSTALLED[$i]}" || failed=1
+      done
+      for ((i=${#BACKED_UP[@]}-1; i>=0; i--)); do
+        relative="${BACKED_UP[$i]}"
+        if [ -e "$KIT_ROOT/$relative" ] || [ -L "$KIT_ROOT/$relative" ]; then
+          echo "  Rollback destination still exists: $KIT_ROOT/$relative" >&2
+          failed=1
+        else
+          mv "$STAGE/backup/$relative" "$KIT_ROOT/$relative" || failed=1
+        fi
+      done
+    fi
+    if [ "$failed" -eq 1 ]; then
+      echo "  Rollback was incomplete; original files remain under $STAGE/backup." >&2
+      status=1
+    else
+      rm -rf "$STAGE" || status=1
+    fi
+    exit "$status"
+  }
+  trap cleanup_update EXIT
   ZIP="$STAGE/kit.zip"
-  case "$UPDATE_FROM" in
-    http://*|https://*) echo "  downloading $UPDATE_FROM"; curl -fsSL -o "$ZIP" "$UPDATE_FROM" ;;
-    *) [ -f "$UPDATE_FROM" ] || { echo "  not found: $UPDATE_FROM" >&2; exit 1; }; cp "$UPDATE_FROM" "$ZIP" ;;
-  esac
+  if is_http_source "$UPDATE_FROM"; then
+    echo "  downloading $UPDATE_FROM"
+    curl -fsSL -o "$ZIP" "$UPDATE_FROM"
+  else
+    [ -f "$UPDATE_FROM" ] || { echo "  not found: $UPDATE_FROM" >&2; exit 1; }
+    cp "$UPDATE_FROM" "$ZIP"
+  fi
+  # Validate the ZIP directory before extraction; an archive is not yet trusted kit content.
+  node - "$ZIP" <<'NODE'
+const fs = require('fs');
+try {
+  const zip = fs.readFileSync(process.argv[2]);
+  let end = -1;
+  for (let i = zip.length - 22; i >= Math.max(0, zip.length - 65557); i--) {
+    if (zip.readUInt32LE(i) === 0x06054b50 && i + 22 + zip.readUInt16LE(i + 20) === zip.length) { end = i; break; }
+  }
+  if (end < 0 || zip.readUInt32LE(end + 4) !== 0) throw new Error('Invalid or split ZIP archive.');
+  const count = zip.readUInt16LE(end + 10);
+  let offset = zip.readUInt32LE(end + 16);
+  if (count === 65535 || count !== zip.readUInt16LE(end + 8) || offset + zip.readUInt32LE(end + 12) !== end) {
+    throw new Error('Invalid or unsupported ZIP directory.');
+  }
+  const seen = new Set();
+  for (let i = 0; i < count; i++) {
+    if (offset + 46 > end || zip.readUInt32LE(offset) !== 0x02014b50) throw new Error('Invalid ZIP entry.');
+    const length = zip.readUInt16LE(offset + 28);
+    const next = offset + 46 + length + zip.readUInt16LE(offset + 30) + zip.readUInt16LE(offset + 32);
+    if (next > end) throw new Error('Truncated ZIP directory.');
+    const name = zip.subarray(offset + 46, offset + 46 + length).toString('utf8').replace(/\\/g, '/').replace(/\/$/, '');
+    const type = (zip.readUInt32LE(offset + 38) >>> 16) & 0xf000;
+    if (!name || name.includes(':') || name.includes('\0') || name.split('/').some(part => !part || part === '.' || part === '..') ||
+        seen.has(name.toLowerCase()) || (type !== 0 && type !== 0x8000 && type !== 0x4000)) {
+      throw new Error('Unsafe or duplicate archive path: ' + name);
+    }
+    seen.add(name.toLowerCase());
+    const local = zip.readUInt32LE(offset + 42);
+    if (local + 30 > offset || zip.readUInt32LE(local) !== 0x04034b50 ||
+        !zip.subarray(local + 30, local + 30 + zip.readUInt16LE(local + 26))
+          .equals(zip.subarray(offset + 46, offset + 46 + length))) {
+      throw new Error('Invalid ZIP local entry: ' + name);
+    }
+    offset = next;
+  }
+  if (offset !== end) throw new Error('Invalid ZIP directory size.');
+} catch (error) { console.error('  ' + error.message); process.exit(1); }
+NODE
   NEW="$STAGE/new"; mkdir -p "$NEW"
   if command -v unzip >/dev/null 2>&1; then unzip -q -o "$ZIP" -d "$NEW"
   else tar -xf "$ZIP" -C "$NEW"; fi          # bsdtar (macOS, Windows 10+) extracts zips
-  [ -f "$NEW/.a365-kit/KIT-VERSION.json" ] || { echo "  that archive is not an Agent 365 Onboarding Kit" >&2; exit 1; }
-  desc()  { node -e 'const d=require(process.argv[1]);console.log(`kit v${d.kitVersion} / upstream v${d.upstreamVersion} (${d.upstreamCommit})`)' "$1"; }
-  names() { node -e 'const d=require(process.argv[1]);console.log([...(d.skills||[]),...(d.addons||[])].join("\n"))' "$1"; }
-  OLD_M="$KIT_ROOT/.a365-kit/KIT-VERSION.json"
-  echo "  current : $([ -f "$OLD_M" ] && desc "$OLD_M" || echo 'no kit installed')"
-  echo "  new     : $(desc "$NEW/.a365-kit/KIT-VERSION.json")"
-  NAMES="$(names "$NEW/.a365-kit/KIT-VERSION.json"; [ -f "$OLD_M" ] && names "$OLD_M")"
-  NAMES="$(printf '%s\n' "$NAMES" | sort -u | sed '/^$/d')"
-  rm -rf "$KIT_ROOT/.a365-kit"; cp -R "$NEW/.a365-kit" "$KIT_ROOT/.a365-kit"
-  for DISC in .claude/skills .agents/skills; do
-    mkdir -p "$KIT_ROOT/$DISC"
-    while IFS= read -r NAME; do
-      rm -rf "$KIT_ROOT/$DISC/$NAME"
-      [ -d "$NEW/$DISC/$NAME" ] && cp -R "$NEW/$DISC/$NAME" "$KIT_ROOT/$DISC/$NAME"
-    done <<< "$NAMES"
-  done
-  for F in agent365-kit.ps1 agent365-kit.sh AGENT365-KIT-README.md; do
-    [ -f "$NEW/$F" ] && cp "$NEW/$F" "$KIT_ROOT/$F"
-  done
-  chmod +x "$KIT_ROOT/agent365-kit.sh" 2>/dev/null || true
+  node - "$NEW" "$KIT_ROOT" "$STAGE/plan" <<'NODE'
+const fs = require('fs');
+const path = require('path');
+const [fresh, root, planFile] = process.argv.slice(2);
+try {
+  function manifest(file) {
+    const data = JSON.parse(fs.readFileSync(file, 'utf8').replace(/^\uFEFF/, ''));
+    if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('Invalid kit manifest: ' + file);
+    for (const key of ['kitVersion', 'upstreamVersion', 'upstreamCommit']) {
+      if (typeof data[key] !== 'string' || !data[key].trim()) throw new Error('Invalid ' + key + ' in kit manifest: ' + file);
+    }
+    const seen = new Set();
+    for (const key of ['skills', 'addons']) {
+      if (!Array.isArray(data[key])) throw new Error('Invalid ' + key + ' array in kit manifest: ' + file);
+      for (const name of data[key]) {
+        if (typeof name !== 'string' || !/^[a-z0-9][a-z0-9_-]*$/.test(name) || seen.has(name)) {
+          throw new Error('Invalid or duplicate skill name in kit manifest: ' + file);
+        }
+        seen.add(name);
+      }
+    }
+    if (!data.skills.includes('a365-setup')) throw new Error('Kit manifest is missing a365-setup: ' + file);
+    return data;
+  }
+  function unlinked(directory) {
+    for (const name of fs.readdirSync(directory)) {
+      const file = path.join(directory, name);
+      const stat = fs.lstatSync(file);
+      if (stat.isSymbolicLink()) throw new Error('Linked archive entry: ' + file);
+      if (stat.isDirectory()) unlinked(file);
+    }
+  }
+  function target(relative, directory = false) {
+    const stat = fs.lstatSync(path.join(root, relative), { throwIfNoEntry: false });
+    if (stat?.isSymbolicLink()) throw new Error('Refusing to replace a linked project path: ' + relative);
+    if (stat && directory && !stat.isDirectory()) throw new Error('Expected a project directory: ' + relative);
+    return stat;
+  }
+  unlinked(fresh);
+  target('.a365-kit');
+  target('.a365-kit/KIT-VERSION.json');
+  const next = manifest(path.join(fresh, '.a365-kit', 'KIT-VERSION.json'));
+  const oldFile = path.join(root, '.a365-kit', 'KIT-VERSION.json');
+  const old = fs.existsSync(oldFile) ? manifest(oldFile) : null;
+  const names = new Set([...next.skills, ...next.addons]);
+  const oldNames = new Set(old ? [...old.skills, ...old.addons] : []);
+  const allNames = [...new Set([...names, ...oldNames])].sort();
+  const files = ['agent365-kit.ps1', 'agent365-kit.sh', 'AGENT365-KIT-README.md'];
+  const required = [...files, '.a365-kit/doctor.js', '.a365-kit/kit-version.js',
+    '.a365-kit/settings-fragment.json', '.a365-kit/copilot-instructions.md'];
+  for (const kind of ['skills', 'addons']) {
+    for (const name of next[kind]) {
+      required.push(`.a365-kit/${kind}/${name}/SKILL.md`, `.claude/skills/${name}/SKILL.md`, `.agents/skills/${name}/SKILL.md`);
+    }
+  }
+  for (const relative of required) {
+    const stat = fs.statSync(path.join(fresh, relative), { throwIfNoEntry: false });
+    if (!stat?.isFile() || !stat.size) throw new Error('Incomplete kit archive: missing or empty ' + relative);
+  }
+  const plan = ['.a365-kit\t1'];
+  for (const parent of ['.claude', '.agents']) {
+    const disc = parent + '/skills';
+    target(parent, true);
+    target(disc, true);
+    for (const name of allNames) {
+      const relative = disc + '/' + name;
+      if (target(relative) && !oldNames.has(name)) throw new Error('A new kit skill conflicts with a project-owned skill: ' + relative);
+      plan.push(relative + '\t' + (names.has(name) ? '1' : '0'));
+    }
+  }
+  for (const file of files) { target(file); plan.push(file + '\t1'); }
+  const description = data => `kit v${data.kitVersion} / upstream v${data.upstreamVersion} (${data.upstreamCommit})`;
+  console.log('  current : ' + (old ? description(old) : 'no kit installed'));
+  console.log('  new     : ' + description(next));
+  fs.writeFileSync(planFile, plan.join('\n') + '\n');
+} catch (error) { console.error('  ' + error.message); process.exit(1); }
+NODE
+  while IFS=$'\t' read -r RELATIVE INSTALL; do
+    if [ -e "$KIT_ROOT/$RELATIVE" ]; then
+      mkdir -p "$(dirname "$STAGE/backup/$RELATIVE")"
+      mv "$KIT_ROOT/$RELATIVE" "$STAGE/backup/$RELATIVE"
+      BACKED_UP+=("$RELATIVE")
+    fi
+    if [ "$INSTALL" -eq 1 ]; then
+      mkdir -p "$(dirname "$KIT_ROOT/$RELATIVE")"
+      INSTALLED+=("$RELATIVE")
+      mv "$NEW/$RELATIVE" "$KIT_ROOT/$RELATIVE"
+    fi
+  done < "$STAGE/plan"
+  chmod +x "$KIT_ROOT/agent365-kit.sh"
+  UPDATE_DONE=1
   echo "  kit updated. Your agent files, .env, a365 config and .claude/settings.json were not touched."
   echo "  re-run ./agent365-kit.sh to use the new launcher."
   exit 0
@@ -167,7 +337,10 @@ if [ ! -f "$CANONICAL" ]; then
 fi
 
 SKILL_COUNT="$(find "$KIT_ROOT/.a365-kit/skills" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l | tr -d ' ')"
-ADDON_COUNT="$(find "$KIT_ROOT/.a365-kit/addons" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l | tr -d ' ')"
+ADDON_COUNT=0
+if [ -d "$KIT_ROOT/.a365-kit/addons" ]; then
+  ADDON_COUNT="$(find "$KIT_ROOT/.a365-kit/addons" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')"
+fi
 TOTAL_SKILLS="$((SKILL_COUNT + ADDON_COUNT))"
 echo ''
 ok_ "Kit layout looks correct ($TOTAL_SKILLS skills: $SKILL_COUNT Microsoft, $ADDON_COUNT add-ons)"
@@ -212,16 +385,22 @@ if [ "$WIRE_COPILOT" -eq 1 ]; then
   DST="$KIT_ROOT/.github/copilot-instructions.md"
   if [ ! -f "$SRC" ]; then
     err_ 'Missing .a365-kit/copilot-instructions.md -- kit may be incomplete.'
+    exit 1
   else
+    SOURCE_TEXT="$(cat "$SRC")"
+    [[ "$SOURCE_TEXT" == *[![:space:]]* ]] || { err_ 'The kit Copilot instructions are empty.'; exit 1; }
+    MARKER='<!-- agent365-kit:copilot-instructions -->'
+    EXISTING=''
+    if [ -f "$DST" ]; then EXISTING="$(cat "$DST")"; fi
     mkdir -p "$KIT_ROOT/.github"
     if [ ! -f "$DST" ]; then
-      cp "$SRC" "$DST"
+      { printf '%s\n' "$MARKER"; cat "$SRC"; } > "$DST"
       ok_ 'Created .github/copilot-instructions.md'
-    elif grep -q 'Agent 365 Skills' "$DST"; then
-      ok_ 'Already wired -- .github/copilot-instructions.md mentions Agent 365.'
+    elif [[ "$EXISTING" == *"$MARKER"* || "${EXISTING//$'\r'/}" == *"${SOURCE_TEXT//$'\r'/}"* ]]; then
+      ok_ 'Already wired -- .github/copilot-instructions.md contains the kit instructions.'
     else
       # Append rather than overwrite: this file is commonly project-owned.
-      { printf '\n\n---\n\n'; cat "$SRC"; } >> "$DST"
+      { printf '\n\n---\n\n%s\n' "$MARKER"; cat "$SRC"; } >> "$DST"
       ok_ 'Appended Agent 365 instructions to your existing .github/copilot-instructions.md'
     fi
   fi
@@ -230,7 +409,8 @@ fi
 if [ "$WIRE_CLAUDE_HOOK" -eq 1 ]; then
   head_ 'Wiring the optional upstream-version notice'
   SETTINGS="$KIT_ROOT/.claude/settings.json"
-  if [ -f "$SETTINGS" ]; then
+  if [ -e "$SETTINGS" ] || [ -L "$SETTINGS" ]; then
+    [ -f "$SETTINGS" ] || { err_ '.claude/settings.json exists but is not a file; it was not changed.'; exit 1; }
     warn_ 'This project already has .claude/settings.json -- leaving it untouched.'
     note_ 'Merge the "hooks" block from .a365-kit/settings-fragment.json by hand.'
   else
@@ -247,17 +427,13 @@ command -v claude >/dev/null 2>&1 && has_claude=1
 command -v code   >/dev/null 2>&1 && has_code=1
 
 # `gh skill` and `gh copilot` are built into gh 2.98+, not extensions, and neither
-# supports --version: `gh skill --version` errors with "unknown flag", and
-# `gh copilot --version` reports on the *downloaded Copilot CLI*, not on gh itself.
-# Probe --help for availability, and --version only to tell whether the Copilot CLI
-# binary is actually present.
+# supports a read-only --version probe: `gh skill --version` errors, while
+# `gh copilot --version` can download the Copilot CLI. Use gh's own --help only.
 if command -v gh >/dev/null 2>&1; then
   gh skill   --help >/dev/null 2>&1 && has_gh_skill=1
   gh copilot --help >/dev/null 2>&1 && has_gh_copilot_launcher=1
 fi
 if command -v copilot >/dev/null 2>&1; then
-  has_copilot_cli=1
-elif [ "$has_gh_copilot_launcher" -eq 1 ] && gh copilot --version >/dev/null 2>&1; then
   has_copilot_cli=1
 fi
 
@@ -266,7 +442,7 @@ head_ 'Detected CLIs'
 if [ "$has_copilot_cli" -eq 1 ]; then
   ok_ 'GitHub Copilot CLI'
 elif [ "$has_gh_copilot_launcher" -eq 1 ]; then
-  note_ '  ~    GitHub Copilot CLI (not installed; gh will fetch it on first use)'
+  note_ '  ~    GitHub Copilot CLI (available through gh copilot; resolved on first launch)'
 else
   note_ '  --   GitHub Copilot CLI (not available)'
 fi
@@ -367,6 +543,9 @@ fi
 printf '  %s---%s\n' "$C_DIM" "$C_RESET"
 note_ 'a365-setup is the entry point. It checks prerequisites, asks which capabilities'
 note_ 'you want, then hands off to make-ai-teammate or make-a365-agent.'
+note_ 'For consent-aware setup, keep your approved options and use:'
+cmd_ 'node ./.a365-kit/run-a365.mjs setup <subcommand> [options]'
+note_ 'If maven-prod OtelWrite needs admin consent, follow the access-package handoff and wait for Delivered.'
 echo ''
 
 # -- 5. Optional launch -------------------------------------------------------

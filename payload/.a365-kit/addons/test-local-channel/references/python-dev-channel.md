@@ -14,7 +14,7 @@ Write this as `dev_channel.py` beside the host.
 ```python
 """Local dev channel for an Agent 365 agent.
 
-Lets AgentsPlayground (or curl) talk to the agent with no tenant, no tunnel and
+Lets curl (or a REST client) talk to the agent with no tenant, no tunnel and
 no Bot Framework token, without weakening the real /api/messages endpoint.
 
 Three things keep it off the public path:
@@ -27,14 +27,15 @@ Rule 3 matters more than it looks. `devtunnel host` runs on the developer's own
 machine and forwards to a local port, so a request that arrived from the public
 internet still reaches the process with client_address == 127.0.0.1. A loopback
 check alone would therefore pass tunnelled traffic. The forwarded headers the
-relay adds are the only reliable signal, and they are used here to DENY, never
-to grant -- which is the safe direction to trust a header in.
+relay normally adds are used here to DENY, never to grant. This is defense in
+depth, not proof that a request is local: a proxy can omit those headers.
 """
 
 from __future__ import annotations
 
 import logging
 import os
+import inspect
 from typing import Awaitable, Callable
 
 from aiohttp import web
@@ -79,12 +80,14 @@ def build_dev_channel_app(
         except Exception:
             return web.json_response({"error": "body must be JSON"}, status=400)
 
-        text = str(payload.get("text", "")).strip()
+        if not isinstance(payload, dict) or not isinstance(payload.get("text"), str):
+            return web.json_response({"error": "field 'text' must be a string"}, status=400)
+        text = payload["text"].strip()
         if not text:
             return web.json_response({"error": "field 'text' is required"}, status=400)
 
         result = answer(text)
-        if hasattr(result, "__await__"):
+        if inspect.isawaitable(result):
             result = await result
         return web.json_response({"text": result})
 
@@ -105,11 +108,15 @@ async def start_dev_channel(
     if not dev_channel_enabled():
         return None
 
-    port = port or int(os.getenv("A365_DEV_CHANNEL_PORT", DEFAULT_DEV_PORT))
+    port = int(os.getenv("A365_DEV_CHANNEL_PORT", DEFAULT_DEV_PORT)) if port is None else port
     runner = web.AppRunner(build_dev_channel_app(answer))
     await runner.setup()
     # 127.0.0.1, never 0.0.0.0: nothing off this machine can reach it directly.
-    await web.TCPSite(runner, "127.0.0.1", port).start()
+    try:
+        await web.TCPSite(runner, "127.0.0.1", port).start()
+    except BaseException:
+        await runner.cleanup()
+        raise
 
     logger.warning(
         "DEV CHANNEL ENABLED on http://127.0.0.1:%d/dev/chat -- authentication is "
@@ -122,19 +129,30 @@ async def start_dev_channel(
 
 ## Starting it
 
-Call it from the host's startup coroutine, after the production listener is bound. It returns
-`None` immediately when the flag is absent, so the call can stay in permanently.
+Call it from the host's startup coroutine, after the production listener is bound, inside
+the same `try/finally` that cleans up the production runner. Keep the returned runner.
+It returns `None` immediately when the flag is absent.
 
 ```python
 from dev_channel import start_dev_channel
 
 async def start_server(self) -> None:
     # ... existing setup, production site started ...
-    await start_dev_channel(self._answer)
+    dev_runner = None
+    try:
+        dev_runner = await start_dev_channel(self._agent.process_local_message)
+        await asyncio.Event().wait()
+    finally:
+        if dev_runner is not None:
+            await dev_runner.cleanup()
+        # ... existing agent and production-runner cleanup ...
 ```
 
-`self._answer` must be the same function the production handler calls. Wiring the dev channel
-to a separate code path would make it prove nothing.
+`HostedAgent.process_local_message` in the messaging reference invokes the same model runner
+against the base agent, without per-user Work IQ servers. If you use a different adapter,
+provide an equivalent callback; `GenericAgentHost` has no `_answer` method. Do not fabricate
+a signed activity or reuse another user's token to make local tools work. This tests model
+and local/external-tool logic, not delegated Work IQ, inbound authentication or Purview DLP.
 
 If the agent's answer function is synchronous, pass it unchanged — the module awaits the
 result only when it is awaitable.
@@ -156,7 +174,7 @@ curl -s -o /dev/null -w "%{http_code}\n" -X POST http://127.0.0.1:3999/dev/chat 
 Expect `200`, the agent's reply, then `403`.
 
 On Windows PowerShell, quoting a JSON body inline is awkward; put it in a file and use
-`--data @body.json`.
+`curl.exe --data '@body.json'`.
 
 ## Turning it off
 

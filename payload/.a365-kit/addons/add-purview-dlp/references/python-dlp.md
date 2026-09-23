@@ -11,7 +11,8 @@ Adapted from the Agent 365 + Claude reference deployment (`purview_dlp.py`), whi
   2. processContent            (Content.Process.User)          -> policyActions for uploadText / downloadText
 
 Docs: https://learn.microsoft.com/en-us/purview/developer/use-the-api
-The user_id in the URL MUST match the token's 'oid' claim -- see token_object_id() below.
+The URL targets an authorized Entra user object ID. Delegated wiring can use the token's
+user oid; app-only callers must supply a target user separately, never the token's SP oid.
 """
 import datetime, json, logging, uuid
 import httpx
@@ -24,14 +25,21 @@ _ACTIVITIES = "uploadText,downloadText"
 class PurviewDLP:
     def __init__(self, app_location_id: str, app_name: str = "Agent365Agent",
                  app_version: str = "1.0", fail_mode: str = "open"):
-        self.app_location_id = app_location_id     # the agent identity appId; PURVIEW_APP_LOCATION_ID
+        self.app_location_id = app_location_id     # protected Entra appId matching the Purview policy location
         self.app_name, self.app_version = app_name, app_version
-        self.fail_mode = (fail_mode or "open").lower()
+        self.fail_mode = (fail_mode or "open").strip().lower()
+        if not app_location_id or not app_location_id.strip():
+            raise ValueError("PURVIEW_APP_LOCATION_ID is required when DLP is enabled")
+        if self.fail_mode not in ("open", "closed"):
+            raise ValueError("PURVIEW_FAIL_MODE must be open or closed")
         self._etag_by_user: dict[str, str] = {}
 
     @property
     def _fail_blocked(self) -> bool:
         return self.fail_mode == "closed"
+
+    def failure(self, error) -> dict:
+        return {"blocked": self._fail_blocked, "actions": [], "error": str(error)}
 
     async def compute_scopes(self, client: httpx.AsyncClient, user_id: str) -> list:
         url = f"{GRAPH_BASE}/users/{user_id}/dataSecurityAndGovernance/protectionScopes/compute"
@@ -46,12 +54,12 @@ class PurviewDLP:
             logger.info("Purview protectionScopes/compute -> 200: %d scope(s) for app %s", len(value), self.app_location_id)
             return value
         logger.warning("Purview protectionScopes/compute -> %s: %s", r.status_code, r.text[:300])
-        return []
+        raise RuntimeError(f"protectionScopes/compute returned HTTP {r.status_code}")
 
     async def process_content(self, client: httpx.AsyncClient, user_id: str, activity: str,
                               text: str, correlation_id: str, sequence_number: int = 0) -> dict:
         url = f"{GRAPH_BASE}/users/{user_id}/dataSecurityAndGovernance/processContent"
-        now = datetime.datetime.utcnow().replace(microsecond=0).isoformat()
+        now = datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0).isoformat()
         body = {"contentToProcess": {
             "contentEntries": [{
                 "@odata.type": "microsoft.graph.processConversationMetadata",
@@ -70,16 +78,18 @@ class PurviewDLP:
         if (etag := self._etag_by_user.get(user_id)):
             headers["If-None-Match"] = etag
         r = await client.post(url, json=body, headers=headers)
-        if r.status_code not in (200, 304):
-            logger.warning("Purview processContent -> %s: %s", r.status_code, r.text[:300])
-            return {"blocked": self._fail_blocked, "actions": [], "error": r.status_code}
-        if r.status_code == 304:
+        if r.status_code in (202, 204):
             return {"blocked": False, "actions": []}
+        if r.status_code != 200:
+            logger.warning("Purview processContent -> %s: %s", r.status_code, r.text[:300])
+            return self.failure(f"processContent returned HTTP {r.status_code}")
         data = r.json()
         if data.get("protectionScopeState") == "modified":
             self._etag_by_user.pop(user_id, None)          # policies changed; recompute next turn
         actions = data.get("policyActions", []) or []
         blocked = any(a.get("action") == "restrictAccess" and a.get("restrictionAction") == "block" for a in actions)
+        if data.get("processingErrors"):
+            return {"blocked": blocked or self._fail_blocked, "actions": actions, "error": "processingErrors"}
         logger.info("Purview processContent (%s) -> state=%s, %d action(s)", activity, data.get("protectionScopeState"), len(actions))
         return {"blocked": blocked, "actions": actions, "state": data.get("protectionScopeState")}
 
@@ -88,6 +98,8 @@ class PurviewDLP:
         if not text or not text.strip():
             return {"blocked": False, "actions": []}
         try:
+            if not graph_token or not user_id:
+                return self.failure("Graph token and authorized user object id are required")
             async with httpx.AsyncClient(timeout=20.0, headers={"Authorization": f"Bearer {graph_token}",
                                                                 "Content-Type": "application/json"}) as client:
                 if user_id not in self._etag_by_user:
@@ -95,17 +107,18 @@ class PurviewDLP:
                 return await self.process_content(client, user_id, activity, text, correlation_id, sequence_number)
         except Exception as e:                       # governance must never crash the turn
             logger.warning("Purview evaluate(%s) error: %s", activity, e)
-            return {"blocked": self._fail_blocked, "actions": [], "error": str(e)}
+            return self.failure(e)
 
 
 def token_object_id(jwt_token: str) -> str | None:
-    """'oid' claim of an access token, unverified. Purview's users/{id} must be the token subject."""
+    """Unverified user-oid hint for delegated Graph tokens only; not an app-only user resolver."""
     import base64
     try:
         seg = jwt_token.split(".")[1]
         seg += "=" * (-len(seg) % 4)
         claims = json.loads(base64.urlsafe_b64decode(seg.encode("ascii")))
-        return claims.get("oid") or claims.get("sub")
+        oid = claims.get("oid")
+        return oid if isinstance(oid, str) and oid else None
     except Exception:
         return None
 ```
@@ -117,12 +130,13 @@ Add `httpx>=0.27.0` to `requirements.txt` and install.
 In the host's `_run_turn` (from `add-messaging-endpoint`) or the agent's `process_user_message`:
 
 ```python
+import logging
 import os
 from purview_dlp import PurviewDLP, token_object_id
 
 _PURVIEW = None
-if os.getenv("ENABLE_PURVIEW_DLP", "false").lower() == "true" and os.getenv("PURVIEW_APP_LOCATION_ID"):
-    _PURVIEW = PurviewDLP(os.environ["PURVIEW_APP_LOCATION_ID"], app_name=AGENT_NAME,
+if os.getenv("ENABLE_PURVIEW_DLP", "false").strip().lower() == "true":
+    _PURVIEW = PurviewDLP(os.getenv("PURVIEW_APP_LOCATION_ID", ""), app_name=AGENT_NAME,
                           fail_mode=os.getenv("PURVIEW_FAIL_MODE", "open"))
 
 PURVIEW_SCOPES = ["https://graph.microsoft.com/Content.Process.User",
@@ -137,26 +151,39 @@ async def purview_evaluate(auth, context, auth_handler_name, activity, text, cor
         token = await auth.exchange_token(context, scopes=PURVIEW_SCOPES, **kwargs)
         graph_token = getattr(token, "token", None) or getattr(token, "access_token", None)
         if not graph_token:
-            return {"blocked": False}
+            return _PURVIEW.failure("Token exchange returned no Graph token")
         user_id = token_object_id(graph_token)            # the identity the token represents
+        if not user_id:
+            return _PURVIEW.failure("Graph token has no user object id")
         return await _PURVIEW.evaluate(graph_token, user_id, activity, text, correlation_id, seq)
     except Exception as e:
         logging.getLogger(__name__).warning("Purview evaluate(%s) error: %s", activity, e)
-        return {"blocked": False}
+        return _PURVIEW.failure(e)
 ```
 
 Then around the model call:
 
 ```python
-up = await purview_evaluate(self._authorization, context, AUTH_HANDLER_NAME, "uploadText", text, conversation_id, 0)
+import uuid
+
+correlation_id = str(uuid.uuid4())  # one stateless prompt/reply pair
+up = await purview_evaluate(self._authorization, context, AUTH_HANDLER_NAME, "uploadText", text, correlation_id, 0)
 if up.get("blocked"):
     await context.send_activity("This request was blocked by your organisation's data policy.")
     return
 reply = await self._agent.process_user_message(...)
-dn = await purview_evaluate(self._authorization, context, AUTH_HANDLER_NAME, "downloadText", reply, conversation_id, 1)
+dn = await purview_evaluate(self._authorization, context, AUTH_HANDLER_NAME, "downloadText", reply, correlation_id, 1)
 if dn.get("blocked"):
     reply = "The response was withheld by your organisation's data policy."
 await context.send_activity(reply)
 ```
 
 `auth.exchange_token(context, scopes=..., auth_handler_id=...)` is the `Authorization` API on `microsoft-agents-hosting-core` 1.6.x; the AI Teammate sample calls it the same way.
+
+For a stateful conversation, use its stable ID instead and allocate increasing sequence
+numbers from conversation state; do not reuse 0/1 on every turn under the same ID. Token
+decoding here is only a routing hint for an already-acquired delegated Graph token, not JWT
+validation; `sub` is not an Entra object ID. App-only tokens need a separate user-targeting
+and permission strategy. HTTP 202/204 are documented empty successes; HTTP/token failures
+and `processingErrors` follow `PURVIEW_FAIL_MODE`, including before the REST calls.
+Invalid enabled-DLP configuration fails startup instead of silently disabling the hooks.

@@ -20,6 +20,11 @@ model: sonnet
 
 # Test an agent through a local dev channel
 
+> **Kit runtime corrections:** Read `.a365-kit/shared/local-runtime-lessons.md` first.
+> A dev channel remains separate from JWT-protected `/api/messages`. An offline
+> result or healthy listener does not prove authenticated Teams replies, tool
+> permissions, delivery receipts, or Purview policy enforcement.
+
 ## When this applies
 
 Microsoft's `test-local` skill opens AgentsPlayground against a running agent, and is written
@@ -38,12 +43,12 @@ If the agent is an AI Teammate and a tunnel is available, use `test-local` inste
 ## The security shape, and why it is not the obvious one
 
 The dev channel bypasses authentication. Three things keep that off the public path, and the
-third is the one that matters most.
+third adds defense in depth.
 
 1. **Off unless asked.** Nothing binds unless `A365_DEV_CHANNEL=true`.
 2. **Its own loopback-bound port.** The dev channel listens on `127.0.0.1` on a separate
    port. `/api/messages` is untouched and stays fully authenticated.
-3. **Requests carrying forwarding headers are refused.**
+3. **Chat requests carrying forwarding headers are refused.**
 
 Rule 3 exists because the obvious guard does not work. `devtunnel host` runs on the
 developer's own machine and forwards to a local port, so a request that arrived from the
@@ -54,9 +59,9 @@ local request  ->  peer=127.0.0.1  xff=None
 via tunnel     ->  peer=127.0.0.1  xff=40.65.108.177
 ```
 
-A "loopback only" check would pass tunnelled traffic. The forwarding headers the relay adds
-are the only reliable difference, and they are used to **deny**, never to grant — the safe
-direction to trust a header in.
+A "loopback only" check would pass tunnelled traffic. The forwarding headers the relay normally adds are used to **deny**, never to grant.
+They are not a trustworthy proof of origin: another proxy, or a differently configured
+tunnel, can omit them entirely.
 
 **Never present the loopback bind alone as the protection.** Say plainly that the flag must
 not be set outside local development and the dev port must never be tunnelled.
@@ -71,6 +76,8 @@ not be set outside local development and the dev port must never be tunnelled.
    - `.a365-kit/addons/test-local-channel/references/python-dev-channel.md`
    - `.a365-kit/addons/test-local-channel/references/nodejs-dev-channel.md`
    - `.a365-kit/addons/test-local-channel/references/dotnet-dev-channel.md`
+   There is no bundled Java dev-channel implementation. For Java, stop and explain that
+   the authenticated host smoke tests in `add-java-agent` are supported, not `/dev/chat`.
 
 **TaskCreate** — "Add a local dev channel"
 
@@ -83,6 +90,10 @@ binding when the flag is absent, so the call is safe to leave in permanently.
 Wire its `answer` callback to the same function the production handler calls. The point is to
 exercise the real agent, not a copy of it — if the dev channel calls something else, it
 proves nothing.
+Use the adapter seam described in the reference, and retain/close the returned listener in
+the host's shutdown path. No fake identity or previously authenticated user's tools may be
+reused. Local turns exercise model/local-tool logic; they do not prove Work IQ OBO,
+production JWT validation or Purview integration.
 
 ## Phase 2: Add the environment keys
 

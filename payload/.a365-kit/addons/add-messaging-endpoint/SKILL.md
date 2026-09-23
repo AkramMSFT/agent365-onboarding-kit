@@ -31,6 +31,13 @@ hooks:
 
 # Add a messaging endpoint (Teams / Copilot reachability)
 
+> **Kit runtime corrections:** Read `.a365-kit/shared/local-runtime-lessons.md` first.
+> Reuse a prepared `dotnet-agent365-lab` host rather than regenerating it. Never
+> treat a Messaging Bot service-principal token as the human sender. Verify the
+> child identity again after endpoint/publish operations, preserve it in reviewed
+> local overrides, and prove JWT rejection through the actual tunnel. Check
+> installed command help instead of assuming a broker-only or publish limitation.
+
 > **Trigger phrases:**
 > - "make this agent chattable in Teams"
 > - "add a messaging endpoint"
@@ -51,6 +58,9 @@ hooks:
 ## Phase 0 -- Detect state (read-only)
 
 1. **Read** `.a365-workspace-detection.local.json`. Require `agentType` = `system-agent` (or absent with `a365.config.json` showing `aiTeammate: false`). Note `programmingLanguage`.
+   If it is Java, use `add-java-agent` for the code rather than choosing one of the three
+   SDK references below. Preserve the detected `authMode`: OBO and agentic-user handlers
+   are not S2S client-credentials flows.
 2. **Read** `a365.generated.config.json`. Capture `agentBlueprintId`, `messagingEndpoint`, `completed`. If it does not exist, stop: *"Run `a365-setup` first -- there is no blueprint to attach an endpoint to."*
 3. **Detect an existing host** by language:
    - Python: `host_agent_server.py` at the root, or any `.py` containing `/api/messages`.
@@ -58,7 +68,9 @@ hooks:
    - .NET: `Program.cs` containing `MapAgentApplicationEndpoints` or `/api/messages`.
 4. **Detect the port.** `PORT` in `.env`, else language default (3978 Python/Node, 5000 .NET). Check it is free:
    - Windows: `netstat -ano | findstr :<port>` -- macOS/Linux: `lsof -i :<port>`.
-   If taken, choose the next free port and write `PORT=<n>` to `.env`. Do not stop another process.
+   If taken, choose the next free port. Write `PORT=<n>` to `.env` for Python/Node; for .NET
+   use the process environment or `appsettings.Development.json` and wire it as described
+   in the reference. Do not stop another process.
 
 Tell the user what you found in three lines: agent kind, host present or not, port.
 
@@ -75,6 +87,10 @@ Rules that apply to every language:
 - **Never modify the file the onboarding skills generated for the agent's logic.** Put the host and any adapter in new files that import it.
 - Add the hosting packages to the dependency file **and run the install** -- the onboarding skills edit the file without installing; do not repeat that.
 - Keep `/api/health` unauthenticated and JWT-protect `/api/messages`.
+- The Python reference's OpenAI adapter has a separate, explicit Work IQ method. Apply it
+  only when that framework/tooling is present; keep fresh per-turn clients and preserve
+  static lab/external tools. On S2S, do not install a default `AGENTIC` sign-in handler:
+  leave `AUTH_HANDLER_NAME` empty and retain the project's configured S2S token strategy.
 
 ## Phase 2 -- Start the host and prove the wiring
 
@@ -161,14 +177,20 @@ Then hand off the upload:
 
 ## Phase 7 -- Smoke test
 
-**AgentsPlayground** works before the upload (no Teams needed; the npm package is `@microsoft/m365agentsplayground` -- the name some references give, `@microsoft/agentsplayground`, does not exist):
+**Anonymous blueprint testing:** use `test-local-channel` on its separate loopback-only
+port. A plain playground request has no Bot Connector JWT and must not be made to work by
+turning authentication off on `/api/messages`.
+
+**AgentsPlayground** is appropriate only with a supported authentication/local-host flow.
+The package is `@microsoft/m365agentsplayground`, not `@microsoft/agentsplayground`:
 
 ```bash
-npm install -g @microsoft/m365agentsplayground
-agentsplayground
+npx --package @microsoft/m365agentsplayground agentsplayground
 ```
 
-Connect to `http://localhost:<port>/api/messages`, send *Hello*. Watch the host log for `process_user_message called` (Python) or the equivalent.
+Do not report a blueprint conversation verified merely because Playground opens. Health
+200 and anonymous 401 prove only the listener/auth boundary. A real authenticated turn is
+needed to verify Connector replies, delegated tools and Purview.
 
 **Teams** (after the upload and activation): search for the agent by name and send *Hello*. If it is not listed, the package has not been uploaded or activated. If it is listed but nothing reaches the host, the Notification URL does not match `messagingEndpoint` -- re-run Phase 4 and re-verify the portal.
 
@@ -186,5 +208,5 @@ Public URL    <url>                 (dev tunnel -- keep this session open | host
 Endpoint      registered on blueprint <id>   completed: true
 Your steps    1. a365 setup permissions bot      2. Dev Portal check
               3. a365 publish --aiteammate true  4. admin centre: upload, activate
-Next          agentsplayground now; Teams after step 4
+Next          test-local-channel for local logic; Teams after step 4
 ```

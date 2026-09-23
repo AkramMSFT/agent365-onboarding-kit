@@ -46,6 +46,10 @@ the `a365-setup` skill.
 2. **Read** `a365.generated.config.json`. Take `agentBlueprintId`, `agenticAppId` and the
    tenant id. If the file is missing, stop as above.
 3. Note the build tool -- Maven and Gradle dependency snippets both appear in the reference.
+4. Confirm the inbound token issuer/audience and outbound identity from the registered
+   endpoint's configuration. The reference implements commercial-cloud Bot Connector
+   single-tenant authentication, not every Entra agentic, Emulator or endorsement policy.
+   Do not assume the blueprint client ID is the inbound audience.
 
 **TaskCreate** -- "Add Agent 365 hosting and observability to the Java agent"
 
@@ -58,7 +62,9 @@ and records.
 
 ## Phase 2: The host
 
-Write the four classes from `java-endpoint.md`:
+Write the four classes from `java-endpoint.md` **and** `ObservabilityExporter` from
+`java-observability.md` before compiling. `AgentHost` references that class even with export
+disabled; waiting until Phase 5 would make Phase 3 fail to compile.
 
 | Class | Responsibility |
 |---|---|
@@ -66,20 +72,37 @@ Write the four classes from `java-endpoint.md`:
 | `InboundTokenValidator` | validates the bearer token on every inbound activity |
 | `ConnectorClient` | posts the reply back to the channel's `serviceUrl` |
 | `AgentHost` | serves `/api/health` and `/api/messages`, calls your agent |
+| `ObservabilityExporter` | encodes and exports spans; referenced by `AgentHost` |
 
 Replace `AgentHost.answer(String)` with the call into the user's existing agent code --
 that method is the only seam this skill expects them to fill in.
 
 **Inbound validation is not optional.** The endpoint is public the moment it is tunnelled.
 Without the validator any request that reaches the URL is treated as a real turn from Teams.
+Configure every required environment key from the reference, including the separate
+`AGENT365_AUDIENCE`. Java does not load `.env` automatically. For the first local listener
+test, leave `ENABLE_A365_OBSERVABILITY_EXPORTER=false`; no tenant token is needed for
+health or anonymous-rejection checks.
 
 ## Phase 3: Prove it locally
 
 ```bash
 mvn compile
 mvn dependency:build-classpath -Dmdep.outputFile=cp.txt
-java -cp "target/classes;$(cat cp.txt)" com.example.a365.AgentHost
+java -cp "target/classes:$(cat cp.txt)" com.example.a365.AgentHost
 ```
+
+That classpath separator is for macOS/Linux. On Windows PowerShell:
+
+```powershell
+mvn compile
+mvn dependency:build-classpath -Dmdep.outputFile=cp.txt
+java -cp "target\classes;$((Get-Content -Raw cp.txt).Trim())" com.example.a365.AgentHost
+```
+
+For Gradle, use `./gradlew classes` (`.\gradlew.bat classes` on Windows) and the project's
+existing application/run task with `com.example.a365.AgentHost` as its entry point. Do not
+run Maven commands in a Gradle-only project. Ensure the compiler's release/toolchain is 17+.
 
 Then, in another shell:
 
@@ -110,12 +133,14 @@ their own terminal.
 
 ## Phase 5: Observability
 
-Write `ObservabilityExporter` from
-`.a365-kit/addons/add-java-agent/references/java-observability.md` and export one span per
+Use the `ObservabilityExporter` already created in Phase 2 and export one span per
 turn. Set `ENABLE_A365_OBSERVABILITY_EXPORTER=true` -- **set it, do not preserve a `false`
 written by `a365 setup`**, or the agent traces every turn and exports none of it.
 
 Tell the user the exporter is on and that the value is read at startup.
+Require the actual instance appId in `AGENT365_AGENT_ID`; do not silently fall back to a
+blueprint ID. The supplied client-credentials token provider uses the S2S
+`/observabilityService` route. OBO requires a different token provider, not just a flag.
 
 ## Phase 6: Tools -- what is possible
 
@@ -123,8 +148,11 @@ Work IQ tools have no Java SDK. The servers are MCP over HTTP behind Entra, so a
 can call them with an MCP client and a per-audience token, but nothing here generates that.
 State this plainly rather than implying tools work.
 
-External MCP servers are reachable from Java the same as from any language, and are
-governed by neither Entra nor Agent 365 -- pair them with DLP.
+Java can make direct connections to external MCP servers, but this code does not add
+Agent 365 registration or tooling governance. Custom remote MCP can separately use the
+[governed BYO preview flow](https://learn.microsoft.com/en-us/microsoft-365/admin/manage/manage-tools-for-agent);
+verify its supported clients rather than assuming this Java host participates. Server
+authentication and the prompt/reply DLP hooks are separate from that registration.
 
 ## Phase 7: Validate
 

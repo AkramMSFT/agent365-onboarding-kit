@@ -45,23 +45,28 @@ _FETCH_TIMEOUT_S = 15.0
 # Web
 # --------------------------------------------------------------------------
 
-@function_tool
-def fetch_url(url: str) -> str:
-    """Fetch a web page or API over HTTP/HTTPS and return its text content.
-
-    Use this to open a link the user gives you, read a page, or pull data from a URL.
-    Returns up to ~200 KB of text. Only http:// and https:// are allowed.
-    """
+def _fetch_url(url: str) -> str:
     if not re.match(r"^https?://", url.strip(), re.IGNORECASE):
         return "Refused: only http:// and https:// URLs are supported."
     try:
         with httpx.Client(timeout=_FETCH_TIMEOUT_S, follow_redirects=True, max_redirects=5) as c:
-            r = c.get(url.strip(), headers={"User-Agent": "NorthwindAgent/1.0"})
-        body = r.text[:_MAX_FETCH_BYTES]
-        note = "" if len(r.text) <= _MAX_FETCH_BYTES else f"\n\n[truncated to {_MAX_FETCH_BYTES} chars]"
-        return f"HTTP {r.status_code} {r.headers.get('content-type','')}\nfinal_url: {r.url}\n\n{body}{note}"
+            with c.stream("GET", url.strip(), headers={"User-Agent": "NorthwindAgent/1.0"}) as r:
+                data = bytearray()
+                for chunk in r.iter_bytes(chunk_size=8192):
+                    data.extend(chunk[:_MAX_FETCH_BYTES + 1 - len(data)])
+                    if len(data) > _MAX_FETCH_BYTES:
+                        break
+                body = bytes(data[:_MAX_FETCH_BYTES]).decode(r.encoding or "utf-8", "replace")
+                note = "" if len(data) <= _MAX_FETCH_BYTES else f"\n\n[truncated to {_MAX_FETCH_BYTES} bytes]"
+                return f"HTTP {r.status_code} {r.headers.get('content-type','')}\nfinal_url: {r.url}\n\n{body}{note}"
     except Exception as e:  # noqa: BLE001
         return f"Fetch failed: {type(e).__name__}: {e}"
+
+
+@function_tool
+def fetch_url(url: str) -> str:
+    """Fetch an HTTP/HTTPS URL and return up to 200 KB of response text."""
+    return _fetch_url(url)
 
 
 @function_tool
@@ -71,7 +76,7 @@ def summarize_url_content(url: str) -> str:
     Same fetch as fetch_url, but tags and scripts are removed so you can summarise the
     page in your own words. Only http:// and https:// are allowed.
     """
-    raw = fetch_url(url)  # type: ignore[operator]  # function_tool wraps the callable
+    raw = _fetch_url(url)
     if raw.startswith(("Refused", "Fetch failed")):
         return raw
     # Drop the header block fetch_url prepends, then strip markup.
@@ -169,13 +174,15 @@ def count_text(text: str) -> str:
 def regex_extract(text: str, pattern: str) -> str:
     """Return all matches of a regular expression in the text (max 100), one per line."""
     try:
-        matches = re.findall(pattern, text)
+        matches = re.finditer(pattern, text)
+        flat = []
+        for match in matches:
+            flat.append("".join(group or "" for group in match.groups()) if match.groups() else match.group())
+            if len(flat) == 100:
+                break
     except re.error as e:
         return f"Invalid regex: {e}"
-    if not matches:
-        return "No matches."
-    flat = ["".join(m) if isinstance(m, tuple) else m for m in matches][:100]
-    return "\n".join(flat)
+    return "\n".join(flat) if flat else "No matches."
 
 
 LAB_TOOLS = [
@@ -233,3 +240,7 @@ Restart the host if it is running -- Python does not hot-reload.
   need that. It is egress surface by design.
 - `decode_text` restores base64 padding and replaces undecodable bytes rather than throwing.
 - `regex_extract` caps at 100 matches and reports invalid patterns instead of raising.
+
+`@function_tool` returns an SDK `FunctionTool`, not a Python callable. The two web tools
+share the undecorated `_fetch_url` helper; do not call one decorated tool from the other.
+The byte cap is enforced while streaming, before buffering the entire response.

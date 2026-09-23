@@ -4,19 +4,22 @@ API verified against `openai-agents` on the live venv (2026-09-04): `agents.mcp`
 
 ## `src/mcp_servers.py`
 
-One factory per server you attach. Keep them lazy -- the SDK opens them when the agent runs.
+One factory per server you attach. Constructing a server is lazy; **the caller must connect
+it before `Runner.run`**. The SDK does not open unconnected servers automatically.
 
 ```python
 """External (non-Work-IQ) MCP servers for the agent.
 
-These connect the agent's framework directly to community MCP servers. They are
-NOT registered in Agent 365 and NOT gated by Entra consent -- see the add-on's
-governance section. Secrets come from the environment, never hard-coded.
+These connect the framework directly to MCP servers. This module does not add
+Agent 365 registration, approval or tooling-gateway routing. Separately governed
+BYO MCP and the server's own authentication are different flows; see the skill.
+Secrets come from the environment, never hard-coded.
 """
 
 from __future__ import annotations
 
 import os
+from contextlib import AsyncExitStack, asynccontextmanager
 
 from agents.mcp import MCPServerStdio, MCPServerStreamableHttp
 
@@ -71,6 +74,15 @@ def build_external_mcp_servers() -> list:
 
 
 EXTERNAL_MCP_SERVERS = build_external_mcp_servers()
+
+
+@asynccontextmanager
+async def connect_external_mcp_servers(servers=None):
+    """Keep connections alive for the enclosing run/host lifetime, on the same task."""
+    selected = EXTERNAL_MCP_SERVERS if servers is None else servers
+    async with AsyncExitStack() as stack:
+        connected = [await stack.enter_async_context(server) for server in selected]
+        yield connected
 ```
 
 ## Wiring into the agent
@@ -91,13 +103,31 @@ expenses_agent = Agent(
         "under the work directory, fetch web pages, query GitHub>. Use them when relevant. "
         # ... rest of the existing instructions ...
     ),
-    tools=[...existing tools...],
-    mcp_servers=[*EXTERNAL_MCP_SERVERS],          # + Work IQ servers if the host attaches them
+    tools=[*existing_tools],
+    mcp_servers=[*existing_mcp_servers, *EXTERNAL_MCP_SERVERS],
     mcp_config={"include_server_in_tool_names": True},
 )
 ```
 
-If the host attaches Work IQ per turn (see `add-messaging-endpoint`), keep both: build the base agent with `mcp_servers=EXTERNAL_MCP_SERVERS`, and let the per-turn Work IQ attach add to it. The base-agent reset trick in the host's adapter preserves the external servers because they live on the base agent.
+`existing_tools` and `existing_mcp_servers` stand for the consuming agent's current
+collections. This is an integration fragment, not a new replacement agent.
+
+Keep the connections open around the **entire** host/session lifetime:
+
+```python
+from src.mcp_servers import connect_external_mcp_servers
+
+async def main():
+    async with connect_external_mcp_servers():
+        await run_agent_session()  # existing async host/session entry point
+```
+
+For `GenericAgentHost`, enter that context in `HostedAgent.initialize()` using an
+`AsyncExitStack` and close it in `HostedAgent.cleanup()` on the same startup task. Close on
+partial startup failure as well. Never call `asyncio.run()` just to connect and then close
+its loop before the host starts. If Work IQ is attached per turn, clone the base agent and
+pass a fresh `mcp_servers` list; keep these connected external servers, and never retain a
+previous user's authenticated Work IQ servers on the base agent.
 
 ## Prerequisites for stdio servers
 

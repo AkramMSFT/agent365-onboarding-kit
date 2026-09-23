@@ -1,6 +1,14 @@
 # Python hosting layer for a blueprint-based Agent 365 agent
 
-Verified 2026-09-04 against `microsoft-agents` **1.6.0** and `microsoft-opentelemetry` **1.3.8** on a real tenant: health 200, anonymous POST 401, dev tunnel end to end, endpoint registered.
+Verified 2026-09-04 against `microsoft-agents` 1.6.0 and `microsoft-opentelemetry` 1.3.8 on a real
+tenant: health 200, anonymous POST 401, and an agent answering in Teams. The host below is the
+later audited revision of that pattern.
+
+The original recipe was verified 2026-09-04 against `microsoft-agents` **1.6.0** and
+`microsoft-opentelemetry` **1.3.8** on a tenant. This revision is checked with those SDK
+versions in isolated offline fixtures: imports, mocked model callbacks, health 200,
+anonymous POST 401 and startup/shutdown. The new adapter/lifecycle changes are **not**
+claimed to be live-tenant verified.
 
 > **Why not copy the AI Teammate host?** The Python host `make-ai-teammate` generates uses
 > `CloudAdapter.on_activity`, `adapter.authorization` and `MsalConnectionManager.from_environment()`.
@@ -45,10 +53,14 @@ class AgentInterface(ABC):
 
 ### `src/a365_agent.py` -- the adapter
 
-Wraps the existing agent. Substitute the module (`src.agent`), the agent object (`expenses_agent`) and the WorkIQ helper (`setup_workiq_tools`, written by `add-workiq-tools`; omit the call if WorkIQ was not added).
+Wraps the existing OpenAI agent. Substitute the module (`src.agent`) and agent object
+(`expenses_agent`) after reading the consuming project. `setup_workiq_tools` is **not** a
+standard upstream-generated API. Use the optional Work IQ method below when Work IQ exists.
+Other model frameworks need an equivalent adapter, not an OpenAI `Runner` pasted into them.
 
 ```python
 import logging
+from contextlib import AsyncExitStack
 import src.agent as core            # importing it initialises observability
 from agents import Runner            # OpenAI Agents SDK; use your framework's runner
 from agent_interface import AgentInterface
@@ -57,28 +69,77 @@ logger = logging.getLogger(__name__)
 
 
 class HostedAgent(AgentInterface):
+    def __init__(self):
+        self._base_agent = core.expenses_agent
+        self._connections = AsyncExitStack()
+
     async def initialize(self) -> None:
-        pass
+        try:
+            for server in self._base_agent.mcp_servers or []:
+                await self._connections.enter_async_context(server)
+        except BaseException:
+            await self._connections.aclose()
+            raise
+
+    async def _model_reply(self, agent, message: str) -> str:
+        result = await Runner.run(agent, message)
+        return str(result.final_output) if result.final_output is not None else "Sorry, I couldn't get a response."
 
     async def process_user_message(self, message, auth, auth_handler_name, context) -> str:
-        # WorkIQ tools are per-user (OBO). Anonymous local turns have no token: skip, don't fail.
-        try:
-            await core.setup_workiq_tools(context, auth, auth_handler_name or "AGENTIC")
-        except Exception:
-            logger.warning("WorkIQ tools not attached for this turn", exc_info=True)
-        # Re-read core.<agent>: setup_workiq_tools replaces the module-level agent.
-        result = await Runner.run(core.expenses_agent, message)
-        return result.final_output or "Sorry, I couldn't get a response."
+        return await self.process_local_message(message)
+
+    async def process_local_message(self, message: str) -> str:
+        agent = self._base_agent.clone(mcp_servers=list(self._base_agent.mcp_servers or []))
+        return await self._model_reply(agent, message)
 
     async def cleanup(self) -> None:
-        pass
+        await self._connections.aclose()
 ```
+
+`initialize` and `cleanup` run on the same host-startup task. The base agent must contain
+only its static local/external tools, never a previous user's Work IQ clients. If another
+component already owns those static connections, reuse its lifecycle rather than connecting
+them twice.
+
+**When Work IQ is present**, replace only `HostedAgent.process_user_message` with this
+method (inside that class). It uses the actual OpenAI extension API, retains all base-agent
+options/guardrails, and closes per-turn connections on the task that opened them:
+
+```python
+async def process_user_message(self, message, auth, auth_handler_name, context) -> str:
+    if auth is None or context is None or not auth_handler_name:
+        return await self.process_local_message(message)
+    from microsoft_agents_a365.tooling.extensions.openai.mcp_tool_registration_service import McpToolRegistrationService
+
+    base = self._base_agent
+    existing = list(base.mcp_servers or [])
+    service = McpToolRegistrationService()
+    attached = base.clone(mcp_servers=existing)
+    try:
+        attached = await service.add_tool_servers_to_agent(
+            agent=attached, auth=auth, auth_handler_name=auth_handler_name, context=context)
+        cfg = {**(base.mcp_config or {}), "include_server_in_tool_names": True}
+        turn_agent = base.clone(mcp_servers=list(attached.mcp_servers or []), mcp_config=cfg)
+        return await self._model_reply(turn_agent, message)
+    finally:
+        for server in reversed(attached.mcp_servers or []):
+            if not any(server is old for old in existing):
+                try:
+                    await server.cleanup()
+                except Exception:
+                    logger.warning("Work IQ connection cleanup failed", exc_info=True)
+```
+
+Do not store `attached` or `turn_agent` in `core.expenses_agent`: doing so reuses the first
+caller's tools/credentials in later turns. S2S Work IQ needs its detected token strategy;
+the method above is the delegated OBO/agentic-user branch, not an S2S implementation.
 
 ### `host_agent_server.py` (project root)
 
 ```python
 from __future__ import annotations
 import asyncio, json, logging, os
+from contextlib import suppress
 from typing import Type
 from dotenv import load_dotenv
 load_dotenv()
@@ -169,7 +230,9 @@ class GenericAgentHost:
         a = context.activity
         recipient, sender = _attr(a, "recipient"), _attr(a, "from_property")
         tenant_id = _attr(recipient, "tenant_id") or TENANT_ID_FALLBACK
-        agent_id = _attr(recipient, "agentic_app_id") or AGENT_ID_FALLBACK or AGENT_BLUEPRINT_ID
+        agent_id = _attr(recipient, "agentic_app_id") or AGENT_ID_FALLBACK
+        if not agent_id:
+            logger.warning("No agent instance id is available for turn telemetry; check Agent365Observability configuration")
         conversation_id = str(_attr(_attr(a, "conversation"), "id", "") or "")
         channel_name = str(_attr(a, "channel_id", "unknown"))
 
@@ -197,7 +260,12 @@ class GenericAgentHost:
         typing = True
         async def typing_loop():
             while typing:
-                await context.send_activity({"type": "typing"}); await asyncio.sleep(4)
+                try:
+                    await context.send_activity({"type": "typing"})
+                except Exception:
+                    logger.debug("Typing activity failed", exc_info=True)
+                    return
+                await asyncio.sleep(4)
         task = asyncio.create_task(typing_loop())
         try:
             baggage = (BaggageBuilder().tenant_id(tenant_id).agent_id(agent_id)
@@ -216,42 +284,51 @@ class GenericAgentHost:
             logger.exception("turn failed")
             await context.send_activity("Sorry - I hit an error working that out. Please try again.")
         finally:
-            typing = False; task.cancel()
+            typing = False
+            task.cancel()
+            with suppress(asyncio.CancelledError):
+                await task
 
     async def start_server(self) -> None:
         await self._agent.initialize()
-        cfg = load_configuration_from_env(os.environ)        # driven by CONNECTIONS__* / CONNECTIONSMAP__* in .env
-        cm = MsalConnectionManager(**cfg)
-        self._adapter = CloudAdapter(connection_manager=cm)
-        ObservabilityHostingManager.configure(self._adapter.middleware_set, ObservabilityHostingOptions(enable_baggage=True))
-        _patch_a365_middleware_arity(self._adapter.middleware_set)
-        self._app = AgentApplication[TurnState](
-            ApplicationOptions(adapter=self._adapter, storage=MemoryStorage(),
-                               authorization_handlers=self._build_authorization_handlers()),
-            connection_manager=cm, **cfg)
-        self._setup_handlers()
-
-        @web.middleware
-        async def _auth_except_health(request: web.Request, handler):
-            if request.path.rstrip("/") == "/api/health":
-                return await handler(request)
-            return await jwt_authorization_middleware(request, handler)
-
-        web_app = web.Application(middlewares=[_auth_except_health])
-        web_app.router.add_post("/api/messages", self._handle_messages)
-        web_app.router.add_get("/api/health", self._handle_health)
-        web_app["agent_configuration"] = cm.get_default_connection_configuration()   # NOT the raw dict: that 500s every request
-        web_app["agent_app"] = self._app
-        web_app["adapter"] = self._adapter
-
-        port = int(os.getenv("PORT", "3978"))
-        runner = web.AppRunner(web_app); await runner.setup()
-        await web.TCPSite(runner, "0.0.0.0", port).start()
-        logger.info("listening on http://localhost:%s/api/messages", port)
+        runner = None
         try:
+            cfg = load_configuration_from_env(os.environ)        # CONNECTIONS__* / CONNECTIONSMAP__*
+            cm = MsalConnectionManager(**cfg)
+            self._adapter = CloudAdapter(connection_manager=cm)
+            ObservabilityHostingManager.configure(self._adapter.middleware_set, ObservabilityHostingOptions(enable_baggage=True))
+            _patch_a365_middleware_arity(self._adapter.middleware_set)
+            self._app = AgentApplication[TurnState](
+                ApplicationOptions(adapter=self._adapter, storage=MemoryStorage(),
+                                   authorization_handlers=self._build_authorization_handlers()),
+                connection_manager=cm, **cfg)
+            self._setup_handlers()
+
+            @web.middleware
+            async def _auth_except_health(request: web.Request, handler):
+                if request.path.rstrip("/") == "/api/health":
+                    return await handler(request)
+                return await jwt_authorization_middleware(request, handler)
+
+            web_app = web.Application(middlewares=[_auth_except_health])
+            web_app.router.add_post("/api/messages", self._handle_messages)
+            web_app.router.add_get("/api/health", self._handle_health)
+            web_app["agent_configuration"] = cm.get_default_connection_configuration()   # NOT the raw dict
+            web_app["agent_app"] = self._app
+            web_app["adapter"] = self._adapter
+
+            port = int(os.getenv("PORT", "3978"))
+            runner = web.AppRunner(web_app)
+            await runner.setup()
+            await web.TCPSite(runner, "0.0.0.0", port).start()
+            logger.info("listening on http://localhost:%s/api/messages", port)
             await asyncio.Event().wait()
         finally:
-            await self._agent.cleanup(); await runner.cleanup()
+            try:
+                if runner is not None:
+                    await runner.cleanup()
+            finally:
+                await self._agent.cleanup()
 
     async def _handle_messages(self, request: web.Request) -> web.Response:
         try:
@@ -285,13 +362,13 @@ curl -s -o /dev/null -w "%{http_code}" -X POST http://localhost:3978/api/message
 
 ```bash
 devtunnel create <agent>-tunnel --allow-anonymous
-devtunnel port create <agent>-tunnel -p 3979 --protocol http
-devtunnel host <agent>-tunnel            # prints:  Connect via browser: https://<id>-3979.<cluster>.devtunnels.ms
+devtunnel port create <agent>-tunnel -p 3978 --protocol http
+devtunnel host <agent>-tunnel            # prints:  Connect via browser: https://<id>-3978.<cluster>.devtunnels.ms
 ```
 
 Use exactly the `Connect via browser` URL for `--update-endpoint`. The **cluster** (`aue`, `asse`, `usw3`, …) is assigned when the tunnel is created and a deleted-and-recreated tunnel can land in a different one, so a URL built from the tunnel *name* silently stops resolving. Seen on the verified run: the first tunnel was `…tunnel.aue`, the recreated one `…tunnel.asse`, and the registered `aue` endpoint went dark. **If the tunnel is ever recreated, re-run `a365 setup blueprint --update-endpoint <new url> --m365`.**
 
-## Work IQ tools: two things that silently break them
+## Work IQ tools: three things that silently break them
 
 Both verified on a live tenant, 2026-09-04. Neither is set by `a365 setup all` or by `add-workiq-tools`, and both fail in ways that look like a permissions problem when they are not.
 
@@ -322,15 +399,14 @@ Loading MCP servers from: ToolingManifest.json <- manifest, not the gateway
 SharePoint and OneDrive both publish `getFileOrFolderMetadataByUrl` and `getSensitivityLabels`. The OpenAI Agents SDK refuses duplicates and raises `UserError: Duplicate tool names found across MCP servers`, which fails the whole turn. Namespace them **after** attachment, because `add_tool_servers_to_agent` returns a fresh `Agent`:
 
 ```python
-await core.setup_workiq_tools(context, auth, auth_handler_name or "AGENTIC")
-agent = core.expenses_agent
-if getattr(agent, "mcp_servers", None) and not (agent.mcp_config or {}).get("include_server_in_tool_names"):
-    cfg = dict(agent.mcp_config or {})
-    cfg["include_server_in_tool_names"] = True
-    core.expenses_agent = agent.clone(mcp_config=cfg)
+# Inside the per-turn adapter method above, after attachment:
+cfg = {**(base.mcp_config or {}), "include_server_in_tool_names": True}
+turn_agent = base.clone(mcp_servers=list(attached.mcp_servers or []), mcp_config=cfg)
 ```
 
 Tools then appear as `mcp_MailTools_sendMail` and so on.
+Keep this clone local to the turn, preserving all options from `base`; do not overwrite the
+shared module-level agent or cache delegated server connections across users.
 
 ### 3. The model will not use tools its instructions never mention
 

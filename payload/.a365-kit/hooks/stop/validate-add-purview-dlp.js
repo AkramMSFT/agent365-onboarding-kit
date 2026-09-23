@@ -3,7 +3,7 @@
 //
 // Checks that Purview runtime DLP is wired: a DLP module calling both Graph endpoints,
 // both activities (uploadText + downloadText) referenced from the turn path, the
-// token-subject rule applied, and configuration present. Static checks only.
+// authorized user targeting, and configuration present. Static checks only.
 
 'use strict';
 
@@ -28,9 +28,12 @@ if (!text.includes('processContent')) issues.push('no code calls dataSecurityAnd
 if (!text.includes('uploadText')) issues.push('uploadText (prompt) is never evaluated');
 if (!text.includes('downloadText')) issues.push('downloadText (response) is never evaluated');
 
-// 3. The token-subject rule: users/{id} must be the oid of the exchanged token.
-if (!/token_object_id|tokenObjectId|TokenObjectId/.test(text)) {
-  issues.push('no token-subject helper (token_object_id / tokenObjectId / TokenObjectId) -- addressing the caller instead of the token oid yields Graph 400');
+// 3. Delegated tokens can identify the user; app-only callers must supply an authorized user separately.
+const hasDelegatedUser = /token_object_id|tokenObjectId|TokenObjectId/.test(text);
+const hasExplicitUser = /\b(?:authorized|target)_?user(?:_?object)?_?id\b/i.test(text);
+const hasMeRoute = text.includes('/me/dataSecurityAndGovernance');
+if (!hasDelegatedUser && !hasExplicitUser && !hasMeRoute) {
+  issues.push('no recognized authorized user target -- use a delegated-user helper or /me route, or an explicit authorized_user_object_id / authorizedUserObjectId for app-only requests; never substitute the application token service-principal oid');
 }
 
 // 4. Both scopes requested in the exchange.
@@ -41,11 +44,11 @@ if (!text.includes('ProtectionScopes.Compute.User')) issues.push('ProtectionScop
 const envPath = path.join(cwd, '.env');
 const appsettings = filterByName(all, 'appsettings.json').map(read).join('\n');
 const cfg = (exists(envPath) ? read(envPath) : '') + '\n' + appsettings;
-const cfgHas = k => new RegExp(`(^|\\n|")\\s*${k}\\s*[=:]`, 'm').test(cfg);
+const cfgHas = k => new RegExp(`(^|\\n|")\\s*${k}"?\\s*[=:]`, 'm').test(cfg);
 if (!cfgHas('ENABLE_PURVIEW_DLP')) issues.push('ENABLE_PURVIEW_DLP not set in .env / appsettings.json');
-if (!cfgHas('PURVIEW_APP_LOCATION_ID')) issues.push('PURVIEW_APP_LOCATION_ID not set -- this is the agent identity appId that Purview policies target');
+if (!cfgHas('PURVIEW_APP_LOCATION_ID')) issues.push('PURVIEW_APP_LOCATION_ID not set -- use the Entra application ID actually targeted by the Purview policy');
 else {
-  const m = cfg.match(/PURVIEW_APP_LOCATION_ID\s*[=:]\s*"?([0-9a-fA-F-]{36})/);
+  const m = cfg.match(/PURVIEW_APP_LOCATION_ID"?\s*[=:]\s*["']?([0-9a-fA-F-]{36})/);
   if (!m) console.warn('[validate-add-purview-dlp] Warning: PURVIEW_APP_LOCATION_ID does not look like a GUID');
 }
 

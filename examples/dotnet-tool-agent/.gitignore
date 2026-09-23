@@ -1,0 +1,9 @@
+bin/
+obj/
+.env
+.env.*
+!.env.example
+*.log
+a365.generated.config.json
+a365-kit.config.json
+.a365-workspace-detection.local.json

@@ -31,7 +31,7 @@ hooks:
 > - "set the kit update source to <url or path>"
 > - "use our internal mirror for kit updates"
 
-The kit ships two equivalent launchers at the project root: `agent365-kit.ps1` (Windows) and `agent365-kit.sh` (macOS / Linux). Everything below is a call to one of them. Pick by platform; on Windows prefer PowerShell even from a bash-flavoured CLI shell (`pwsh -File .\agent365-kit.ps1 ...`).
+The kit ships two equivalent launchers at the project root: `agent365-kit.ps1` (Windows) and `agent365-kit.sh` (macOS / Linux). Use them for updates, prerequisite checks and source changes; version inspection reads files directly. Pick by platform; on Windows prefer PowerShell even from a bash-flavoured CLI shell (`pwsh -File .\agent365-kit.ps1 ...`).
 
 None of these steps needs the Windows broker or a separate terminal -- run them directly.
 
@@ -52,7 +52,7 @@ If the user's request is unambiguous, do it. Otherwise ask once:
 .\agent365-kit.ps1 -Update         ./agent365-kit.sh --update
 ```
 
-The launcher prints the source it resolved and where that came from (`-UpdateFrom` > `A365_KIT_UPDATE_SOURCE` > `a365-kit.config.json` > build default > public release). It replaces **only** `.a365-kit/`, the kit's own skill folders in `.claude/skills/` and `.agents/skills/`, the launchers and `AGENT365-KIT-README.md`. The user's agent, `.env`, `a365.*.json`, `.claude/settings.json` and any skill they added themselves are never touched.
+The launcher prints the source it resolved and where that came from (`-UpdateFrom` / `--update-from` > `A365_KIT_UPDATE_SOURCE` > `a365-kit.config.json.updateSource` > `KIT-VERSION.json.updateSource` > public release). It replaces **only** `.a365-kit/`, the kit's own skill folders in `.claude/skills/` and `.agents/skills/`, the launchers and `AGENT365-KIT-README.md`. The user's agent, `.env`, `a365.*.json`, `.claude/settings.json` and any skill they added themselves are never touched.
 
 Afterwards:
 
@@ -76,13 +76,36 @@ Relay the table. For anything marked `MISS`, offer to run the install command it
 
 ## 3. Show versions
 
-**Read** `.a365-kit/KIT-VERSION.json`. Then, if `gh` is available:
+**Read** `.a365-kit/KIT-VERSION.json` and report `kitVersion`, `upstreamVersion` and
+`upstreamCommit`. No version/info flags exist in either launcher. Do not execute
+`kit-version.js` for inspection either: it may query GitHub and write its cache.
+Then, if `gh` is available:
 
 ```bash
 gh release view --repo microsoft/agent365-skills --json tagName -q .tagName
 ```
 
-Report installed kit version, bundled upstream version and commit, latest upstream release, and the resolved update source (run the update step's resolution by calling the launcher with `-Update -UpdateFrom` **not** set and reading only its first "Source" line -- or simply state the resolution order and the config-file value if present).
+Report the latest upstream release and resolve the effective update source **read-only**,
+in this precedence:
+
+1. Nonempty `A365_KIT_UPDATE_SOURCE`.
+2. `a365-kit.config.json.updateSource`.
+3. `KIT-VERSION.json.updateSource`.
+4. The existing public release URL used by the launcher.
+
+An explicit `-UpdateFrom` / `--update-from` override would take precedence over these
+values for a **future update invocation**. If the user supplied one, distinguish that
+prospective override from the currently configured source; do not invoke the launcher.
+
+JSON `updateSource` values must be **nonblank strings**. Resolve saved config/build relative
+paths from the **kit/project root** (the directory containing the launchers); resolve
+explicit/environment relative overrides from the **caller cwd**. Report the resolved path
+and its origin, not just the saved relative string.
+
+**Never run `-Update` / `--update` just to inspect the source**: reading its first output line
+does not prevent an update. `-SetUpdateSource` / `--set-update-source` also mutates config
+(an empty value clears it), so never use it for inspection. If a value or the latest release
+is unavailable, say so. Showing versions must not modify the kit.
 
 ## 4. Set the update source
 
@@ -93,7 +116,7 @@ For organisations that host the kit themselves (internal GitHub, artifact server
 ./agent365-kit.sh --set-update-source "/mnt/tools/agent365-kit/agent365-onboarding-kit-latest.zip"
 ```
 
-This writes `a365-kit.config.json` at the project root -- deliberately outside the paths an update replaces, so the setting survives updates. Tell the user to **commit that file** so the whole team updates from the same place. An empty string clears it and falls back to the build default.
+This writes `a365-kit.config.json` at the project root -- deliberately outside the paths an update replaces, so the setting survives updates. Tell the user to **commit that file** so the whole team updates from the same place. An empty string clears the saved override, not the environment override; normal source precedence then applies. Saved relative paths resolve from the kit/project root.
 
 Two other levels exist and you should mention them when relevant:
 

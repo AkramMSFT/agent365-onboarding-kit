@@ -1,0 +1,19 @@
+{
+  "name": "a365-nodejs-tool-agent",
+  "version": "1.0.0",
+  "private": true,
+  "type": "commonjs",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "start": "node agent.js --mock",
+    "demo": "node agent.js --mock",
+    "live": "node agent.js --live",
+    "test": "node --test sdk-check.mjs"
+  },
+  "dependencies": {
+    "@openai/agents": "0.17.0",
+    "zod": "4.5.4"
+  }
+}

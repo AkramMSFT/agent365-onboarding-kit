@@ -10,6 +10,7 @@
 const fs = require('fs');
 const path = require('path');
 const { scanProject } = require('../lib/project-scan');
+const { readEnvValue } = require('../lib/env-config');
 
 const cwd = process.cwd();
 const issues = [];
@@ -67,9 +68,7 @@ if (!anySource('x-forwarded-for') && !anySource('X-Forwarded-For')) {
 
 // 3. Off by default. This is the one env value in the kit that must not be true.
 const envFiles = ['.env', '.env.example'].map(f => path.join(cwd, f)).filter(exists);
-const envText = envFiles.map(read).join('\n');
-if (envText.includes('A365_DEV_CHANNEL') &&
-    /A365_DEV_CHANNEL\s*=\s*true/i.test(envText)) {
+if (envFiles.some(f => readEnvValue(f, 'A365_DEV_CHANNEL')?.toLowerCase() === 'true')) {
   issues.push('A365_DEV_CHANNEL is set to true in .env -- the dev channel bypasses ' +
     'authentication and must be off by default, enabled per session instead');
 }
