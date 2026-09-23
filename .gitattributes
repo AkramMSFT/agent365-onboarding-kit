@@ -31,6 +31,8 @@ NOTICE.md       -text
 CONTRIBUTING.md -text
 SECURITY.md     -text
 LICENSE         -text
+BUNDLE-MANIFEST.json -text
+SHA256SUMS.txt  -text
 .gitattributes  -text
 
 *.zip binary

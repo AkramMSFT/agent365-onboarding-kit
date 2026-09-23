@@ -295,7 +295,7 @@
     {
       "path": "kit/.a365-kit/KIT-VERSION.json",
       "bytes": 701,
-      "sha256": "0f8a13a3ffafdda7d16b08a78737e37942d1fa16c70f8c3f287a4fd4fe3042ca"
+      "sha256": "d48ac86cf09098e4e3027c3ad72b6c404ad66203e471778cfe632eb9509df7ab"
     },
     {
       "path": "kit/.a365-kit/lib/observability-consent.mjs",
@@ -1659,8 +1659,8 @@
     },
     {
       "path": ".gitattributes",
-      "bytes": 1167,
-      "sha256": "546791bdfee537e19c53492a49b9c831296443d53c9fb35865f835a7695557fc"
+      "bytes": 1216,
+      "sha256": "2aa17689b1f63921a806cddfbe915e98e9cd39e05413cdee4c6382d9e99e78f3"
     }
   ]
 }
