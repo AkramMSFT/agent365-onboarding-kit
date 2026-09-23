@@ -98,12 +98,6 @@ jobs:
       - name: Example dependencies use public registries
         run: node build/check-examples.mjs
 
-      - name: Node.js example installs and passes its tests
-        working-directory: examples/nodejs-tool-agent
-        run: |
-          npm ci --no-audit --no-fund
-          npm test
-
       - name: Workspace tool copies the kit and an example
         shell: pwsh
         run: |
@@ -112,3 +106,52 @@ jobs:
           if (-not (Test-Path "$env:RUNNER_TEMP/kit-only-check/.a365-kit/KIT-VERSION.json")) { throw "prepare-workspace did not copy the kit" }
           node tools/prepare-workspace.mjs --example nodejs-tool-agent --destination "$env:RUNNER_TEMP/node-example-check"
           if ($LASTEXITCODE) { throw "prepare-workspace failed for nodejs-tool-agent" }
+
+  examples:
+    name: example ${{ matrix.example }}
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        example: [dotnet-tool-agent, dotnet-agent365-lab, nodejs-tool-agent, python-teammate, java-tool-agent, go-tool-agent, rust-tool-agent]
+    defaults:
+      run:
+        shell: pwsh
+        working-directory: examples/${{ matrix.example }}
+    steps:
+      - uses: actions/checkout@v4
+      - if: startsWith(matrix.example, 'dotnet')
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - if: matrix.example == 'nodejs-tool-agent'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - if: matrix.example == 'python-teammate'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - if: matrix.example == 'java-tool-agent'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - if: matrix.example == 'go-tool-agent'
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: examples/go-tool-agent/go.mod
+          cache: false
+
+      - name: Offline build and tests, as the example's README documents them
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          switch ('${{ matrix.example }}') {
+            'dotnet-tool-agent'   { dotnet restore --locked-mode; dotnet run -- --self-test; dotnet run -- --mock "Hello Agent 365" }
+            'dotnet-agent365-lab' { dotnet restore --locked-mode; dotnet run -- --self-test; dotnet run -- --mock "Hello Agent 365"; ./Test-Agent365TokenPlan.ps1 }
+            'nodejs-tool-agent'   { npm ci --no-audit --no-fund; npm test; npm start }
+            'python-teammate'     { python -m pip install --disable-pip-version-check --target deps -r requirements-lock.txt; python -I -S run_offline.py; python demo.py "Hello Agent 365" }
+            'java-tool-agent'     { mvn -B -q test; mvn -B -q exec:java "-Dexec.args=--mock Hello Agent 365" }
+            'go-tool-agent'       { go test ./...; go run . --mock "Hello Agent 365" }
+            'rust-tool-agent'     { cargo test --locked; cargo run --locked -- --mock "Hello Agent 365" }
+          }
