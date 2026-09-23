@@ -463,7 +463,7 @@ echo ''
 
 printf '  %sGitHub Copilot CLI%s\n' "$C_BOLD" "$C_RESET"
 note_ '    Reads .agents/skills/ automatically. From this folder:'
-cmd_ 'gh copilot'
+if [ "$has_copilot_cli" -eq 1 ] || [ "$has_gh_copilot_launcher" -eq 0 ]; then cmd_ 'copilot'; else cmd_ 'gh copilot'; fi
 note_ '    then type the phrase above. For extra grounding, also wire the'
 note_ '    instructions file once:'
 cmd_ './agent365-kit.sh --wire-copilot'
