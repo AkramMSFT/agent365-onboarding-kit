@@ -142,7 +142,7 @@ devtunnel user login
 > Starting from one of the repository's samples instead of your own agent? Use the workspace tool described in the README's *Start from a sample instead*; it places the kit for you. Then continue from Step 2 in that directory.
 
 > **Do not use GitHub's green Code → Download ZIP button.** That gives you
-> `agent365-onboarding-kit-main.zip`, which is the whole *repository* inside a wrapper
+> `agent365-sdk-onboarding-experience-main.zip`, which is the whole *repository* inside a wrapper
 > folder. Extracting it puts the skills where no CLI looks, and the failure is silent: the
 > extraction succeeds and then your CLI finds no skills. You want the **release asset**,
 > which is the kit itself with no wrapper.
@@ -157,7 +157,7 @@ cd C:\path\to\your-agent-project
 ```
 
 ```powershell
-Invoke-WebRequest -Uri "https://github.com/AkramMSFT/agent365-onboarding-kit/releases/latest/download/agent365-onboarding-kit-latest.zip" -OutFile "kit.zip"
+Invoke-WebRequest -Uri "https://github.com/AkramMSFT/agent365-sdk-onboarding-experience/releases/latest/download/agent365-onboarding-kit-latest.zip" -OutFile "kit.zip"
 ```
 
 ```powershell
@@ -171,7 +171,7 @@ cd ~/path/to/your-agent-project
 ```
 
 ```bash
-curl -L -o kit.zip https://github.com/AkramMSFT/agent365-onboarding-kit/releases/latest/download/agent365-onboarding-kit-latest.zip
+curl -L -o kit.zip https://github.com/AkramMSFT/agent365-sdk-onboarding-experience/releases/latest/download/agent365-onboarding-kit-latest.zip
 ```
 
 ```bash

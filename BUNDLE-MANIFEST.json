@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "bundleVersion": "0.2.4",
-  "kitVersion": "0.2.4",
+  "bundleVersion": "0.2.5",
+  "kitVersion": "0.2.5",
   "upstreamRepo": "microsoft/agent365-skills",
   "upstreamVersion": "1.0.2",
   "upstreamCommit": "07a0304",
@@ -279,8 +279,8 @@
     },
     {
       "path": "kit/.a365-kit/KIT-VERSION.json",
-      "bytes": 712,
-      "sha256": "9c59f19f12b76356118543fde78df13f977265b4a0c223bdd1600de8c465ebeb"
+      "bytes": 723,
+      "sha256": "f1d8cbc3717a056950908b1764819b1c31b6da056c94ffa2cb61af548ba51cd2"
     },
     {
       "path": "kit/.a365-kit/lib/observability-consent.mjs",
@@ -1074,13 +1074,13 @@
     },
     {
       "path": "kit/agent365-kit.ps1",
-      "bytes": 30578,
-      "sha256": "0a933674e80325ade51ae1c3f25745aea044f5abd4574e5531a18fdb8e9c0601"
+      "bytes": 30589,
+      "sha256": "31ebd1df0b673365c8b742a78e3946a93a46439b133bb50fc101bad64445bcb5"
     },
     {
       "path": "kit/agent365-kit.sh",
-      "bytes": 25384,
-      "sha256": "5922aac1b506131c652625081957af03ab07fde0481427af36ecc9edeb6fb4ee"
+      "bytes": 25395,
+      "sha256": "71823ced2d183cd78125ba96c529fe4e551565556bd64c28caa61faaca71639c"
     },
     {
       "path": "examples/dotnet-agent365-lab/.env.example",
@@ -1584,18 +1584,18 @@
     },
     {
       "path": "docs/USING-WITH-YOUR-CLI.md",
-      "bytes": 17122,
-      "sha256": "c53df751dbdc1f1d0f9d8e554367230a23f35811b0843b2e3b467b0b6def20d5"
+      "bytes": 17144,
+      "sha256": "7fe0d02440b51fd14ddb8c4d6b7a1b61f2f4c76ffaae71e7edeb6f425130c1b7"
     },
     {
       "path": "README.md",
-      "bytes": 25109,
-      "sha256": "13b163a5a8893ff8d69926641ce763447f653fb5f34f6ebc5001ad06b1d05d64"
+      "bytes": 25229,
+      "sha256": "9f214daf2e684d8726186ef73d8f6e1ef287f081b45d5e83343af11e569e0d57"
     },
     {
       "path": "GUIDE.md",
-      "bytes": 31060,
-      "sha256": "9949dbcd5e212d9b4d0c1049798c24bf1f59d6ab9bc4d1cec32a3b43485d3a18"
+      "bytes": 31093,
+      "sha256": "587b6fa24b8aa0794d12d28754fdc59c4633d2b2a7683d8c716a60fd97878015"
     },
     {
       "path": "NOTICE.md",
@@ -1609,8 +1609,8 @@
     },
     {
       "path": "SECURITY.md",
-      "bytes": 2741,
-      "sha256": "e5b4dc1b9e277e074338869777fffda3b70653ee419e06cf6537f001ad1080c7"
+      "bytes": 2752,
+      "sha256": "92c4827d7b7949114f094236979f790732f8e5e9320aa85f571382348844327a"
     },
     {
       "path": "LICENSE",

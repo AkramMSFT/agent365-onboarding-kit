@@ -102,7 +102,7 @@ Write-Host '========================' -ForegroundColor DarkGray
 #   5. the public GitHub release
 
 $KitConfigPath = Join-Path $KitRoot 'a365-kit.config.json'
-$PublicSource  = 'https://github.com/AkramMSFT/agent365-onboarding-kit/releases/latest/download/agent365-onboarding-kit-latest.zip'
+$PublicSource  = 'https://github.com/AkramMSFT/agent365-sdk-onboarding-experience/releases/latest/download/agent365-onboarding-kit-latest.zip'
 
 # Works in Windows PowerShell 5.1 and PowerShell 7. 5.1 reads BOM-less files in the ANSI
 # code page, writes a BOM with -Encoding UTF8, and has no ConvertFrom-Json -AsHashtable.

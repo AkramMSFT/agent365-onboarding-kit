@@ -36,7 +36,7 @@ UPDATE=0
 UPDATE_FROM=''
 SET_UPDATE_SOURCE=''
 SET_UPDATE_SOURCE_GIVEN=0
-PUBLIC_SOURCE='https://github.com/AkramMSFT/agent365-onboarding-kit/releases/latest/download/agent365-onboarding-kit-latest.zip'
+PUBLIC_SOURCE='https://github.com/AkramMSFT/agent365-sdk-onboarding-experience/releases/latest/download/agent365-onboarding-kit-latest.zip'
 KIT_CONFIG="$KIT_ROOT/a365-kit.config.json"
 
 while [ $# -gt 0 ]; do

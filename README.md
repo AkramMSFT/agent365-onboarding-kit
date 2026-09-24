@@ -1,8 +1,8 @@
-# Agent 365 Onboarding Kit
+# Agent 365 SDK Onboarding Experience
 
 Onboard an existing AI agent to **Microsoft Agent 365** from whichever coding CLI you already use.
 
-Microsoft publishes [`agent365-skills`](https://github.com/microsoft/agent365-skills) as a Claude Code plugin. This kit repackages those skills as a folder you drop into your agent's repository, so any skill-aware CLI picks them up with no install step.
+Microsoft publishes [`agent365-skills`](https://github.com/microsoft/agent365-skills) as a Claude Code plugin. The **Agent 365 Onboarding Kit** in this repository repackages those skills as a folder you drop into your agent's repository, so any skill-aware CLI picks them up with no install step.
 
 ```
 download  ->  extract into your agent project  ->  run the launcher  ->  "Onboard this agent to Agent 365."
@@ -93,7 +93,7 @@ From the root of your agent project — the folder holding your agent's source.
 **Windows PowerShell:**
 
 ```powershell
-Invoke-WebRequest -Uri "https://github.com/AkramMSFT/agent365-onboarding-kit/releases/latest/download/agent365-onboarding-kit-latest.zip" -OutFile "kit.zip"
+Invoke-WebRequest -Uri "https://github.com/AkramMSFT/agent365-sdk-onboarding-experience/releases/latest/download/agent365-onboarding-kit-latest.zip" -OutFile "kit.zip"
 Expand-Archive -Path kit.zip -DestinationPath . -Force
 .\agent365-kit.ps1
 ```
@@ -101,7 +101,7 @@ Expand-Archive -Path kit.zip -DestinationPath . -Force
 **macOS / Linux:**
 
 ```bash
-curl -L -o kit.zip https://github.com/AkramMSFT/agent365-onboarding-kit/releases/latest/download/agent365-onboarding-kit-latest.zip
+curl -L -o kit.zip https://github.com/AkramMSFT/agent365-sdk-onboarding-experience/releases/latest/download/agent365-onboarding-kit-latest.zip
 unzip -o kit.zip -d .
 ./agent365-kit.sh
 ```
@@ -125,15 +125,15 @@ It reads the skills from the folder you just extracted, detects your stack, and 
 If you have no agent yet, the repository carries seven runnable starters in six languages. This is the one path where GitHub's **Code → Download ZIP** is fine, because the repository itself is the bundle: `kit/` plus `examples/` plus the workspace tool.
 
 ```powershell
-git clone https://github.com/AkramMSFT/agent365-onboarding-kit.git
-cd agent365-onboarding-kit
+git clone https://github.com/AkramMSFT/agent365-sdk-onboarding-experience.git
+cd agent365-sdk-onboarding-experience
 node tools\prepare-workspace.mjs --list
 node tools\prepare-workspace.mjs --example python-teammate --destination ..\my-agent
 ```
 
 ```bash
-git clone https://github.com/AkramMSFT/agent365-onboarding-kit.git
-cd agent365-onboarding-kit
+git clone https://github.com/AkramMSFT/agent365-sdk-onboarding-experience.git
+cd agent365-sdk-onboarding-experience
 node tools/prepare-workspace.mjs --list
 node tools/prepare-workspace.mjs --example python-teammate --destination ../my-agent
 ```

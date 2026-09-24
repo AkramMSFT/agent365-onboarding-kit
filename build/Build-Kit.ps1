@@ -65,7 +65,7 @@ param(
     [switch] $Zip,
     [string] $KitVersion,
     [string] $BuiltUtc,
-    [string] $UpdateSource = 'https://github.com/AkramMSFT/agent365-onboarding-kit/releases/latest/download/agent365-onboarding-kit-latest.zip'
+    [string] $UpdateSource = 'https://github.com/AkramMSFT/agent365-sdk-onboarding-experience/releases/latest/download/agent365-onboarding-kit-latest.zip'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -786,7 +786,7 @@ $upstreamLicense = Join-Path $Upstream 'LICENSE'
 if (-not (Test-Path -LiteralPath $upstreamLicense)) { throw 'Upstream LICENSE not found; the kit cannot be redistributed without it.' }
 Write-Lf (Join-Path $KitPath 'LICENSE-agent365-skills') ([IO.File]::ReadAllText($upstreamLicense))
 Write-Lf (Join-Path $KitPath 'LICENSE') ([IO.File]::ReadAllText((Join-Path $RepoRoot 'LICENSE')))
-$repoUrl = 'https://github.com/AkramMSFT/agent365-onboarding-kit/blob/main/'
+$repoUrl = 'https://github.com/AkramMSFT/agent365-sdk-onboarding-experience/blob/main/'
 $notice = [IO.File]::ReadAllText((Join-Path $RepoRoot 'NOTICE.md'))
 $notice = [regex]::Replace($notice, '\]\((?!https?://|#|mailto:)([^)\s]+)\)', { param($m) "]($repoUrl$($m.Groups[1].Value))" })
 Write-Lf (Join-Path $KitPath 'NOTICE.md') $notice

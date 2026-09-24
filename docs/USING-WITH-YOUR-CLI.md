@@ -32,7 +32,7 @@ Anything not listed still works — see [Any other agentic CLI](#any-other-agent
 
 ## Step 1 — Get the kit into your project
 
-Download [`agent365-onboarding-kit-latest.zip`](https://github.com/AkramMSFT/agent365-onboarding-kit/releases/latest/download/agent365-onboarding-kit-latest.zip) from the [latest release](https://github.com/AkramMSFT/agent365-onboarding-kit/releases/latest) and extract it into the **root of your agent project** — the folder that contains your agent's source.
+Download [`agent365-onboarding-kit-latest.zip`](https://github.com/AkramMSFT/agent365-sdk-onboarding-experience/releases/latest/download/agent365-onboarding-kit-latest.zip) from the [latest release](https://github.com/AkramMSFT/agent365-sdk-onboarding-experience/releases/latest) and extract it into the **root of your agent project** — the folder that contains your agent's source.
 
 Extract into the project root itself, not a subfolder. The archive has no wrapper directory, so extracting in place produces:
 
