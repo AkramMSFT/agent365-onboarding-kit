@@ -277,7 +277,7 @@ Seven runnable starters, each with an offline mode that needs no key and no tena
 | `go-tool-agent` | Go 1.24+ | Standard-library model, tool loop with tests |
 | `rust-tool-agent` | Rust 1.88+ | Native-TLS and serde_json model, tool loop with Cargo tests |
 
-The examples and the workspace tool were contributed by Gerard Salvador Lopez.
+The examples and the workspace tool were contributed by Gerard Salvador López.
 
 ## Relationship to Microsoft's skills
 
@@ -345,7 +345,10 @@ Built against upstream `agent365-skills` v1.0.2 and verified on Windows 11.
 - **Onboarding.** Driven end to end through Copilot CLI against a live tenant on a Python agent: blueprint, agent identity, eleven delegated permission grants, observability instrumentation, Work IQ tool wiring, messaging endpoint, published package, and an agent answering in Teams.
 - **Node.js and .NET.** Both driven through Copilot CLI against the live tenant: the Node run confirmed the exporter switch and the per-turn token refresh land in generated code; the .NET run confirmed the validator's exporter and per-turn registration checks on a hosted agent.
 - **Java.** The `add-java-agent` output compiles on JDK 21 and runs: health check returns 200, an anonymous request returns 401, a forged bearer returns 401. Its OTLP encoder was matched field by field against the Python SDK's output.
-- **Examples.** The .NET, Node and Python examples build here; the Java example compiles and passes its five tests. Go and Rust were built by their contributor with isolated toolchains and are not re-verified on every build.
+- **Examples.** CI builds all seven offline and runs their tests on every push, Go and Rust included. The .NET, Node and Python examples also run on the maintainer's machine.
+- **Reproducible build.** CI rebuilds the kit from the upstream commit it records and fails if the committed kit, manifest or checksums differ by a single byte, or if the tag and version fields disagree.
+- **Launchers.** CI runs the Windows launcher's Copilot wiring, update-source and in-place update under both Windows PowerShell 5.1 and PowerShell 7, and fails if either writes a byte-order mark.
+- **Observability grant.** `grant-observability.mjs` passes sixteen offline tests against a simulated Microsoft Graph. A grant followed by a read-only check completed against a live tenant.
 - **Workspace tool.** `prepare-workspace.mjs` copies an example from a clone with every hash verified, and refuses an existing destination.
 - **Guard behaviour.** The patched path guard blocks writes into the kit and outside the project, and allows writes to agent source.
 
@@ -367,8 +370,8 @@ Before declaring an agent done: confirm the tenant, blueprint and identity ids f
 ## Contributors
 
 - **Akram Eleyan** — author and maintainer.
-- **Gerard Salvador Lopez** ([@gerardsl](https://github.com/gerardsl)) — the September 2026 audit: the SDK and playbook corrections in `build/upstream-fixups.json`, the hardened launchers and version check, the environment parser and console-mode checks, the setup runner for the observability access-package hand-off, the seven examples and the workspace tool, and the runtime lessons the skills now point to.
+- **Gerard Salvador López** ([@gerardsl](https://github.com/gerardsl)) — the September 2026 audit: the SDK and playbook corrections in `build/upstream-fixups.json`, the hardened launchers and version check, the environment parser and console-mode checks, the setup runner for the observability access-package hand-off, the seven examples and the workspace tool, and the runtime lessons the skills now point to.
 
 ## Licence
 
-This packaging is MIT licensed — see [`LICENSE`](LICENSE). The bundled skills are © Microsoft Corporation, also MIT. [`NOTICE.md`](NOTICE.md) carries the attribution and the full list of modifications.
+This packaging is MIT licensed — see [`LICENSE`](LICENSE). The bundled skills are © Microsoft Corporation, also MIT. [`NOTICE.md`](NOTICE.md) carries the attribution and the full list of modifications. Every kit also carries both licences and the notice inside `.a365-kit/`.

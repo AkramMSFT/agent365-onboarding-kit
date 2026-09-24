@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "bundleVersion": "0.2.3",
-  "kitVersion": "0.2.3",
+  "bundleVersion": "0.2.4",
+  "kitVersion": "0.2.4",
   "upstreamRepo": "microsoft/agent365-skills",
   "upstreamVersion": "1.0.2",
   "upstreamCommit": "07a0304",
@@ -280,7 +280,7 @@
     {
       "path": "kit/.a365-kit/KIT-VERSION.json",
       "bytes": 712,
-      "sha256": "0b2b456d6835c8b3db5af8f3d78ce7c8dd436e2986927a641c14d53efa67aa85"
+      "sha256": "9c59f19f12b76356118543fde78df13f977265b4a0c223bdd1600de8c465ebeb"
     },
     {
       "path": "kit/.a365-kit/lib/observability-consent.mjs",
@@ -299,8 +299,8 @@
     },
     {
       "path": "kit/.a365-kit/NOTICE.md",
-      "bytes": 33304,
-      "sha256": "147eebbfea84c29c13529cd8d0eb9c4b51e7e5078eb6ffbb8afaaba511bd09df"
+      "bytes": 33279,
+      "sha256": "7397fb6c085616d6bbb7543f5e2b09395bd2474b44419a08222c0ba70551eb6b"
     },
     {
       "path": "kit/.a365-kit/run-a365.mjs",
@@ -319,8 +319,8 @@
     },
     {
       "path": "kit/.a365-kit/shared/local-runtime-lessons.md",
-      "bytes": 10983,
-      "sha256": "86106b4d7b14e645762b54ab2ed52eedcb859705ad4e0d192bf0eed7e238668b"
+      "bytes": 10984,
+      "sha256": "79bb46ac0865ceab6eccae32b8f7447b67f0538e7ea9c9ff666aa2a822341739"
     },
     {
       "path": "kit/.a365-kit/shared/observability-access-package.md",
@@ -1589,8 +1589,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 24494,
-      "sha256": "acae619bf338536f159e8d8cd0200e4fa733e122c7506a477d2775e6fd5f4242"
+      "bytes": 25109,
+      "sha256": "13b163a5a8893ff8d69926641ce763447f653fb5f34f6ebc5001ad06b1d05d64"
     },
     {
       "path": "GUIDE.md",
@@ -1599,8 +1599,8 @@
     },
     {
       "path": "NOTICE.md",
-      "bytes": 33304,
-      "sha256": "147eebbfea84c29c13529cd8d0eb9c4b51e7e5078eb6ffbb8afaaba511bd09df"
+      "bytes": 33279,
+      "sha256": "7397fb6c085616d6bbb7543f5e2b09395bd2474b44419a08222c0ba70551eb6b"
     },
     {
       "path": "CONTRIBUTING.md",

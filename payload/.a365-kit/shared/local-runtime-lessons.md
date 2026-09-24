@@ -1,7 +1,7 @@
 # Verified local-runtime corrections
 
 Lessons recorded while onboarding real agents with this kit, contributed by Gerard
-Salvador Lopez (September 2026). Apply these corrections before following older command
+Salvador López (September 2026). Apply these corrections before following older command
 snippets or language recipes. The installed CLI's help
 and actual SDK contracts take precedence over remembered flags. These are reusable
 lessons, not permission to copy another tenant's identities, tokens or policy settings.
