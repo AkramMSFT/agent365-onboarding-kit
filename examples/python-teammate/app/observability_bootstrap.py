@@ -14,7 +14,7 @@ class Agents16BaggageMiddleware:
             BaggageMiddleware,
         )
 
-        # Distro 1.2 calls next(); Agents 1.6 requires next(context).
+        # Distro 1.2 middleware calls next(), but Agents 1.6 expects next(context).
         await BaggageMiddleware().on_turn(context, lambda: logic(context))
 
 
@@ -63,5 +63,5 @@ async def shutdown_observability() -> None:
                 if callable(shutdown):
                     shutdown()
 
-    # The exporter can still resolve tokens on the live host loop while it drains.
+    # Flush on a worker thread: the exporter may still need the host loop for tokens.
     await asyncio.to_thread(finish)

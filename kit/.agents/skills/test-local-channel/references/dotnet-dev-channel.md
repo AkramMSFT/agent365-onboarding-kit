@@ -26,10 +26,10 @@ namespace Agent365.DevChannel;
 /// </summary>
 public static class DevChannel
 {
-    // devtunnel host runs on the developer's own machine and forwards to a local port, so a
-    // request from the public internet still arrives with a remote address of 127.0.0.1. A
-    // loopback check alone would pass tunnelled traffic. Header rejection is defense in depth:
-    // proxies can omit these headers, so never tunnel the dev port.
+    // The devtunnel host process runs on the developer's own machine and forwards to a local
+    // port, so a request from the public internet still arrives with a remote address of
+    // 127.0.0.1. A loopback check alone would pass tunnelled traffic. Header rejection is
+    // defense in depth: proxies can omit these headers, so never tunnel the dev port.
     private static readonly string[] ForwardingHeaders =
     {
         "X-Forwarded-For",
@@ -63,7 +63,7 @@ public static class DevChannel
                 : DefaultDevPort);
 
         var builder = WebApplication.CreateBuilder();
-        // 127.0.0.1, never 0.0.0.0: nothing off this machine can reach it directly.
+        // Bind to 127.0.0.1, never 0.0.0.0, so nothing off this machine can reach it directly.
         builder.WebHost.UseUrls($"http://127.0.0.1:{listenPort}");
 
         var app = builder.Build();

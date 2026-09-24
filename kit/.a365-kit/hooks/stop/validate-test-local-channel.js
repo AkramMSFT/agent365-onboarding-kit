@@ -1,9 +1,6 @@
 #!/usr/bin/env node
-// Agent 365 Onboarding Kit add-on validator: test-local-channel.
-//
-// The dev channel bypasses authentication, so the checks here are mostly about
-// the things that keep it off the public path. Static file checks only -- no
-// network, no build. Exit 0 {"ok":true} / 1 {"ok":false}.
+// The dev channel bypasses authentication, so most checks here are about keeping it
+// off the public path. Static file checks only, with no network access and no build.
 
 'use strict';
 
@@ -33,7 +30,6 @@ const codeOnly = text => text
   .filter(line => !/^\s*(#|\/\/|\*|\/\*)/.test(line))
   .join('\n');
 
-// Not installed at all -- nothing to validate. This add-on is optional.
 if (!anySource('A365_DEV_CHANNEL')) {
   process.stdout.write(JSON.stringify({
     ok: true,
@@ -42,8 +38,6 @@ if (!anySource('A365_DEV_CHANNEL')) {
   process.exit(0);
 }
 
-// 1. It must bind loopback explicitly. Binding the wildcard address would expose an
-//    unauthenticated endpoint to the whole network.
 if (!anySource('127.0.0.1')) {
   issues.push('The dev channel does not bind 127.0.0.1 explicitly -- an unauthenticated ' +
     'endpoint must never listen on the wildcard address');
@@ -57,25 +51,22 @@ if (bindsWildcard) {
     'endpoint must listen on 127.0.0.1 only');
 }
 
-// 2. The forwarding-header refusal is the check that actually protects the endpoint.
-//    A loopback test alone passes tunnelled traffic, because `devtunnel host` runs on
-//    the developer's own machine and forwards from 127.0.0.1.
+// The forwarding-header refusal is the check that actually protects the endpoint.
+// A loopback test alone passes tunnelled traffic, because `devtunnel host` runs on
+// the developer's own machine and forwards from 127.0.0.1.
 if (!anySource('x-forwarded-for') && !anySource('X-Forwarded-For')) {
   issues.push('The dev channel does not refuse requests carrying forwarding headers -- ' +
     'without this a tunnelled request reaches it looking local, because devtunnel ' +
     'forwards from 127.0.0.1. This is the check that protects the endpoint');
 }
 
-// 3. Off by default. This is the one env value in the kit that must not be true.
+// This is the one env value in the kit that must not be true.
 const envFiles = ['.env', '.env.example'].map(f => path.join(cwd, f)).filter(exists);
 if (envFiles.some(f => readEnvValue(f, 'A365_DEV_CHANNEL')?.toLowerCase() === 'true')) {
   issues.push('A365_DEV_CHANNEL is set to true in .env -- the dev channel bypasses ' +
     'authentication and must be off by default, enabled per session instead');
 }
 
-// 4. The production endpoint must still validate. If the dev channel was added by
-//    removing the real check rather than adding a separate listener, that is the
-//    one outcome this design exists to prevent.
 if (anySource('/api/messages')) {
   const validatesInbound =
     anySource('Authorization') || anySource('authorization') ||
@@ -87,7 +78,6 @@ if (anySource('/api/messages')) {
   }
 }
 
-// 5. A startup warning, so an operator who leaves the flag on can see it in the log.
 if (!anySource('DEV CHANNEL ENABLED')) {
   issues.push('No startup warning found -- the dev channel should log loudly while it is ' +
     'enabled so it is not left on unnoticed');

@@ -48,9 +48,8 @@ const issues = [];
 const allFiles      = scanProject(cwd);
 const csprojFiles   = filterByName(allFiles, '.csproj');
 const hasCsproj     = csprojFiles.length > 0;
-// Agent 365 Onboarding Kit fix-up: upstream keys Python detection on pyproject.toml
-// only, but the skills' stack detection and every sibling validator also accept
-// requirements.txt. See NOTICE.md in the kit repository.
+// Accept requirements.txt as well as pyproject.toml, as the other validators do.
+// Changed by the Agent 365 Onboarding Kit; see its NOTICE.md, section 8.
 const hasPyproject  = fs.existsSync(path.join(cwd, 'pyproject.toml'))
                    || fs.existsSync(path.join(cwd, 'requirements.txt'));
 const hasPackageJson = fs.existsSync(path.join(cwd, 'package.json'));
@@ -268,8 +267,8 @@ if (language === 'python') {
   }
 
   // Check 2: agent.py — agent interface implementation
-  // Kit fix-up: accept agent.py anywhere in the scanned tree (e.g. src/agent.py),
-  // not only at the project root. See NOTICE.md in the kit repository.
+  // Accept agent.py anywhere in the scanned tree, such as src/agent.py.
+  // Changed by the Agent 365 Onboarding Kit; see its NOTICE.md, section 8.
   const agentFileAtRoot = path.join(cwd, 'agent.py');
   const agentFile = fs.existsSync(agentFileAtRoot)
     ? agentFileAtRoot
@@ -292,9 +291,9 @@ if (language === 'python') {
   }
 
   // Check 4: Required packages — tooling/observability added by separate skills
-  // Kit fix-up: read pyproject.toml or requirements.txt, whichever exists, and accept
-  // hyphen/underscore package-name forms (pip treats them as equivalent).
-  // See NOTICE.md in the kit repository.
+  // Read pyproject.toml or requirements.txt, and compare package names the way pip
+  // does, with hyphens and underscores equal. Changed by the Agent 365 Onboarding Kit;
+  // see its NOTICE.md, section 8.
   const depFile = ['pyproject.toml', 'requirements.txt']
     .map(f => path.join(cwd, f))
     .find(f => fs.existsSync(f));

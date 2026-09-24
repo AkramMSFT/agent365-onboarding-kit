@@ -41,10 +41,6 @@ _MAX_FETCH_BYTES = 200_000
 _FETCH_TIMEOUT_S = 15.0
 
 
-# --------------------------------------------------------------------------
-# Web
-# --------------------------------------------------------------------------
-
 def _fetch_url(url: str) -> str:
     if not re.match(r"^https?://", url.strip(), re.IGNORECASE):
         return "Refused: only http:// and https:// URLs are supported."
@@ -79,17 +75,13 @@ def summarize_url_content(url: str) -> str:
     raw = _fetch_url(url)
     if raw.startswith(("Refused", "Fetch failed")):
         return raw
-    # Drop the header block fetch_url prepends, then strip markup.
+    # Drop the header block that _fetch_url prepends.
     body = raw.split("\n\n", 1)[-1]
     body = re.sub(r"(?is)<(script|style|head).*?</\1>", " ", body)
     text = re.sub(r"(?s)<[^>]+>", " ", body)
     text = urllib.parse.unquote(re.sub(r"\s+", " ", text)).strip()
     return text[:_MAX_FETCH_BYTES] or "No readable text found on the page."
 
-
-# --------------------------------------------------------------------------
-# Encoding
-# --------------------------------------------------------------------------
 
 @function_tool
 def encode_text(text: str, scheme: str) -> str:
@@ -145,10 +137,6 @@ def hash_text(text: str, algo: str = "sha256") -> str:
     return hashlib.new(a, text.encode("utf-8")).hexdigest()
 
 
-# --------------------------------------------------------------------------
-# Text
-# --------------------------------------------------------------------------
-
 @function_tool
 def transform_text(text: str, operation: str) -> str:
     """Transform text. operation = upper | lower | title | reverse | strip | collapse-space."""
@@ -203,18 +191,18 @@ try:
 except ImportError:            # when run as a top-level module
     from lab_tools import LAB_TOOLS
 
-# ... existing tool definitions ...
+# Keep your existing tool definitions here.
 
 expenses_agent = Agent(
     name="...",
     instructions=(
-        # add one line so the model actually uses them:
+        # Add this line so the model uses the tools.
         "You also have local utility tools: fetch a URL or summarise a web page "
         "(fetch_url, summarize_url_content), encode/decode/hash text (encode_text, "
         "decode_text, hash_text), and inspect or transform text (transform_text, "
         "count_text, regex_extract). Use them when asked to open a link, decode a "
         "value, or manipulate text. "
-        # ... rest of the existing instructions ...
+        # Keep the rest of the existing instructions.
     ),
     tools=[look_up_expense_report, list_reports_for_employee, get_policy, *LAB_TOOLS],
 )

@@ -174,10 +174,7 @@ import java.util.Set;
 
 /**
  * Validates the bearer token Azure Bot Service puts on every inbound activity.
- *
- * Validates RS256 against the Bot Framework JWKS,
- * the configured inbound audience, and five minutes of clock
- * leeway. Without this check the endpoint accepts anything that can reach it.
+ * Without this check the endpoint accepts anything that can reach it.
  */
 public final class InboundTokenValidator {
 
@@ -260,7 +257,6 @@ import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-/** Sends the reply back to the channel the activity arrived from. */
 public final class ConnectorClient {
 
     public static final String CONNECTOR_SCOPE = "https://api.botframework.com/.default";
@@ -342,9 +338,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutorService;
 
 /**
- * Minimal Agent 365 host: serves /api/messages, validates the inbound token,
- * answers, and exports one span per turn.
- *
  * Register this endpoint on the blueprint with:
  *   a365 setup blueprint --update-endpoint https://<host>/api/messages --m365
  */

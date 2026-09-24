@@ -8,7 +8,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.AI;
 using ModelContextProtocol.Client;
 
-// Keep SDK catalog/token resolution, but retain TLS validation and own per-turn clients.
+// Reuses the SDK's server catalog and token resolution, but keeps TLS validation and owns the per-turn MCP clients.
 internal sealed class SafeMcpServerService(
     ILogger<IMcpToolServerConfigurationService> logger,
     IConfiguration configuration,

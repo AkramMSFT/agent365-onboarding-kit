@@ -85,7 +85,7 @@ class MyAgent(AgentInterface):
                     tools=tools,
                 )
                 async with AsyncExitStack() as sessions:
-                    # Also close successfully-entered tools if a later MCP connection fails.
+                    # Registered first so connected tools close if a later MCP connection fails.
                     sessions.push_async_exit(agent)
                     await agent.__aenter__()
                     result = await agent.run(message)

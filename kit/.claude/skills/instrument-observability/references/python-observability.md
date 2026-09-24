@@ -95,14 +95,10 @@ import asyncio
 
 _token_cache = AgenticTokenCache()
 
-# a365_token_resolver must be a SYNC callable. AgenticTokenCache exposes only an
-# async getter, so bridge onto the host loop rather than passing it directly:
-# the exporter calls the resolver from its own export thread, so passing the
-# coroutine function hands it an un-awaited coroutine. That object is truthy, so
-# the exporter's "no token" guard does not catch it and it sends
-# "Bearer <coroutine object ...>", which the service rejects with
-# {"code":"EndpointInvalid","message":"Tenant id  is invalid."} -- note the blank
-# tenant: the value is unreadable, not missing from your config.
+# The exporter calls a365_token_resolver synchronously from its own thread, and
+# AgenticTokenCache only has an async getter, so run it on the host loop. Passing the
+# coroutine function directly sends "Bearer <coroutine object ...>", which the service
+# rejects as "Tenant id  is invalid." even though the tenant is configured correctly.
 HOST_LOOP: asyncio.AbstractEventLoop | None = None
 
 

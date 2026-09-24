@@ -48,7 +48,7 @@ command: node ${CLAUDE_PLUGIN_ROOT}/hooks/stop/validate-a365-setup.js
 command: node "${CLAUDE_PROJECT_DIR}/.a365-kit/hooks/stop/validate-a365-setup.js"
 ```
 
-### 3. `path-guard.js` — restoring a guard that would otherwise disable itself
+### 3. `path-guard.js`: restoring a guard that would otherwise disable itself
 
 Upstream refuses writes inside `CLAUDE_PLUGIN_ROOT`, so skills cannot rewrite their own instructions. That check is conditional on the variable being set:
 
@@ -70,7 +70,7 @@ This is applied to reference docs and validator scripts as well as `SKILL.md` fi
 
 ### 5. `scripts/check-version.js` replaced
 
-Upstream's version check tells the user to run `gh skill add microsoft/agent365-skills` — the install path this kit exists to avoid. It is replaced by `kit-version.js`, which reports when Microsoft has published a newer skills release than the bundled one and points at re-downloading the kit. It is optional, silent when up to date or offline, and never blocks a session.
+Upstream's version check tells the user to run `gh skill add microsoft/agent365-skills`, the install path this kit exists to avoid. It is replaced by `kit-version.js`, which reports when Microsoft has published a newer skills release than the bundled one and points at re-downloading the kit. It is optional, silent when up to date or offline, and never blocks a session.
 
 ### 6. `copilot-instructions.md` relocated
 
@@ -82,7 +82,7 @@ Staged at `.a365-kit/copilot-instructions.md` rather than shipped at `.github/co
 
 The build asserts this passage still matches upstream before patching it, so an upstream rewording fails the build rather than shipping a broken instruction.
 
-### 8. `validate-make-ai-teammate.js` — one bug fix
+### 8. `validate-make-ai-teammate.js`: one bug fix
 
 This was the first modification that changes behaviour rather than paths, and it is called out here for that reason.
 
@@ -92,7 +92,7 @@ Upstream's `validate-make-ai-teammate.js` detects a Python project **only** by t
 const hasPyproject  = fs.existsSync(path.join(cwd, 'pyproject.toml'));
 ```
 
-Every sibling validator (`validate-instrument-observability.js`, `validate-add-workiq-tools.js`, `validate-test-local.js`, `validate-a365-code-validator.js`) accepts `requirements.txt` as well, and so does the skills' own stack detection. The result is that a `requirements.txt`-only Python project falls through to the Node.js default and fails eight TypeScript checks that do not apply to it — `src/index.ts not found`, `package.json not found`, `tsconfig.json not found`, and so on.
+Every sibling validator (`validate-instrument-observability.js`, `validate-add-workiq-tools.js`, `validate-test-local.js`, `validate-a365-code-validator.js`) accepts `requirements.txt` as well, and so does the skills' own stack detection. The result is that a `requirements.txt`-only Python project falls through to the Node.js default and fails eight TypeScript checks that do not apply to it: `src/index.ts not found`, `package.json not found`, `tsconfig.json not found`, and so on.
 
 In Claude Code this validator runs as a **stop hook that refuses to end the session** until it passes, so a false negative is not cosmetic: it blocks the session. Three checks in this one file assume a layout that upstream's own `make-ai-teammate` skill does not enforce when it edits an existing project:
 
@@ -102,11 +102,11 @@ In Claude Code this validator runs as a **stop hook that refuses to end the sess
 | Check 2, `agent.py` | Must be at the project root | Root, or anywhere in the scanned tree (e.g. `src/agent.py`) |
 | Check 4, dependencies | Read from `pyproject.toml` only, underscore-only names | `pyproject.toml` or `requirements.txt`, whichever exists; hyphen and underscore forms compared as equal, as pip treats them |
 
-Without the first fix a `requirements.txt` project falls through to the Node.js default and fails eight TypeScript checks. With only the first fix, Check 4 would then read a `pyproject.toml` that does not exist. So the three are applied together. The *content* of each check — what must be present in `agent.py`, which packages are required — is unchanged.
+Without the first fix a `requirements.txt` project falls through to the Node.js default and fails eight TypeScript checks. With only the first fix, Check 4 would then read a `pyproject.toml` that does not exist. So the three are applied together. The *content* of each check (what must be present in `agent.py`, which packages are required) is unchanged.
 
 Found 2026-09-03 while onboarding an existing Python / OpenAI Agents SDK project (`src/` layout, `requirements.txt`) through the kit: the skill adapted to the layout correctly and the validator then reported it as a failed Node.js project. Reported upstream.
 
-### 9. `validate-instrument-observability.js` — exporter value, not just presence
+### 9. `validate-instrument-observability.js`: exporter value, not just presence
 
 The `a365` CLI stamps `ENABLE_A365_OBSERVABILITY_EXPORTER=false` into `.env`, and `instrument-observability` has an explicit invariant not to overwrite an existing value ("Preserve existing values … Add only missing keys"); it is meant to *warn* instead. Upstream's validator then checks only that the key **exists**:
 
@@ -120,7 +120,7 @@ The kit adds a value check to both the Node.js and Python branches: the validato
 
 Found 2026-09-04 after several hours of live Teams traffic produced no activity. The instrumentation was correct throughout; only the last hop was disabled.
 
-### 10. `instrument-observability/SKILL.md` — the skill now sets the exporter, not just reports it
+### 10. `instrument-observability/SKILL.md`: the skill now sets the exporter, not just reports it
 
 Section 9 makes a disabled exporter visible. This makes the skill fix it.
 
@@ -132,7 +132,7 @@ The kit rewrites three passages in the Node.js / Python path:
 |---|---|---|
 | Invariant 1 | Preserve an existing exporter value | Preserve every value **except** the exporter switch; set that to `true` and say so |
 | Rule 6 | Tell the user it is off and how to turn it on | Tell the user it was off and that you turned it on, and to restart |
-| Phase 9 next steps | "Enable exporting when ready for production" | "Confirm the exporter is still on — a later `a365 setup` run can reset it" |
+| Phase 9 next steps | "Enable exporting when ready for production" | "Confirm the exporter is still on. This skill sets it, but a later `a365 setup` run can reset it to false" |
 
 Upstream's own .NET path already does exactly this. Invariant 3 reads: *"`EnableAgent365Exporter: true` at the root. `a365 setup` may write `false`; this skill corrects it."* The Node.js and Python branches were inconsistent with .NET on the same decision, and the kit makes them agree.
 
@@ -141,7 +141,7 @@ This matters more outside Claude Code than inside it. The validator in section 9
 Found and fixed 2026-09-04, alongside section 9. Reported upstream.
 
 
-### 11. `references/python-observability.md` — the OBO token resolver must be synchronous
+### 11. `references/python-observability.md`: the OBO token resolver must be synchronous
 
 The Python OBO sample wires the exporter's token resolver like this:
 
@@ -155,13 +155,13 @@ a365_token_resolver=_token_cache.get_observability_token,
 return self._token_resolver(agent_id, tenant_id)
 ```
 
-So it receives an un-awaited coroutine rather than a token. The next guard is `if not token:` — and a coroutine object is **truthy**, so the one check that would have caught this passes. The exporter then builds `f"Bearer {token}"`, sending the literal text `Bearer <coroutine object AgenticTokenCache.get_observability_token at 0x...>`. The service cannot read a tenant out of that and answers:
+So it receives an un-awaited coroutine rather than a token. The next guard is `if not token:`, but a coroutine object is **truthy**, so the one check that would have caught this passes. The exporter then builds `f"Bearer {token}"`, sending the literal text `Bearer <coroutine object AgenticTokenCache.get_observability_token at 0x...>`. The service cannot read a tenant out of that and answers:
 
 ```json
 {"code":"EndpointInvalid","message":"Tenant id  is invalid.","innererror":{"code":"TenantIdInvalid"}}
 ```
 
-The blank in *"Tenant id  is invalid"* is the tell: the tenant is unreadable, not absent from the agent's configuration. Chasing the configured `TENANTID` — which is correct — leads nowhere.
+The blank in *"Tenant id  is invalid"* is the tell: the tenant is unreadable, not absent from the agent's configuration. Chasing the configured `TENANTID`, which is correct, leads nowhere.
 
 Upstream's own documentation already says what the contract is. Its kwarg table describes `a365_token_resolver` as a *"Sync callable `(agent_id, tenant_id) -> str | None`"*, and its S2S sample passes a sync lambda correctly. Only the OBO sample is wrong, and `AgenticTokenCache` exposes no sync accessor, so that sample cannot work as written.
 
@@ -169,16 +169,16 @@ The kit replaces it with a bridge that marshals the coroutine onto the host's ev
 
 | Where | Why it is needed |
 |---|---|
-| `references/python-observability.md` | The code the skill copies from. Also shows where to capture the loop — the per-turn handler the skill already wraps with `InvokeAgentScope`, so nothing outside the skill's own edits has to change. |
+| `references/python-observability.md` | The code the skill copies from. Also shows where to capture the loop: the per-turn handler the skill already wraps with `InvokeAgentScope`, so nothing outside the skill's own edits has to change. |
 | `SKILL.md` | Read before any reference doc, and it stated the broken wiring outright. Fixing only the reference leaves the model with a contradiction and the wrong instruction first. |
 | `validate-instrument-observability.js` | Catches the pattern in code already written, including agents onboarded before this kit version. Matches `a365_token_resolver=` bound directly to `get_observability_token`; the bridge mentions the same symbol and is correctly ignored. |
 
 Leaving the captured loop unset is the one remaining way to get no telemetry, and unlike the original defect it is loud: the exporter logs `No token resolved for agent ...; dropping chunk` at ERROR on every export.
 
-Found 2026-09-04 on a live Python OBO agent: the agent answered normally in Teams while every export was rejected. Verified fixed against the same tenant — `HTTP 200`, three spans, all sinks accepting. Reported upstream.
+Found 2026-09-04 on a live Python OBO agent: the agent answered normally in Teams while every export was rejected. Verified fixed against the same tenant: `HTTP 200`, three spans, all sinks accepting. Reported upstream.
 
 
-### 12. `instrument-observability` — the Node.js OBO path
+### 12. `instrument-observability`: the Node.js OBO path
 
 Section 11 is Python-only. Node.js does not share that defect: its `AgenticTokenCacheInstance` splits the work that Python collapses into one `async def`, and the shipped types confirm the split.
 
@@ -187,18 +187,18 @@ getObservabilityToken(agentId, tenantId): string | null;   // sync cache read �
 refreshObservabilityToken(...): Promise<void>;             // async, awaited once per turn
 ```
 
-Passing the sync getter as `tokenResolver` is therefore correct on Node. But the split creates a different failure with the same outcome — an agent that traces and exports nothing — and `SKILL.md` walks into it twice.
+Passing the sync getter as `tokenResolver` is therefore correct on Node. But the split creates a different failure with the same outcome (an agent that traces and exports nothing), and `SKILL.md` walks into it twice.
 
-**The cache is only filled per turn.** `tokenResolver` reads a cache that nothing populates unless `refreshObservabilityToken` is called at the start of each handler turn. Miss it and the resolver returns `''` on every export. Upstream instructs the call in Phase 4 and names the symptom in its own troubleshooting table, so this one is documented — but nothing verified it, and the two halves live in different phases.
+**The cache is only filled per turn.** `tokenResolver` reads a cache that nothing populates unless `refreshObservabilityToken` is called at the start of each handler turn. Miss it and the resolver returns `''` on every export. Upstream instructs the call in Phase 4 and names the symptom in its own troubleshooting table, so this one is documented. Nothing verified it, however, and the two halves live in different phases.
 
-**The method name is wrong in `SKILL.md`.** It writes `AgenticTokenCacheInstance.RefreshObservabilityToken` — PascalCase, in the Phase 4 code sample a CLI copies verbatim. The shipped API is `refreshObservabilityToken`, camelCase since GA 1.0, which upstream's own reference doc states explicitly at the top of its auth table. The PascalCase name is `undefined`, so the call throws a `TypeError` on the agent's first turn. Both occurrences are corrected.
+**The method name is wrong in `SKILL.md`.** In the Phase 4 code sample, which a CLI copies verbatim, it writes `AgenticTokenCacheInstance.RefreshObservabilityToken` in PascalCase. The shipped API is `refreshObservabilityToken`, camelCase since GA 1.0, which upstream's own reference doc states explicitly at the top of its auth table. The PascalCase name is `undefined`, so the call throws a `TypeError` on the agent's first turn. Both occurrences are corrected.
 
-The kit adds two validator checks for the OBO path: a `tokenResolver` reading the cache with no `refreshObservabilityToken` anywhere, and the PascalCase spelling. Verified across three states — refresh missing, refresh misspelled, refresh correct.
+The kit adds two validator checks for the OBO path: a `tokenResolver` reading the cache with no `refreshObservabilityToken` anywhere, and the PascalCase spelling. Verified across three states: refresh missing, refresh misspelled, refresh correct.
 
 Found 2026-09-04 while confirming whether the section 11 fix left Node.js exposed. Reported upstream.
 
 
-### 13. `validate-instrument-observability.js` — the .NET branch
+### 13. `validate-instrument-observability.js`: the .NET branch
 
 .NET does not share the section 11 defect either, and this was verified by reflecting over the shipped assemblies rather than reading the docs:
 
@@ -207,11 +207,11 @@ delegate AsyncAuthTokenResolver(String agentId, String tenantId) -> Task<...>
 Agent365ExporterOptions.TokenResolver : AsyncAuthTokenResolver
 ```
 
-The resolver is async **by type**, so the exporter awaits it and the reference doc's `async (agentId, tenantId) => await tokenCache.GetObservabilityToken(...)` is correct. `AgenticTokenCache` has the same shape as Python's — sync `RegisterObservability`, async `GetObservabilityToken` — but because the delegate is declared async, there is no mismatch.
+The resolver is async **by type**, so the exporter awaits it and the reference doc's `async (agentId, tenantId) => await tokenCache.GetObservabilityToken(...)` is correct. `AgenticTokenCache` has the same shape as Python's (sync `RegisterObservability`, async `GetObservabilityToken`), but because the delegate is declared async, there is no mismatch.
 
 The .NET *instructions* are also the strongest of the three languages: invariant 3 already has the skill correct `EnableAgent365Exporter`, Phase 3 warns that without it "the exporter is wired but inert", and the per-turn `RegisterObservability()` call is spelled out in Phase 4. Nothing needed rewriting.
 
-What was missing was verification. The validator's .NET branch checked only that `EnableAgent365Exporter` **exists** — the same defect section 9 fixed for Node.js and Python, left in place for .NET — so an agent with the exporter off passed as fully instrumented. And nothing checked the per-turn registration, so an OBO agent whose token cache is never filled also passed.
+What was missing was verification. The validator's .NET branch checked only that `EnableAgent365Exporter` **exists**. That is the same defect section 9 fixed for Node.js and Python, left in place for .NET, so an agent with the exporter off passed as fully instrumented. And nothing checked the per-turn registration, so an OBO agent whose token cache is never filled also passed.
 
 Both checks added. The exporter check requires `true` only in the root `appsettings.json`, matched by exact file name; `appsettings.Development.json` is *meant* to be `false` (invariant 3 says so) and is excluded. Verified across four states: exporter false, exporter true, a `false` Development file beside a `true` root, and a missing `RegisterObservability`.
 
@@ -219,27 +219,27 @@ Found 2026-09-04 while checking whether sections 11 and 12 left .NET exposed.
 
 ---
 
-### 14. Environment-value validation — active settings, not comments or examples
+### 14. Environment-value validation: active settings, not comments or examples
 
 The exporter checks in sections 9 and 13 accepted a commented-out `true`, a value merely beginning with `true`, an earlier assignment superseded by a later `false`, or an enabled `.env.example` beside a disabled `.env`, and rejected a valid quoted value. A disabled exporter could pass and a correctly configured one could fail.
 
 The kit-authored `hooks/lib/env-config.js` parses assignments, honours quoting and `export`, ignores comments, takes the last assignment, and prefers the project's `.env` over example files. The Node.js and Python observability validators use it through fix-ups; the Java and dev-channel validators use it directly. The dev-channel check still inspects both `.env` and `.env.example`, because neither should enable an unauthenticated listener by default.
 
-### 15. `path-guard.js` — nested new paths and Windows casing
+### 15. `path-guard.js`: nested new paths and Windows casing
 
 Section 3's fallback resolved only the immediate parent of a new file. A new path with several missing directories beneath a junction or symlink fell back to the unexpanded path, so a location lexically inside the project could resolve outside it. String-prefix containment also rejected legitimate paths whose Windows casing differed from the project root, and would have treated `C:\proj2` as inside `C:\proj`.
 
 The guard now resolves the nearest existing ancestor before appending the missing components, compares containment with `path.relative`, and ignores malformed or non-tool events instead of crashing. The drop-in protection from section 3 is unchanged.
 
-### 16. `validate-add-workiq-tools.js` — honour the S2S early exit
+### 16. `validate-add-workiq-tools.js`: honour the S2S early exit
 
 The skill deliberately exits without changes on an S2S project, because this kit's Work IQ wiring needs a delegated user token. Its validator then demanded a manifest and MCP wiring anyway, blocking the session after the skill had correctly refused. The validator now reads the cached auth mode and returns a non-blocking verdict for S2S; OBO and agentic-user validation are unchanged.
 
-### 17. Setup diagnostics — `completed:false` is not a consent failure
+### 17. Setup diagnostics: `completed:false` is not a consent failure
 
 Two validators read `completed:false` in the generated config as proof that OAuth consent was missing and sent the operator to an administrator. It equally reflects a skipped endpoint or hosting step, as the live runs in this repository showed. The warnings now direct the reader to check setup, endpoint and consent results separately. An unconditional warning that an App Service managed identity was required for observability is removed; Azure hosting is optional and other credentials are supported.
 
-### 18. SDK and playbook corrections — the September 2026 audit
+### 18. SDK and playbook corrections: the September 2026 audit
 
 An audit of the bundled skills against the released SDKs found instructions and samples that could not work as written. The corrections are applied to the canonical files before the discovery copies are made and are recorded in `build/upstream-fixups.json`, each with an id and an exact expected match count, so an upstream rewording fails the build rather than silently shipping a stale patch.
 
@@ -281,7 +281,7 @@ These change where a CLI looks, not what Microsoft's phases do.
 
 ---
 
-## Kit add-ons — not Microsoft's
+## Kit add-ons: not Microsoft's
 
 Everything under `.a365-kit/addons/` (and its copies in `.claude/skills/` and `.agents/skills/`) plus the five add-on validators listed at the top of this notice is **written for this kit** and MIT-licensed under the repository's `LICENSE`. They follow upstream's skill format so every CLI discovers them the same way, but they are not part of `microsoft/agent365-skills` and should not be reported there.
 
@@ -293,7 +293,7 @@ Everything under `.a365-kit/addons/` (and its copies in `.claude/skills/` and `.
 | `add-mcp-server` | Connects the agent to any external / community MCP server (filesystem, git, GitHub, Postgres, web fetch, Slack, Playwright, …) beyond Microsoft's Work IQ set. Governance boundary: external servers are NOT registered in Agent 365 or gated by Entra; opt-in, clearly labelled, paired with DLP guidance. | Python wiring pattern API-verified on the live SDK (`MCPServerStdio`/`StreamableHttp`); Node.js and .NET are faithful ports awaiting a run. |
 | `grant-observability-access` | `a365 setup all` grants `Agent365.Observability.OtelWrite` only when a Global Administrator runs it, and otherwise prints a hand-off. Checks the delegated consent and the application roles read-only, then grants what is missing after an administrator signs in to `az` and confirms. Java, Go and Rust exporters sign in as the blueprint, so the blueprint can be included. | Mirrors the CLI 1.1.221 grant logic: the consent scope, the role name and the fallback PowerShell come from its source. Offline tests cover every Graph call. A grant followed by a read-only check completed against a live tenant on 2026-09-24. |
 | `test-local-channel` | Microsoft's `test-local` is written throughout for the AI Teammate path, so a blueprint agent had no local test route at all: its host rejects every unauthenticated request, which is deliberate. Adds a dev channel on its own loopback-bound port, off unless `A365_DEV_CHANNEL=true`, leaving `/api/messages` fully authenticated. | Python module run and verified: with the flag unset the port refuses connections; with it set, `/dev/health` returns 200, `/dev/chat` answers without a token, a request carrying `X-Forwarded-For` is refused 403, the socket is bound to 127.0.0.1 rather than the wildcard, and the production endpoint still returns 401. Node.js and .NET are faithful ports awaiting a run. |
-| `add-java-agent` | Microsoft ships no Java SDK, so a Java agent can be registered and published but has no host, no inbound token validation and no way to export telemetry. Adds all three. Registration and the portal steps are language-agnostic and stay with the Microsoft skills. | Compiled on JDK 21 and run: health 200, anonymous POST 401, forged bearer 401, GET 405. The OTLP encoder was matched field by field against the Python SDK's output. Dry-run end to end through GitHub Copilot CLI on a fresh Maven project: the CLI found the skill, wrote the five classes, wired them to the project's own agent class rather than a stub, added both dependencies, compiled, and reproduced the non-standard wire format correctly. Not yet exercised against a tenant from Java -- a real inbound activity and Connector reply need a published agent. |
+| `add-java-agent` | Microsoft ships no Java SDK, so a Java agent can be registered and published but has no host, no inbound token validation and no way to export telemetry. Adds all three. Registration and the portal steps are language-agnostic and stay with the Microsoft skills. | Compiled on JDK 21 and run: health 200, anonymous POST 401, forged bearer 401, GET 405. The OTLP encoder was matched field by field against the Python SDK's output. Dry-run end to end through GitHub Copilot CLI on a fresh Maven project: the CLI found the skill, wrote the five classes, wired them to the project's own agent class rather than a stub, added both dependencies, compiled, and reproduced the non-standard wire format correctly. Not yet exercised against a tenant from Java, because a real inbound activity and Connector reply need a published agent. |
 
 The eight Microsoft skills are untouched by the add-ons: they reference upstream files, never modify them. Kit 0.2.1 and earlier also shipped an `add-purview-dlp` add-on. Upstream's `purview-dlp-integration` skill, added in September 2026, answers the same request with different wiring, so from 0.2.2 the add-on is retired. What it learned on a live tenant and upstream does not cover moved to `.a365-kit/shared/purview-kit-notes.md`, which also tells the CLI how to handle a project the add-on already wired.
 
@@ -310,11 +310,11 @@ The September 2026 audit also re-verified the add-ons offline: every Python, Nod
 - No phase ordering, decision matrix, or trigger phrases.
 - No code patterns in `references/` beyond the token-resolver fix in section 11 and the SDK corrections itemised in section 18, all of which are asserted against upstream's text on every build.
 - No skill logic beyond the exporter switch in section 10, which is applied to bring the Node.js and Python paths into line with what upstream's .NET path already does.
-- No validator check logic beyond the fixes in sections 8, 9, 11 to 17 and 19, and no code pattern beyond the token-resolver fix in section 11 and the SDK corrections in section 18 — the validators otherwise enforce exactly what upstream enforces.
+- No validator check logic beyond the fixes in sections 8, 9, 11 to 17 and 19, and no code pattern beyond the token-resolver fix in section 11 and the SDK corrections in section 18; the validators otherwise enforce exactly what upstream enforces.
 - Nothing added to the skills beyond the pointers in section 20. The kit's own Purview, hosting and hardening content lives in the separately labelled add-ons above.
 
 ## Reporting issues
 
-Problems with the skills themselves — what they do, ask, or generate — belong upstream at
+Problems with the skills themselves (what they do, ask, or generate) belong upstream at
 [microsoft/agent365-skills](https://github.com/microsoft/agent365-skills/issues). Problems with the
 packaging, the launchers, the prerequisite doctor, or the build belong in this repository.

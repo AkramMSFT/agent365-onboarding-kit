@@ -1,9 +1,7 @@
 #!/usr/bin/env node
-// Agent 365 Onboarding Kit add-on validator: add-messaging-endpoint.
-//
 // Checks that a blueprint-based agent has an HTTP host serving /api/messages and
 // /api/health, and that the blueprint has a registered HTTPS messaging endpoint.
-// Static file checks only -- no network, no build. Exit 0 {"ok":true} / 1 {"ok":false}.
+// Static file checks only, with no network access and no build.
 
 'use strict';
 
@@ -16,7 +14,6 @@ const issues = [];
 const read = p => { try { return fs.readFileSync(p, 'utf8'); } catch { return ''; } };
 const exists = p => { try { fs.accessSync(p); return true; } catch { return false; } };
 
-// Language from the detection cache, falling back to project files.
 let language = '';
 try {
   const d = JSON.parse(read(path.join(cwd, '.a365-workspace-detection.local.json')));
@@ -25,7 +22,7 @@ try {
     process.stdout.write(JSON.stringify({ ok: true, note: 'AI Teammate: hosting is owned by make-ai-teammate; add-messaging-endpoint not applicable' }));
     process.exit(0);
   }
-} catch { /* no cache */ }
+} catch { /* no detection cache */ }
 if (!language) {
   if (exists(path.join(cwd, 'pyproject.toml')) || exists(path.join(cwd, 'requirements.txt'))) language = 'python';
   else if (exists(path.join(cwd, 'package.json'))) language = 'nodejs';
@@ -57,10 +54,10 @@ if (language === 'python') {
   issues.push('could not determine the project language (no detection cache, requirements.txt, pyproject.toml, package.json or .csproj)');
 }
 
-// Work IQ + Python: the tooling SDK defaults to a DEVELOPMENT environment when none of
-// PYTHON_ENVIRONMENT / ENVIRONMENT / ASPNETCORE_ENVIRONMENT / DOTNET_ENVIRONMENT is set,
-// which makes it read tokens from BEARER_TOKEN_* env vars instead of doing the OBO
-// exchange -- every MCP server then answers 401. Nothing in the CLI or skills sets it.
+// With Work IQ on Python, the tooling SDK assumes a development environment when none of
+// PYTHON_ENVIRONMENT, ENVIRONMENT, ASPNETCORE_ENVIRONMENT or DOTNET_ENVIRONMENT is set.
+// It then reads tokens from BEARER_TOKEN_* variables instead of doing the OBO exchange,
+// and every MCP server answers 401. Nothing in the CLI or the skills sets these.
 if (language === 'python' && exists(path.join(cwd, 'ToolingManifest.json'))) {
   const env = read(path.join(cwd, '.env'));
   const envVar = /^\s*(PYTHON_ENVIRONMENT|ENVIRONMENT|ASPNETCORE_ENVIRONMENT|DOTNET_ENVIRONMENT)\s*=\s*(\S+)/im.exec(env);
@@ -82,7 +79,6 @@ if (language === 'python' && exists(path.join(cwd, 'ToolingManifest.json'))) {
   }
 }
 
-// Endpoint registered on the blueprint.
 const gen = path.join(cwd, 'a365.generated.config.json');
 if (!exists(gen)) issues.push('a365.generated.config.json not found -- run a365-setup first');
 else {

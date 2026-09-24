@@ -13,11 +13,11 @@ Most of what ships is **generated**. `kit/`, `BUNDLE-MANIFEST.json` and `SHA256S
 | Build behaviour or a verification check | [`build/Build-Kit.ps1`](build/Build-Kit.ps1) |
 | An example agent or the workspace tool | [`examples/`](examples/), [`tools/`](tools/), and the catalog in [`build/bundle-examples.json`](build/bundle-examples.json) |
 | Documentation | `README.md`, `GUIDE.md`, `NOTICE.md`, `docs/` |
-| Anything in `kit/`, the manifest or the checksums | nothing — rebuild instead |
+| Anything in `kit/`, the manifest or the checksums | nothing; rebuild instead |
 
 ## Issues that belong upstream
 
-This project repackages [microsoft/agent365-skills](https://github.com/microsoft/agent365-skills). If the problem is with what a skill *does* — the questions it asks, the code it generates, the order of its phases — report it at [their issue tracker](https://github.com/microsoft/agent365-skills/issues), not here.
+This project repackages [microsoft/agent365-skills](https://github.com/microsoft/agent365-skills). If the problem is with what a skill *does* (the questions it asks, the code it generates, the order of its phases), report it at [their issue tracker](https://github.com/microsoft/agent365-skills/issues), not here.
 
 Report here anything about the packaging, the launchers, the prerequisite checker, the build, the add-ons, or the documentation.
 
@@ -58,7 +58,7 @@ The build counts matches of `find` and fails unless the count equals `expectedCo
 Three things are expected of a fix-up, whichever file it lives in:
 
 1. **A comment above it** naming the defect and the `NOTICE.md` section that documents it.
-2. **An entry in [`NOTICE.md`](NOTICE.md)** explaining the failure it prevents, with upstream's own justification where one exists — several fixes exist only to make one language behave the way another already does.
+2. **An entry in [`NOTICE.md`](NOTICE.md)** explaining the failure it prevents, with upstream's own justification where one exists. Several fixes exist only to make one language behave the way another already does.
 3. **Evidence.** Say how you know. "Compiled and ran", "verified against a live tenant", "read from the shipped SDK source" and "transcribed, not yet run" are all acceptable; leaving it unsaid is not.
 
 Prefer fixing the skill over fixing only the validator. Validator hooks run under Claude Code and nothing else, so a validator-only fix leaves every other CLI unprotected.
@@ -78,7 +78,7 @@ The build fails rather than emitting output it cannot verify. A green build mean
 
 The version lives in `build/kit.version`. The nightly refresh bumps the patch number when upstream moves. Bump it by hand for any other release and tag it `v<version>`. CI checks that the tag, `build/kit.version`, `KIT-VERSION.json` and the manifest agree.
 
-`node --check` is not sufficient on its own for validator changes — it accepts code that fails to load as a CommonJS module. Run the validator against a real project before committing.
+`node --check` is not sufficient on its own for validator changes, because it accepts code that fails to load as a CommonJS module. Run the validator against a real project before committing.
 
 ## Testing a change
 

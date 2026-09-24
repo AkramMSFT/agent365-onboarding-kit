@@ -175,7 +175,7 @@ var labTools = new[]
     AIFunctionFactory.Create(LabTools.TransformText),
     AIFunctionFactory.Create(LabTools.RegexExtract),
 };
-// merge labTools into the ChatOptions.Tools / agent tool collection you already build.
+// Merge labTools into the ChatOptions.Tools or agent tool collection you already build.
 ```
 
 Add a line to the agent instructions naming the tools, then `dotnet build` and confirm the agent still starts.

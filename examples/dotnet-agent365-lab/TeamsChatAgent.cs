@@ -60,7 +60,7 @@ internal sealed class TeamsChatAgent : AgentApplication
             if (result.Unchecked && !result.Blocked)
                 await context.SendActivityAsync("Warning: Purview could not complete a DLP check; this turn continued in fail-open mode.", cancellationToken: cancellationToken);
             await context.SendActivityAsync(result.Text, cancellationToken: cancellationToken);
-            // Do not retain an unchecked, policy-blocked reply in conversation history.
+            // Keep policy-blocked replies out of the saved conversation history.
             if (!result.Blocked && pendingSession is not null) state.Conversation.SetValue("agentSession", pendingSession);
         }
         finally { turns.Release(); }

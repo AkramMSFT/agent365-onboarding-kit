@@ -18,7 +18,7 @@ from observability_tokens import access_token
 
 
 class AgentFrameworkMcpTools:
-    """AF-only adapter: SDK discovery owns per-audience token selection."""
+    """Agent Framework MCP tools for one turn; SDK discovery picks each audience's token."""
 
     def __init__(self, configuration_service=None, http_client_factory=httpx.AsyncClient):
         self._configuration_service = (
@@ -76,8 +76,8 @@ class AgentFrameworkMcpTools:
                     load_prompts=False,
                     tool_name_prefix=config.mcp_server_unique_name or config.mcp_server_name,
                 )
-                # A failed __aenter__ is not registered in RawAgent's exit stack.
+                # RawAgent does not close a tool whose __aenter__ failed, so this stack does.
                 clients.push_async_callback(tool.close)
                 tools.append(tool)
-            # The caller must exit RawAgent (MCP sessions) before exiting this context.
+            # Callers must exit RawAgent and its MCP sessions before leaving this context.
             yield tools

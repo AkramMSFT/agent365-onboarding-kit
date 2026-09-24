@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "bundleVersion": "0.2.5",
-  "kitVersion": "0.2.5",
+  "bundleVersion": "0.2.6",
+  "kitVersion": "0.2.6",
   "upstreamRepo": "microsoft/agent365-skills",
   "upstreamVersion": "1.0.2",
   "upstreamCommit": "07a0304",
@@ -74,13 +74,13 @@
     },
     {
       "path": "kit/.a365-kit/addons/add-java-agent/references/java-endpoint.md",
-      "bytes": 21306,
-      "sha256": "efdd4df54ef5cb313a6784e88907da614eda0bb8088d896f23427f698b8bf441"
+      "bytes": 20988,
+      "sha256": "48459ccf990cc283542a8b4ea73a5193af1578774f6eccde50f1cf9d194ff752"
     },
     {
       "path": "kit/.a365-kit/addons/add-java-agent/references/java-observability.md",
-      "bytes": 9499,
-      "sha256": "5281a3758f8e99dc79d11e001338ee6c37b4037dd2c8a51dc9b476801d2ff286"
+      "bytes": 9349,
+      "sha256": "c4fd6a50432afa6951303589408d251459a8c54e1176d2ea27f3c7e96a0655d7"
     },
     {
       "path": "kit/.a365-kit/addons/add-java-agent/SKILL.md",
@@ -89,18 +89,18 @@
     },
     {
       "path": "kit/.a365-kit/addons/add-lab-tools/references/dotnet-lab-tools.md",
-      "bytes": 9045,
-      "sha256": "f82e7d30cc8bb25765fc86bdb659ec4054498a257b9cb6b97f1a276f91d0adb8"
+      "bytes": 9046,
+      "sha256": "7e1ddbf1cb560cfa85da39558c4a425644e479def30e5358f9382320805df1e8"
     },
     {
       "path": "kit/.a365-kit/addons/add-lab-tools/references/nodejs-lab-tools.md",
-      "bytes": 8123,
-      "sha256": "de8709caf7d775bffb61a25ebeb790859c0b805e5f5b7c99e530a05db522016d"
+      "bytes": 7916,
+      "sha256": "184e26483c20620eec1dd74e4c6d7a98defa73d01ba064445910bf5ccd99183f"
     },
     {
       "path": "kit/.a365-kit/addons/add-lab-tools/references/python-lab-tools.md",
-      "bytes": 9764,
-      "sha256": "ccbf69b4a768f53a8c4e6bd5f668b32787304a3d884f066bbdd9f5d830da4b1c"
+      "bytes": 9269,
+      "sha256": "8a9738d7cafadacf897b0140b8957d8fa7db293be883b56ad3b80a36dff1c44c"
     },
     {
       "path": "kit/.a365-kit/addons/add-lab-tools/SKILL.md",
@@ -109,8 +109,8 @@
     },
     {
       "path": "kit/.a365-kit/addons/add-mcp-server/references/dotnet-mcp-server.md",
-      "bytes": 3976,
-      "sha256": "bb98e2539e24cbe3e817c81d3332835cd0623b3df7267bfc78ca2516e31aeb60"
+      "bytes": 3963,
+      "sha256": "86f4911875e434e1e821b8d384ef2daa0ab0ceeb08d3de0eaa64156247ebc370"
     },
     {
       "path": "kit/.a365-kit/addons/add-mcp-server/references/nodejs-mcp-server.md",
@@ -119,8 +119,8 @@
     },
     {
       "path": "kit/.a365-kit/addons/add-mcp-server/references/python-mcp-server.md",
-      "bytes": 6578,
-      "sha256": "f97768851cbdb6dc40a38e240ff8d5e9b51acef808427735fccb9e32adf1026f"
+      "bytes": 6471,
+      "sha256": "6d08a944e61da9ccc7c7abe5526a221d2422d11fef968a45f23772582e4ea5ef"
     },
     {
       "path": "kit/.a365-kit/addons/add-mcp-server/SKILL.md",
@@ -139,8 +139,8 @@
     },
     {
       "path": "kit/.a365-kit/addons/add-messaging-endpoint/references/python-messaging-endpoint.md",
-      "bytes": 22515,
-      "sha256": "826ce92eeec12753ceae9d2404326936758dc5c522c2a4e05790b2f70110496a"
+      "bytes": 22525,
+      "sha256": "9d7b4d7592cca97c021b16ef3ad002eb624de2a4436802bfa58cbe267295a0ae"
     },
     {
       "path": "kit/.a365-kit/addons/add-messaging-endpoint/SKILL.md",
@@ -154,18 +154,18 @@
     },
     {
       "path": "kit/.a365-kit/addons/test-local-channel/references/dotnet-dev-channel.md",
-      "bytes": 5558,
-      "sha256": "f8f318b9c8acb35a1b58d202e14945e0822d7134e42d8ed255936e30ef5d0a54"
+      "bytes": 5581,
+      "sha256": "414beb053628c1d5a3bb2ffb4e02e2273b96a988d225e76440cf98263456f025"
     },
     {
       "path": "kit/.a365-kit/addons/test-local-channel/references/nodejs-dev-channel.md",
-      "bytes": 5406,
-      "sha256": "9baaf06b0f06baaaaa760581f3f34f8f7393ce45778fa67ab8d176764ce2e34f"
+      "bytes": 5442,
+      "sha256": "e02824844d2d75a4f121aba79861d5bfbd9b5ca0b82c2d90880d95e3ea69f5c1"
     },
     {
       "path": "kit/.a365-kit/addons/test-local-channel/references/python-dev-channel.md",
-      "bytes": 6551,
-      "sha256": "52aea9ae835f444cba264a7dadbb5797add31ca18884b64eacd28f4f7e8690eb"
+      "bytes": 6573,
+      "sha256": "2383e49ff1f5e2b337f5090ecc9c27005826fdb6c6765353ef5050f46771841a"
     },
     {
       "path": "kit/.a365-kit/addons/test-local-channel/SKILL.md",
@@ -179,8 +179,8 @@
     },
     {
       "path": "kit/.a365-kit/doctor.js",
-      "bytes": 7993,
-      "sha256": "07d23200319563fd162852a469bd87fc50f3e39bc8bf440d22e8e9ae162e9ebc"
+      "bytes": 7149,
+      "sha256": "f49b1134634db6f8c43b0c255faf50e8538a9f5d746d0d8cb3d5478141eeb5cf"
     },
     {
       "path": "kit/.a365-kit/grant-observability.mjs",
@@ -204,8 +204,8 @@
     },
     {
       "path": "kit/.a365-kit/hooks/preToolUse/path-guard.js",
-      "bytes": 3459,
-      "sha256": "8685f900b58da678f37cc18ff83a95cb35388d6dbf2d0e33c56f603c154bdbb3"
+      "bytes": 3378,
+      "sha256": "b6281118e41a220a6a28902e317d04e5871d50b2122b1847a1350bc913d02be0"
     },
     {
       "path": "kit/.a365-kit/hooks/stop/validate-a365-code-validator.js",
@@ -219,23 +219,23 @@
     },
     {
       "path": "kit/.a365-kit/hooks/stop/validate-add-java-agent.js",
-      "bytes": 5380,
-      "sha256": "df71c08ac1c59e19125d2fb5ff271e6325516ea64fe71c0030f8c7de86e67b6a"
+      "bytes": 5021,
+      "sha256": "1b7dac8acf779db23c52f041775bb5d2c99771bef3c5d3ea48fac54397000786"
     },
     {
       "path": "kit/.a365-kit/hooks/stop/validate-add-lab-tools.js",
-      "bytes": 3902,
-      "sha256": "bf77d55d31d8b7043bb5416136cd9ce771ab0dfca386a57c0888182574fc41a4"
+      "bytes": 3585,
+      "sha256": "c881023ace38870dd9768746d864d8d4d772b53f3ea45aac5bf59321c4106d32"
     },
     {
       "path": "kit/.a365-kit/hooks/stop/validate-add-mcp-server.js",
-      "bytes": 3782,
-      "sha256": "8af1416e2b3e8f7125248e729a4ed9dbfc8212d3c17dc2c361bca3192ec1938f"
+      "bytes": 3575,
+      "sha256": "a9c2ba33dbea95076381c5b6d7c05f86a0b21a458025714e5f4c2bc26c95c62e"
     },
     {
       "path": "kit/.a365-kit/hooks/stop/validate-add-messaging-endpoint.js",
-      "bytes": 6454,
-      "sha256": "007e11a8cf8ed46e9d8bcf288280c460bc635f1ab44d03e8e182be12ad682518"
+      "bytes": 6257,
+      "sha256": "77da43dba8908438eab13d7a896112ac3ab069484e18e7845d48bc076ab509fd"
     },
     {
       "path": "kit/.a365-kit/hooks/stop/validate-add-workiq-tools.js",
@@ -244,8 +244,8 @@
     },
     {
       "path": "kit/.a365-kit/hooks/stop/validate-instrument-observability.js",
-      "bytes": 25680,
-      "sha256": "1cbd9dca6f537cb47e85f758f179ab2719ea24e7d5b065987ea36f186d71f30c"
+      "bytes": 25528,
+      "sha256": "b76ca71b0d09c1747277ecae8770e73ec72e5472aac90813ebb2b7516925e32e"
     },
     {
       "path": "kit/.a365-kit/hooks/stop/validate-make-a365-agent.js",
@@ -254,8 +254,8 @@
     },
     {
       "path": "kit/.a365-kit/hooks/stop/validate-make-ai-teammate.js",
-      "bytes": 15568,
-      "sha256": "4445a1003b8412fdcb9ea01195a59972fe09e3cadf75d0090e616591542d5dd9"
+      "bytes": 15497,
+      "sha256": "36508e18769db8b1456675bfb9a4625825f4391deb3f076cc7793bced324837b"
     },
     {
       "path": "kit/.a365-kit/hooks/stop/validate-purview-dlp-integration.js",
@@ -264,8 +264,8 @@
     },
     {
       "path": "kit/.a365-kit/hooks/stop/validate-test-local-channel.js",
-      "bytes": 4397,
-      "sha256": "121c0c935c29972f22b16d97b5bce9a09d80b28529e8baefb3feaa678f247a2b"
+      "bytes": 3743,
+      "sha256": "7c0dfb67c16fb87c88553792815444ab5dba8702249e120e3e237aebfab0dc8e"
     },
     {
       "path": "kit/.a365-kit/hooks/stop/validate-test-local.js",
@@ -274,13 +274,13 @@
     },
     {
       "path": "kit/.a365-kit/kit-version.js",
-      "bytes": 5950,
-      "sha256": "42f90570c491c254133301cab0801083a133ea52ae0c10294c1b06570b946b8e"
+      "bytes": 5622,
+      "sha256": "100b26d852480908d6ec2e62e3267a725944d2eb5991aa5ec60ddf838b8716e8"
     },
     {
       "path": "kit/.a365-kit/KIT-VERSION.json",
       "bytes": 723,
-      "sha256": "f1d8cbc3717a056950908b1764819b1c31b6da056c94ffa2cb61af548ba51cd2"
+      "sha256": "feb19761663f7faa6b8c30433cad14bc00b8b4caf17d79f81717e28edbede1b4"
     },
     {
       "path": "kit/.a365-kit/lib/observability-consent.mjs",
@@ -299,8 +299,8 @@
     },
     {
       "path": "kit/.a365-kit/NOTICE.md",
-      "bytes": 33279,
-      "sha256": "7397fb6c085616d6bbb7543f5e2b09395bd2474b44419a08222c0ba70551eb6b"
+      "bytes": 33237,
+      "sha256": "a74ebb401644400a01ffbab1a6d683a57443d1e1ec306f2c24d89e17fc5fd69d"
     },
     {
       "path": "kit/.a365-kit/run-a365.mjs",
@@ -324,8 +324,8 @@
     },
     {
       "path": "kit/.a365-kit/shared/observability-access-package.md",
-      "bytes": 7120,
-      "sha256": "49507d52a10e423a7665ac81666a76847f0f749900496b8f3ad7292a70db4d3e"
+      "bytes": 7131,
+      "sha256": "ef892a9735fa22c50fdeeedfc921cbd71a99a3600bf0a08caa7345f5201631c2"
     },
     {
       "path": "kit/.a365-kit/shared/purview-kit-notes.md",
@@ -374,8 +374,8 @@
     },
     {
       "path": "kit/.a365-kit/skills/instrument-observability/references/dotnet-observability.md",
-      "bytes": 66914,
-      "sha256": "31d10c5ecf76ff2c9e612dc8b2b01db57dfa439f6e8df3b4b90f7b5f1663ac1a"
+      "bytes": 66836,
+      "sha256": "36053f30a846039d4f97fc32a8878c52997890fedfab2eae948c42b2a98c5dc3"
     },
     {
       "path": "kit/.a365-kit/skills/instrument-observability/references/nodejs-observability.md",
@@ -384,13 +384,13 @@
     },
     {
       "path": "kit/.a365-kit/skills/instrument-observability/references/python-observability.md",
-      "bytes": 46662,
-      "sha256": "51bb10492d3950a500b4e82902ed31ec20a0ce5b78d71a2663bc6193ecf01a1a"
+      "bytes": 46406,
+      "sha256": "28b90d34f434026cf5c7c05c183d6e6776971b9e5179d0d0b9be0785ad5118c9"
     },
     {
       "path": "kit/.a365-kit/skills/instrument-observability/SKILL.md",
-      "bytes": 76191,
-      "sha256": "36e3f307bdcb1f4d167a97ac44e3c87789e7a436cfa71ceae7abcea4ca8396c1"
+      "bytes": 76189,
+      "sha256": "867ef54e38f33da45d9792037fdabd35066a35d79c0e00f838158ebc53d6f16e"
     },
     {
       "path": "kit/.a365-kit/skills/make-a365-agent/SKILL.md",
@@ -404,8 +404,8 @@
     },
     {
       "path": "kit/.a365-kit/skills/make-ai-teammate/references/dotnet-ai-teammate.md",
-      "bytes": 45556,
-      "sha256": "e97fbc32e53e0a3b7614707b8ebfb5e67bbdf290364be7ff8315df5b16199b62"
+      "bytes": 45534,
+      "sha256": "b0b23cbd1d8197e9174fb487ef9555b44905cf78ce82c4cd4a12d6bd3696f398"
     },
     {
       "path": "kit/.a365-kit/skills/make-ai-teammate/references/nodejs-ai-teammate.md",
@@ -534,13 +534,13 @@
     },
     {
       "path": "kit/.agents/skills/add-java-agent/references/java-endpoint.md",
-      "bytes": 21306,
-      "sha256": "efdd4df54ef5cb313a6784e88907da614eda0bb8088d896f23427f698b8bf441"
+      "bytes": 20988,
+      "sha256": "48459ccf990cc283542a8b4ea73a5193af1578774f6eccde50f1cf9d194ff752"
     },
     {
       "path": "kit/.agents/skills/add-java-agent/references/java-observability.md",
-      "bytes": 9499,
-      "sha256": "5281a3758f8e99dc79d11e001338ee6c37b4037dd2c8a51dc9b476801d2ff286"
+      "bytes": 9349,
+      "sha256": "c4fd6a50432afa6951303589408d251459a8c54e1176d2ea27f3c7e96a0655d7"
     },
     {
       "path": "kit/.agents/skills/add-java-agent/SKILL.md",
@@ -549,18 +549,18 @@
     },
     {
       "path": "kit/.agents/skills/add-lab-tools/references/dotnet-lab-tools.md",
-      "bytes": 9045,
-      "sha256": "f82e7d30cc8bb25765fc86bdb659ec4054498a257b9cb6b97f1a276f91d0adb8"
+      "bytes": 9046,
+      "sha256": "7e1ddbf1cb560cfa85da39558c4a425644e479def30e5358f9382320805df1e8"
     },
     {
       "path": "kit/.agents/skills/add-lab-tools/references/nodejs-lab-tools.md",
-      "bytes": 8123,
-      "sha256": "de8709caf7d775bffb61a25ebeb790859c0b805e5f5b7c99e530a05db522016d"
+      "bytes": 7916,
+      "sha256": "184e26483c20620eec1dd74e4c6d7a98defa73d01ba064445910bf5ccd99183f"
     },
     {
       "path": "kit/.agents/skills/add-lab-tools/references/python-lab-tools.md",
-      "bytes": 9764,
-      "sha256": "ccbf69b4a768f53a8c4e6bd5f668b32787304a3d884f066bbdd9f5d830da4b1c"
+      "bytes": 9269,
+      "sha256": "8a9738d7cafadacf897b0140b8957d8fa7db293be883b56ad3b80a36dff1c44c"
     },
     {
       "path": "kit/.agents/skills/add-lab-tools/SKILL.md",
@@ -569,8 +569,8 @@
     },
     {
       "path": "kit/.agents/skills/add-mcp-server/references/dotnet-mcp-server.md",
-      "bytes": 3976,
-      "sha256": "bb98e2539e24cbe3e817c81d3332835cd0623b3df7267bfc78ca2516e31aeb60"
+      "bytes": 3963,
+      "sha256": "86f4911875e434e1e821b8d384ef2daa0ab0ceeb08d3de0eaa64156247ebc370"
     },
     {
       "path": "kit/.agents/skills/add-mcp-server/references/nodejs-mcp-server.md",
@@ -579,8 +579,8 @@
     },
     {
       "path": "kit/.agents/skills/add-mcp-server/references/python-mcp-server.md",
-      "bytes": 6578,
-      "sha256": "f97768851cbdb6dc40a38e240ff8d5e9b51acef808427735fccb9e32adf1026f"
+      "bytes": 6471,
+      "sha256": "6d08a944e61da9ccc7c7abe5526a221d2422d11fef968a45f23772582e4ea5ef"
     },
     {
       "path": "kit/.agents/skills/add-mcp-server/SKILL.md",
@@ -599,8 +599,8 @@
     },
     {
       "path": "kit/.agents/skills/add-messaging-endpoint/references/python-messaging-endpoint.md",
-      "bytes": 22515,
-      "sha256": "826ce92eeec12753ceae9d2404326936758dc5c522c2a4e05790b2f70110496a"
+      "bytes": 22525,
+      "sha256": "9d7b4d7592cca97c021b16ef3ad002eb624de2a4436802bfa58cbe267295a0ae"
     },
     {
       "path": "kit/.agents/skills/add-messaging-endpoint/SKILL.md",
@@ -634,8 +634,8 @@
     },
     {
       "path": "kit/.agents/skills/instrument-observability/references/dotnet-observability.md",
-      "bytes": 66914,
-      "sha256": "31d10c5ecf76ff2c9e612dc8b2b01db57dfa439f6e8df3b4b90f7b5f1663ac1a"
+      "bytes": 66836,
+      "sha256": "36053f30a846039d4f97fc32a8878c52997890fedfab2eae948c42b2a98c5dc3"
     },
     {
       "path": "kit/.agents/skills/instrument-observability/references/nodejs-observability.md",
@@ -644,13 +644,13 @@
     },
     {
       "path": "kit/.agents/skills/instrument-observability/references/python-observability.md",
-      "bytes": 46662,
-      "sha256": "51bb10492d3950a500b4e82902ed31ec20a0ce5b78d71a2663bc6193ecf01a1a"
+      "bytes": 46406,
+      "sha256": "28b90d34f434026cf5c7c05c183d6e6776971b9e5179d0d0b9be0785ad5118c9"
     },
     {
       "path": "kit/.agents/skills/instrument-observability/SKILL.md",
-      "bytes": 76191,
-      "sha256": "36e3f307bdcb1f4d167a97ac44e3c87789e7a436cfa71ceae7abcea4ca8396c1"
+      "bytes": 76189,
+      "sha256": "867ef54e38f33da45d9792037fdabd35066a35d79c0e00f838158ebc53d6f16e"
     },
     {
       "path": "kit/.agents/skills/make-a365-agent/SKILL.md",
@@ -664,8 +664,8 @@
     },
     {
       "path": "kit/.agents/skills/make-ai-teammate/references/dotnet-ai-teammate.md",
-      "bytes": 45556,
-      "sha256": "e97fbc32e53e0a3b7614707b8ebfb5e67bbdf290364be7ff8315df5b16199b62"
+      "bytes": 45534,
+      "sha256": "b0b23cbd1d8197e9174fb487ef9555b44905cf78ce82c4cd4a12d6bd3696f398"
     },
     {
       "path": "kit/.agents/skills/make-ai-teammate/references/nodejs-ai-teammate.md",
@@ -764,18 +764,18 @@
     },
     {
       "path": "kit/.agents/skills/test-local-channel/references/dotnet-dev-channel.md",
-      "bytes": 5558,
-      "sha256": "f8f318b9c8acb35a1b58d202e14945e0822d7134e42d8ed255936e30ef5d0a54"
+      "bytes": 5581,
+      "sha256": "414beb053628c1d5a3bb2ffb4e02e2273b96a988d225e76440cf98263456f025"
     },
     {
       "path": "kit/.agents/skills/test-local-channel/references/nodejs-dev-channel.md",
-      "bytes": 5406,
-      "sha256": "9baaf06b0f06baaaaa760581f3f34f8f7393ce45778fa67ab8d176764ce2e34f"
+      "bytes": 5442,
+      "sha256": "e02824844d2d75a4f121aba79861d5bfbd9b5ca0b82c2d90880d95e3ea69f5c1"
     },
     {
       "path": "kit/.agents/skills/test-local-channel/references/python-dev-channel.md",
-      "bytes": 6551,
-      "sha256": "52aea9ae835f444cba264a7dadbb5797add31ca18884b64eacd28f4f7e8690eb"
+      "bytes": 6573,
+      "sha256": "2383e49ff1f5e2b337f5090ecc9c27005826fdb6c6765353ef5050f46771841a"
     },
     {
       "path": "kit/.agents/skills/test-local-channel/SKILL.md",
@@ -814,13 +814,13 @@
     },
     {
       "path": "kit/.claude/skills/add-java-agent/references/java-endpoint.md",
-      "bytes": 21306,
-      "sha256": "efdd4df54ef5cb313a6784e88907da614eda0bb8088d896f23427f698b8bf441"
+      "bytes": 20988,
+      "sha256": "48459ccf990cc283542a8b4ea73a5193af1578774f6eccde50f1cf9d194ff752"
     },
     {
       "path": "kit/.claude/skills/add-java-agent/references/java-observability.md",
-      "bytes": 9499,
-      "sha256": "5281a3758f8e99dc79d11e001338ee6c37b4037dd2c8a51dc9b476801d2ff286"
+      "bytes": 9349,
+      "sha256": "c4fd6a50432afa6951303589408d251459a8c54e1176d2ea27f3c7e96a0655d7"
     },
     {
       "path": "kit/.claude/skills/add-java-agent/SKILL.md",
@@ -829,18 +829,18 @@
     },
     {
       "path": "kit/.claude/skills/add-lab-tools/references/dotnet-lab-tools.md",
-      "bytes": 9045,
-      "sha256": "f82e7d30cc8bb25765fc86bdb659ec4054498a257b9cb6b97f1a276f91d0adb8"
+      "bytes": 9046,
+      "sha256": "7e1ddbf1cb560cfa85da39558c4a425644e479def30e5358f9382320805df1e8"
     },
     {
       "path": "kit/.claude/skills/add-lab-tools/references/nodejs-lab-tools.md",
-      "bytes": 8123,
-      "sha256": "de8709caf7d775bffb61a25ebeb790859c0b805e5f5b7c99e530a05db522016d"
+      "bytes": 7916,
+      "sha256": "184e26483c20620eec1dd74e4c6d7a98defa73d01ba064445910bf5ccd99183f"
     },
     {
       "path": "kit/.claude/skills/add-lab-tools/references/python-lab-tools.md",
-      "bytes": 9764,
-      "sha256": "ccbf69b4a768f53a8c4e6bd5f668b32787304a3d884f066bbdd9f5d830da4b1c"
+      "bytes": 9269,
+      "sha256": "8a9738d7cafadacf897b0140b8957d8fa7db293be883b56ad3b80a36dff1c44c"
     },
     {
       "path": "kit/.claude/skills/add-lab-tools/SKILL.md",
@@ -849,8 +849,8 @@
     },
     {
       "path": "kit/.claude/skills/add-mcp-server/references/dotnet-mcp-server.md",
-      "bytes": 3976,
-      "sha256": "bb98e2539e24cbe3e817c81d3332835cd0623b3df7267bfc78ca2516e31aeb60"
+      "bytes": 3963,
+      "sha256": "86f4911875e434e1e821b8d384ef2daa0ab0ceeb08d3de0eaa64156247ebc370"
     },
     {
       "path": "kit/.claude/skills/add-mcp-server/references/nodejs-mcp-server.md",
@@ -859,8 +859,8 @@
     },
     {
       "path": "kit/.claude/skills/add-mcp-server/references/python-mcp-server.md",
-      "bytes": 6578,
-      "sha256": "f97768851cbdb6dc40a38e240ff8d5e9b51acef808427735fccb9e32adf1026f"
+      "bytes": 6471,
+      "sha256": "6d08a944e61da9ccc7c7abe5526a221d2422d11fef968a45f23772582e4ea5ef"
     },
     {
       "path": "kit/.claude/skills/add-mcp-server/SKILL.md",
@@ -879,8 +879,8 @@
     },
     {
       "path": "kit/.claude/skills/add-messaging-endpoint/references/python-messaging-endpoint.md",
-      "bytes": 22515,
-      "sha256": "826ce92eeec12753ceae9d2404326936758dc5c522c2a4e05790b2f70110496a"
+      "bytes": 22525,
+      "sha256": "9d7b4d7592cca97c021b16ef3ad002eb624de2a4436802bfa58cbe267295a0ae"
     },
     {
       "path": "kit/.claude/skills/add-messaging-endpoint/SKILL.md",
@@ -914,8 +914,8 @@
     },
     {
       "path": "kit/.claude/skills/instrument-observability/references/dotnet-observability.md",
-      "bytes": 66914,
-      "sha256": "31d10c5ecf76ff2c9e612dc8b2b01db57dfa439f6e8df3b4b90f7b5f1663ac1a"
+      "bytes": 66836,
+      "sha256": "36053f30a846039d4f97fc32a8878c52997890fedfab2eae948c42b2a98c5dc3"
     },
     {
       "path": "kit/.claude/skills/instrument-observability/references/nodejs-observability.md",
@@ -924,13 +924,13 @@
     },
     {
       "path": "kit/.claude/skills/instrument-observability/references/python-observability.md",
-      "bytes": 46662,
-      "sha256": "51bb10492d3950a500b4e82902ed31ec20a0ce5b78d71a2663bc6193ecf01a1a"
+      "bytes": 46406,
+      "sha256": "28b90d34f434026cf5c7c05c183d6e6776971b9e5179d0d0b9be0785ad5118c9"
     },
     {
       "path": "kit/.claude/skills/instrument-observability/SKILL.md",
-      "bytes": 76191,
-      "sha256": "36e3f307bdcb1f4d167a97ac44e3c87789e7a436cfa71ceae7abcea4ca8396c1"
+      "bytes": 76189,
+      "sha256": "867ef54e38f33da45d9792037fdabd35066a35d79c0e00f838158ebc53d6f16e"
     },
     {
       "path": "kit/.claude/skills/make-a365-agent/SKILL.md",
@@ -944,8 +944,8 @@
     },
     {
       "path": "kit/.claude/skills/make-ai-teammate/references/dotnet-ai-teammate.md",
-      "bytes": 45556,
-      "sha256": "e97fbc32e53e0a3b7614707b8ebfb5e67bbdf290364be7ff8315df5b16199b62"
+      "bytes": 45534,
+      "sha256": "b0b23cbd1d8197e9174fb487ef9555b44905cf78ce82c4cd4a12d6bd3696f398"
     },
     {
       "path": "kit/.claude/skills/make-ai-teammate/references/nodejs-ai-teammate.md",
@@ -1044,18 +1044,18 @@
     },
     {
       "path": "kit/.claude/skills/test-local-channel/references/dotnet-dev-channel.md",
-      "bytes": 5558,
-      "sha256": "f8f318b9c8acb35a1b58d202e14945e0822d7134e42d8ed255936e30ef5d0a54"
+      "bytes": 5581,
+      "sha256": "414beb053628c1d5a3bb2ffb4e02e2273b96a988d225e76440cf98263456f025"
     },
     {
       "path": "kit/.claude/skills/test-local-channel/references/nodejs-dev-channel.md",
-      "bytes": 5406,
-      "sha256": "9baaf06b0f06baaaaa760581f3f34f8f7393ce45778fa67ab8d176764ce2e34f"
+      "bytes": 5442,
+      "sha256": "e02824844d2d75a4f121aba79861d5bfbd9b5ca0b82c2d90880d95e3ea69f5c1"
     },
     {
       "path": "kit/.claude/skills/test-local-channel/references/python-dev-channel.md",
-      "bytes": 6551,
-      "sha256": "52aea9ae835f444cba264a7dadbb5797add31ca18884b64eacd28f4f7e8690eb"
+      "bytes": 6573,
+      "sha256": "2383e49ff1f5e2b337f5090ecc9c27005826fdb6c6765353ef5050f46771841a"
     },
     {
       "path": "kit/.claude/skills/test-local-channel/SKILL.md",
@@ -1069,23 +1069,23 @@
     },
     {
       "path": "kit/AGENT365-KIT-README.md",
-      "bytes": 18234,
-      "sha256": "97762a4c4a67121aaa80c765b8d42fb038155d0d57fff6e9a05d304418abec07"
+      "bytes": 18193,
+      "sha256": "9d01eed67a260447ff9bfd88965c7fff56078001d69c9dba9f74611b503bdb80"
     },
     {
       "path": "kit/agent365-kit.ps1",
-      "bytes": 30589,
-      "sha256": "31ebd1df0b673365c8b742a78e3946a93a46439b133bb50fc101bad64445bcb5"
+      "bytes": 29086,
+      "sha256": "6e806de948965015a51452996e63f0665f1becad6bfed69e1e486a5168c91089"
     },
     {
       "path": "kit/agent365-kit.sh",
-      "bytes": 25395,
-      "sha256": "71823ced2d183cd78125ba96c529fe4e551565556bd64c28caa61faaca71639c"
+      "bytes": 24680,
+      "sha256": "f35fbccfd574c0c1ba92a5eb639ac5edc73d4c14d185d2a861f7d02efe78d179"
     },
     {
       "path": "examples/dotnet-agent365-lab/.env.example",
-      "bytes": 422,
-      "sha256": "c765e6bd7d40c3581e0e95fd040c39a6c348a5dff62dcdf44b0491547575e0e7"
+      "bytes": 415,
+      "sha256": "67cf296ca3fd76f0b558981b4c7e79fd2cb5d04e72a3cb9bb2d653e44479af74"
     },
     {
       "path": "examples/dotnet-agent365-lab/.gitignore",
@@ -1104,8 +1104,8 @@
     },
     {
       "path": "examples/dotnet-agent365-lab/Agent365Runtime.cs",
-      "bytes": 11483,
-      "sha256": "b30bd74bf028514b52cfc9bed89b01219dd24f2351fb3bed16c7baf2bd270927"
+      "bytes": 11474,
+      "sha256": "becfac7fe78948fa0c5a0653b859cc6a801aabc6f2f9c99eae2b1afd3c8b4ba1"
     },
     {
       "path": "examples/dotnet-agent365-lab/Agent365Scopes.cs",
@@ -1119,8 +1119,8 @@
     },
     {
       "path": "examples/dotnet-agent365-lab/Agent365Tokens.cs",
-      "bytes": 6711,
-      "sha256": "7e0292f80de21a86e0dede5d8167dff9d80f3af29f861daf74fe3b85b6b6af01"
+      "bytes": 6703,
+      "sha256": "08626ed3c75184e3a78651e594a0dda2cca8cec651cd77f8eead2d28107f44bd"
     },
     {
       "path": "examples/dotnet-agent365-lab/AgentMailboxChecks.cs",
@@ -1234,18 +1234,18 @@
     },
     {
       "path": "examples/dotnet-agent365-lab/SafeMcpServerService.cs",
-      "bytes": 5985,
-      "sha256": "ca754a7b02e526aa03f037e3c3d97864be11c8ea47993ab427c34260afd77bc6"
+      "bytes": 6012,
+      "sha256": "4d1bd7a4dcd8d27c887234fc5ec487dbd7d271daf05a0f1a4108c733b132e998"
     },
     {
       "path": "examples/dotnet-agent365-lab/TeamsAuthentication.cs",
-      "bytes": 4298,
-      "sha256": "7caee6e644ae5c27bda8db1fd7cafdd74df8a1332e2e4997ed7409e8b238e599"
+      "bytes": 4303,
+      "sha256": "a5500551417cd257a5d08b20fcd03f442725cab6534d7caf439b13daa56db275"
     },
     {
       "path": "examples/dotnet-agent365-lab/TeamsChatAgent.cs",
-      "bytes": 4227,
-      "sha256": "3e679454d9bc585867c50482b57d48119ac788e580396c8d358a002c1e827f02"
+      "bytes": 4220,
+      "sha256": "5c1d95943c8f9ededcb565c8a7ed41ffdcab2612cfc0ec916bf2ef759695c0a3"
     },
     {
       "path": "examples/dotnet-agent365-lab/TeamsHost.cs",
@@ -1329,8 +1329,8 @@
     },
     {
       "path": "examples/go-tool-agent/.env.example",
-      "bytes": 265,
-      "sha256": "3815a61a0f814163111c8f9c75e5b28490df8b3621afc6be00659dc9c8219b18"
+      "bytes": 264,
+      "sha256": "90095d6f510f86773ce04337aa8e552b6076d978c3a152b4f172f4bc9ad8aa58"
     },
     {
       "path": "examples/go-tool-agent/.gitignore",
@@ -1364,8 +1364,8 @@
     },
     {
       "path": "examples/java-tool-agent/.env.example",
-      "bytes": 265,
-      "sha256": "3815a61a0f814163111c8f9c75e5b28490df8b3621afc6be00659dc9c8219b18"
+      "bytes": 264,
+      "sha256": "90095d6f510f86773ce04337aa8e552b6076d978c3a152b4f172f4bc9ad8aa58"
     },
     {
       "path": "examples/java-tool-agent/.gitignore",
@@ -1434,8 +1434,8 @@
     },
     {
       "path": "examples/python-teammate/.env.example",
-      "bytes": 1017,
-      "sha256": "724f38bc20b4583df9af0b210a30b33dfc2faed2f105c16a863da3909d94b1fe"
+      "bytes": 1031,
+      "sha256": "6579fb2039c97aa0d36a669a715a4d21e92b69be7d19ef1ecedb7c9c9da9798f"
     },
     {
       "path": "examples/python-teammate/.gitignore",
@@ -1449,28 +1449,28 @@
     },
     {
       "path": "examples/python-teammate/app/agent.py",
-      "bytes": 4604,
-      "sha256": "c972463a6a960393ccd266acf389d3f3d05c338db14e757bd899a8dc15c08b4a"
+      "bytes": 4608,
+      "sha256": "bd4d9e046a85211ccce1890e9ae8c57c58ad557a50799b2e6f9f50af935d706b"
     },
     {
       "path": "examples/python-teammate/app/host_agent_server.py",
-      "bytes": 8968,
-      "sha256": "7f3bff86bcab515f56ad3e573e1a12e65e39065e09963fd5f6e3ffd470ffd9dc"
+      "bytes": 8985,
+      "sha256": "83dce85c3ab4da86a89d0bd7f7492b5fa0ea5e86a02210bec21d1d0040ebf6ff"
     },
     {
       "path": "examples/python-teammate/app/mcp_tool_registration_service.py",
-      "bytes": 3948,
-      "sha256": "a267a2ea9aefeb21b3e743ebf261b6b56da6b7e5cba9192265b3120f38292d21"
+      "bytes": 3980,
+      "sha256": "14d30286f107b3fe879c04e44c064940f1bc1bc81802535524d3ec107b1ade28"
     },
     {
       "path": "examples/python-teammate/app/observability_bootstrap.py",
-      "bytes": 2131,
-      "sha256": "4f15c20bdca7da375510ffe0bd25a8bea32bf2dc34c886a51c908d7a835da31f"
+      "bytes": 2148,
+      "sha256": "a44e3670522f57d08ec9a4e1df5ee853974e1716b058905af05ecd34f5a9db47"
     },
     {
       "path": "examples/python-teammate/app/observability_tokens.py",
-      "bytes": 5290,
-      "sha256": "5265d2d7caa015655d464a905acf40d8f832016c5cb15582cd4e021626423c2b"
+      "bytes": 5311,
+      "sha256": "d7d7916fd50639e0d1d4fa32461616129fe59efeddcdc48bb2f6630439adbf4b"
     },
     {
       "path": "examples/python-teammate/demo.py",
@@ -1524,8 +1524,8 @@
     },
     {
       "path": "examples/rust-tool-agent/.env.example",
-      "bytes": 265,
-      "sha256": "3815a61a0f814163111c8f9c75e5b28490df8b3621afc6be00659dc9c8219b18"
+      "bytes": 264,
+      "sha256": "90095d6f510f86773ce04337aa8e552b6076d978c3a152b4f172f4bc9ad8aa58"
     },
     {
       "path": "examples/rust-tool-agent/.gitignore",
@@ -1569,48 +1569,48 @@
     },
     {
       "path": "docs/images/README.md",
-      "bytes": 1576,
-      "sha256": "a91e6e6fc99de0e357f13f846eff4eae206cbcde78d1c26e73e1940e785ba771"
+      "bytes": 1578,
+      "sha256": "c1b140ee4d9a5c1dd053772743be5beafe16a43845a13346a43e0d9c55ebcb14"
     },
     {
       "path": "docs/LIFECYCLE.md",
-      "bytes": 24827,
-      "sha256": "7d982f27d3b0470111aca145f4e9744461f28420da6bbf9b769076d5fc33081d"
+      "bytes": 24802,
+      "sha256": "9c7fcf5b0484b9cc3392ebaef9bb323d5f63f2d976a18bcbd582f6c8aa9d7f01"
     },
     {
       "path": "docs/STEP-BY-STEP.md",
-      "bytes": 10138,
-      "sha256": "69e825cfb1d2ed0d43407f1dd23659298f3ae68f15be0434cb04ec918c6d9a78"
+      "bytes": 10097,
+      "sha256": "4367e10ba2fb5287a75abbf6d4f7d6a57d9f77e3a5adf78649cb1827c7ff0733"
     },
     {
       "path": "docs/USING-WITH-YOUR-CLI.md",
-      "bytes": 17144,
-      "sha256": "7fe0d02440b51fd14ddb8c4d6b7a1b61f2f4c76ffaae71e7edeb6f425130c1b7"
+      "bytes": 17054,
+      "sha256": "1c5f6205198c1048ff94fb399a0892a2446b5b1f4bdefbd993e33884b57ac282"
     },
     {
       "path": "README.md",
-      "bytes": 25229,
-      "sha256": "9f214daf2e684d8726186ef73d8f6e1ef287f081b45d5e83343af11e569e0d57"
+      "bytes": 25154,
+      "sha256": "7e19cd86c0f13cf7702f13010c1991946a287ed558af30a46fd4b36b900c57c5"
     },
     {
       "path": "GUIDE.md",
-      "bytes": 31093,
-      "sha256": "587b6fa24b8aa0794d12d28754fdc59c4633d2b2a7683d8c716a60fd97878015"
+      "bytes": 30968,
+      "sha256": "557e754d2a2ce43bbcd20b6ea765745758fb65c692c955f8c86eebeb590fcbb8"
     },
     {
       "path": "NOTICE.md",
-      "bytes": 33279,
-      "sha256": "7397fb6c085616d6bbb7543f5e2b09395bd2474b44419a08222c0ba70551eb6b"
+      "bytes": 33237,
+      "sha256": "a74ebb401644400a01ffbab1a6d683a57443d1e1ec306f2c24d89e17fc5fd69d"
     },
     {
       "path": "CONTRIBUTING.md",
-      "bytes": 5580,
-      "sha256": "404e76a99ec4e8c2b6b8ee53891570b1e819077cd00444cfcd890f194a1b1439"
+      "bytes": 5574,
+      "sha256": "cd114b9a811bd638c668bf2b95077f004e63b60750da9a50720431ac6d0d3432"
     },
     {
       "path": "SECURITY.md",
-      "bytes": 2752,
-      "sha256": "92c4827d7b7949114f094236979f790732f8e5e9320aa85f571382348844327a"
+      "bytes": 2745,
+      "sha256": "746a3a8b543e077fd121d054386b680b37bb2e574d256bf7b21341eceedced81"
     },
     {
       "path": "LICENSE",

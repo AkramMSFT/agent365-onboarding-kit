@@ -3,15 +3,14 @@ name: Refresh from upstream
 # Rebuilds the kit whenever microsoft/agent365-skills moves, bumps the patch version,
 # and cuts a release, so every published kit has its own version and tag.
 #
-# Zero-touch when upstream is well-behaved. Loud when it is not: Build-Kit.ps1
-# asserts every text fix-up against upstream's exact wording, so an upstream
-# rewording fails this job and opens an issue instead of shipping a mangled kit.
+# Every fix-up is asserted against upstream's exact wording, so an upstream rewording
+# fails this job and opens an issue instead of shipping a mangled kit.
 #
 # Runs on Windows because the build script is PowerShell with Windows path joins.
 
 on:
   schedule:
-    - cron: "17 5 * * *"          # daily, 05:17 UTC (off the hour to dodge the rush)
+    - cron: "17 5 * * *"          # Off the hour, when scheduled runs are less likely to be delayed.
   workflow_dispatch:
     inputs:
       upstream_ref:

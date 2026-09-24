@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Agent 365 Onboarding Kit -- prerequisite check and per-CLI activation steps.
+# Agent 365 Onboarding Kit: prerequisite check and per-CLI activation steps.
 #
 # Run this from the root of your agent project after extracting the kit into it.
-# The script does not onboard anything itself -- the skills do that. It checks
-# that the kit landed correctly, verifies prerequisites, detects which agentic
-# CLIs you have, and prints the exact steps to load the skills in each one.
+# The skills do the onboarding. This script checks that the kit landed correctly,
+# verifies prerequisites, detects which agentic CLIs you have, and prints the exact
+# steps to load the skills in each one.
 #
 # Usage:
 #   ./agent365-kit.sh                 check prerequisites, print activation steps
@@ -14,12 +14,13 @@
 #   ./agent365-kit.sh --wire-claude-hook  add the optional notice without replacing settings
 #   ./agent365-kit.sh --launch claude launch Claude Code with the trigger phrase
 #   ./agent365-kit.sh --update        replace the kit with the latest release (kit paths only)
-#   ./agent365-kit.sh --update --update-from <zip|url>   ...one-off, from a local zip or another URL
+#   ./agent365-kit.sh --update --update-from <zip|url>   update once from a local zip or another URL
 #   ./agent365-kit.sh --set-update-source <zip|url>      persist the source for this project
 #                                     (a365-kit.config.json; commit it). Empty string clears it.
-#   Source resolution: --update-from > $A365_KIT_UPDATE_SOURCE > a365-kit.config.json
-#                      > build default in .a365-kit/KIT-VERSION.json > public GitHub release
-#   Saved relative paths resolve from the project; one-off/environment paths use the caller's cwd.
+#   The update source is the first of these that is set: --update-from, $A365_KIT_UPDATE_SOURCE,
+#   a365-kit.config.json, the build default in .a365-kit/KIT-VERSION.json, then the public
+#   GitHub release. Saved relative paths resolve from the project; one-off and environment
+#   paths resolve from the caller's working directory.
 
 set -euo pipefail
 
@@ -61,8 +62,8 @@ while [ $# -gt 0 ]; do
   shift
 done
 
-# -- Update source ------------------------------------------------------------
-# Resolved so an organisation that mirrors the kit internally can pin it once.
+# a365-kit.config.json sits outside the paths --update replaces, so a team that
+# mirrors the kit can set its update source once.
 resolve_update_source() {
   local v
   if [ -n "$UPDATE_FROM" ]; then RESOLVED_SOURCE="$UPDATE_FROM"; SOURCE_ORIGIN='--update-from'; return; fi
@@ -106,15 +107,12 @@ if [ "$SET_UPDATE_SOURCE_GIVEN" -eq 1 ]; then
   exit 0
 fi
 
-# -- 0. Self-update -------------------------------------------------------------
-# Replaces kit paths only; the user's agent, .env, config and .claude/settings.json
-# are never touched. Skill folders to replace come from the NEW kit's manifest
-# (plus the old one's, so a skill upstream removed is removed here too).
-
+# Skill folders to replace come from both the old and the new manifest, so a skill
+# that upstream dropped is removed rather than left behind.
 if [ "$UPDATE" -eq 1 ]; then
-  # Node is a hard prerequisite of the kit (the validators run on it), so it is the
-  # one JSON reader we can rely on. python3 is deliberately NOT used: on Windows it
-  # often resolves to the Store alias stub, which prints an error and returns nothing.
+  # Node is a kit prerequisite, so it is the one JSON reader that is always present.
+  # python3 is avoided: on Windows it often resolves to the Store alias stub, which
+  # prints an error and returns nothing.
   command -v node >/dev/null 2>&1 || { echo "  node is required to read the kit manifest (it is a kit prerequisite)" >&2; exit 1; }
   resolve_update_source; UPDATE_FROM="$RESOLVED_SOURCE"
   echo "  source  : $UPDATE_FROM  [$SOURCE_ORIGIN]"
@@ -161,7 +159,7 @@ if [ "$UPDATE" -eq 1 ]; then
     [ -f "$UPDATE_FROM" ] || { echo "  not found: $UPDATE_FROM" >&2; exit 1; }
     cp "$UPDATE_FROM" "$ZIP"
   fi
-  # Validate the ZIP directory before extraction; an archive is not yet trusted kit content.
+  # The archive is untrusted until its ZIP directory has been checked.
   node - "$ZIP" <<'NODE'
 const fs = require('fs');
 try {
@@ -316,8 +314,6 @@ cmd_()   { printf '      %s%s%s\n' "$C_BOLD" "$1" "$C_RESET"; }
 printf '\n%sAgent 365 Onboarding Kit%s\n' "$C_BOLD" "$C_RESET"
 printf '%s========================%s\n' "$C_DIM" "$C_RESET"
 
-# -- 1. Confirm the kit landed in the right place -----------------------------
-
 CANONICAL="$KIT_ROOT/.a365-kit/skills/a365-setup/SKILL.md"
 if [ ! -f "$CANONICAL" ]; then
   echo ''
@@ -347,8 +343,6 @@ ok_ "Kit layout looks correct ($TOTAL_SKILLS skills: $SKILL_COUNT Microsoft, $AD
 
 cd "$KIT_ROOT"
 
-# -- 2. Prerequisites ---------------------------------------------------------
-
 if [ "$SKIP_DOCTOR" -eq 0 ]; then
   if ! command -v node >/dev/null 2>&1; then
     echo ''
@@ -376,8 +370,6 @@ if [ "$DOCTOR_ONLY" -eq 1 ]; then
   echo ''
   exit 0
 fi
-
-# -- 3. Optional wiring -------------------------------------------------------
 
 if [ "$WIRE_COPILOT" -eq 1 ]; then
   head_ 'Wiring GitHub Copilot instructions'
@@ -420,15 +412,12 @@ if [ "$WIRE_CLAUDE_HOOK" -eq 1 ]; then
   fi
 fi
 
-# -- 4. Detect CLIs and print activation steps --------------------------------
-
 has_claude=0; has_gh_skill=0; has_gh_copilot_launcher=0; has_copilot_cli=0; has_code=0
 command -v claude >/dev/null 2>&1 && has_claude=1
 command -v code   >/dev/null 2>&1 && has_code=1
 
-# `gh skill` and `gh copilot` are built into gh 2.98+, not extensions, and neither
-# supports a read-only --version probe: `gh skill --version` errors, while
-# `gh copilot --version` can download the Copilot CLI. Use gh's own --help only.
+# `gh skill` and `gh copilot` are built into gh 2.98+ and have no safe --version probe:
+# `gh skill --version` errors and `gh copilot --version` can download the Copilot CLI.
 if command -v gh >/dev/null 2>&1; then
   gh skill   --help >/dev/null 2>&1 && has_gh_skill=1
   gh copilot --help >/dev/null 2>&1 && has_gh_copilot_launcher=1
@@ -549,8 +538,6 @@ note_ 'For consent-aware setup, keep your approved options and use:'
 cmd_ 'node ./.a365-kit/run-a365.mjs setup <subcommand> [options]'
 note_ 'If setup says maven-prod OtelWrite needs admin consent, ask: "Grant observability access to this agent."'
 echo ''
-
-# -- 5. Optional launch -------------------------------------------------------
 
 if [ "$LAUNCH" = 'claude' ]; then
   if [ "$has_claude" -eq 0 ]; then

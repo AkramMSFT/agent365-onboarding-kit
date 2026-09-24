@@ -14,7 +14,6 @@ import { createHash } from 'node:crypto';
 const MAX_FETCH_BYTES = 200_000;
 const FETCH_TIMEOUT_MS = 15_000;
 
-// -- web --------------------------------------------------------------------
 async function fetchUrlText(url: string): Promise<string> {
     if (!/^https?:\/\//i.test(url.trim())) return 'Refused: only http/https URLs are supported.';
     const ac = new AbortController();
@@ -78,7 +77,6 @@ export const summarizeUrlContent = tool({
   },
 });
 
-// -- encoding ---------------------------------------------------------------
 function rot13(text: string): string {
   return text.replace(/[a-z]/gi, c => {
     const base = c <= 'Z' ? 65 : 97;
@@ -132,7 +130,6 @@ export const hashText = tool({
   },
 });
 
-// -- text -------------------------------------------------------------------
 export const transformText = tool({
   name: 'transform_text',
   description: 'Transform text. operation = upper | lower | reverse | strip | collapse-space.',
@@ -183,7 +180,7 @@ export const LAB_TOOLS = [
 
 ```typescript
 import { LAB_TOOLS } from './labTools';
-// when building the Agent, append -- never replace:
+// Append these to the existing tools when building the Agent. Never replace them.
 const agent = new Agent({
   name: '...',
   instructions: '... You also have local utility tools: fetch_url, summarize_url_content, '

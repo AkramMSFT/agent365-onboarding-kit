@@ -219,7 +219,7 @@ def main() -> None:
     from observability_bootstrap import configure_observability
 
     configure_observability()
-    # Instrumentation must precede imports of Agent Framework/OpenAI.
+    # Observability must be configured before Agent Framework and OpenAI are imported.
     from agent import MyAgent
 
     create_and_run_host(MyAgent)

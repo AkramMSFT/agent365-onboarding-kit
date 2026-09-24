@@ -4,9 +4,7 @@ Onboard an existing AI agent to **Microsoft Agent 365** from whichever coding CL
 
 Microsoft publishes [`agent365-skills`](https://github.com/microsoft/agent365-skills) as a Claude Code plugin. The **Agent 365 Onboarding Kit** in this repository repackages those skills as a folder you drop into your agent's repository, so any skill-aware CLI picks them up with no install step.
 
-```
-download  ->  extract into your agent project  ->  run the launcher  ->  "Onboard this agent to Agent 365."
-```
+The whole flow is four steps: download the kit, extract it into your agent project, run the launcher, and tell your CLI *Onboard this agent to Agent 365.*
 
 ---
 
@@ -39,11 +37,11 @@ Agent 365 onboarding has roughly ten stages: an Entra blueprint, an agent identi
 
 | Documented path | Requires |
 |---|---|
-| `/plugin marketplace add` | a Claude Code host that exposes `/plugin` — several do not |
+| `/plugin marketplace add` | a Claude Code host that exposes `/plugin`, which several do not |
 | `claude --plugin-dir ...` | an absolute path, and a non-elevated shell |
 | `gh skill add` | the `gh skill` extension |
 
-Each works on its own; together they turn "try the skills" into a support conversation. This kit removes the install step. The skills travel **with the project**, in the directories each CLI already looks in.
+Each path works somewhere, but none works everywhere, so trying the skills often turned into troubleshooting the install. The kit removes the install step. The skills travel **with the project**, in the directories each CLI already looks in.
 
 ## Prerequisites
 
@@ -51,12 +49,12 @@ Install these before you start. The kit's launcher checks all of them and prints
 
 | | Why |
 |---|---|
-| **.NET SDK 8+** | the `a365` CLI ships as a .NET global tool — SDK, not just runtime |
+| **.NET SDK 8+** | the `a365` CLI is a .NET global tool, so you need the SDK, not just the runtime |
 | **`a365` CLI** | creates the blueprint and Entra identity |
 | **Azure CLI**, signed in | tenant sign-in and app registration |
 | **Node.js 18+** | runs the validators bundled with the kit |
 | **Git** | scaffolding starter agents |
-| **An AI coding CLI** | drives the onboarding — see [Supported CLIs](#supported-clis) |
+| **An AI coding CLI** | drives the onboarding; see [Supported CLIs](#supported-clis) |
 | **Your agent's own runtime** | Python 3.10+, Node.js, or .NET |
 
 ```bash
@@ -83,9 +81,9 @@ Three things that are easy to miss, all covered in the guide:
 
 ## Quick start
 
-From the root of your agent project — the folder holding your agent's source.
+Run these from the root of your agent project, the folder that holds your agent's source.
 
-> Use the **release asset**, not GitHub's green Code → Download ZIP button. That button
+> Use the **release asset**, not GitHub's green Code > Download ZIP button. That button
 > gives you the whole repository inside a wrapper folder, which puts the skills where no CLI
 > looks. The extraction succeeds and your CLI then finds nothing, so the mistake is easy to
 > miss. The commands below fetch the right archive.
@@ -122,7 +120,7 @@ It reads the skills from the folder you just extracted, detects your stack, and 
 
 ## Start from a sample instead
 
-If you have no agent yet, the repository carries seven runnable starters in six languages. This is the one path where GitHub's **Code → Download ZIP** is fine, because the repository itself is the bundle: `kit/` plus `examples/` plus the workspace tool.
+If you have no agent yet, the repository carries seven runnable starters in six languages. This is the one path where GitHub's **Code > Download ZIP** is fine, because the repository itself is the bundle: `kit/` plus `examples/` plus the workspace tool.
 
 ```powershell
 git clone https://github.com/AkramMSFT/agent365-sdk-onboarding-experience.git
@@ -163,7 +161,7 @@ Onboarding creates real objects in a real tenant. Having these ready avoids stop
 
 Everything else is generated during onboarding. Do not invent blueprint ids, secrets, or object ids, and keep model keys and client secrets out of Git.
 
-**[`GUIDE.md`](GUIDE.md) is the full walkthrough** — ten steps from your agent's source to a registered, observable, tool-enabled agent chatting in Teams with Purview and Defender watching. Start there.
+**[`GUIDE.md`](GUIDE.md) is the full walkthrough**: ten steps from your agent's source to a registered, observable agent with tools, answering in Teams, with Purview and Defender watching. Start there.
 
 ## How it works
 
@@ -200,7 +198,7 @@ Each stage has a phrase. You do not need to know skill names.
 
 ### Example
 
-A TypeScript agent using the OpenAI Agents SDK, with no Agent 365 anything:
+A TypeScript agent built on the OpenAI Agents SDK, with no Agent 365 code yet:
 
 ```
 > Onboard this agent to Agent 365.
@@ -250,8 +248,8 @@ Support follows from where each CLI looks for skills, not from anything kit-spec
 |---|---|---|
 | `.claude/skills/` | Claude Code | yes |
 | `.agents/skills/` | GitHub Copilot (CLI, VS Code agent mode, coding agent), Cursor, Codex, Gemini CLI, Amp, Cline, OpenCode, Warp, Antigravity | no |
-| `.github/copilot-instructions.md` *(opt-in)* | GitHub Copilot, as extra grounding — not required | no |
-| — | anything else: point it at `.a365-kit/skills/a365-setup/SKILL.md` | no |
+| `.github/copilot-instructions.md` *(opt-in)* | GitHub Copilot, as optional extra grounding | no |
+| (none) | any other CLI: point it at `.a365-kit/skills/a365-setup/SKILL.md` | no |
 
 `.agents/skills/` follows the [Agent Skills specification](https://agentskills.io/specification).
 
@@ -313,7 +311,7 @@ The build refuses to emit output it cannot prove coherent. It verifies that no `
 |---|---|
 | One call | `-UpdateFrom <zip-or-url>` |
 | One shell or CI job | `A365_KIT_UPDATE_SOURCE=<zip-or-url>` |
-| One project, whole team | `-SetUpdateSource <zip-or-url>`, which writes `a365-kit.config.json` — commit it |
+| One project, whole team | `-SetUpdateSource <zip-or-url>`, which writes `a365-kit.config.json` for you to commit |
 | Your own build | `.\build\Build-Kit.ps1 -UpdateSource <zip-or-url> -Zip` |
 
 A network share holding `agent365-onboarding-kit-latest.zip` works with no web server at all.
@@ -322,7 +320,7 @@ A network share holding `agent365-onboarding-kit-latest.zip` works with no web s
 
 | Path | Purpose |
 |---|---|
-| `build/Build-Kit.ps1` | the build — derives `kit/` from upstream |
+| `build/Build-Kit.ps1` | the build, which derives `kit/` from upstream |
 | `build/upstream-fixups.json` | SDK and playbook corrections to Microsoft's files, each asserted by id and match count |
 | `build/bundle-examples.json` | the example catalog written into the manifest |
 | `build/kit.version` | this kit's packaging version |
@@ -341,16 +339,18 @@ A network share holding `agent365-onboarding-kit-latest.zip` works with no web s
 
 Built against upstream `agent365-skills` v1.0.2 and verified on Windows 11.
 
-- **Discovery.** Claude Code and GitHub Copilot CLI both list all fifteen skills from the extracted folder with no install step. Copilot loads referenced files by relative path, which is what confirms the path-rewrite strategy works outside Claude Code.
-- **Onboarding.** Driven end to end through Copilot CLI against a live tenant on a Python agent: blueprint, agent identity, eleven delegated permission grants, observability instrumentation, Work IQ tool wiring, messaging endpoint, published package, and an agent answering in Teams.
-- **Node.js and .NET.** Both driven through Copilot CLI against the live tenant: the Node run confirmed the exporter switch and the per-turn token refresh land in generated code; the .NET run confirmed the validator's exporter and per-turn registration checks on a hosted agent.
-- **Java.** The `add-java-agent` output compiles on JDK 21 and runs: health check returns 200, an anonymous request returns 401, a forged bearer returns 401. Its OTLP encoder was matched field by field against the Python SDK's output.
-- **Examples.** CI builds all seven offline and runs their tests on every push, Go and Rust included. The .NET, Node and Python examples also run on the maintainer's machine.
-- **Reproducible build.** CI rebuilds the kit from the upstream commit it records and fails if the committed kit, manifest or checksums differ by a single byte, or if the tag and version fields disagree.
-- **Launchers.** CI runs the Windows launcher's Copilot wiring, update-source and in-place update under both Windows PowerShell 5.1 and PowerShell 7, and fails if either writes a byte-order mark.
-- **Observability grant.** `grant-observability.mjs` passes sixteen offline tests against a simulated Microsoft Graph. A grant followed by a read-only check completed against a live tenant.
-- **Workspace tool.** `prepare-workspace.mjs` copies an example from a clone with every hash verified, and refuses an existing destination.
-- **Guard behaviour.** The patched path guard blocks writes into the kit and outside the project, and allows writes to agent source.
+| Area | What was checked |
+|---|---|
+| Discovery | Claude Code and GitHub Copilot CLI both list all fifteen skills from the extracted folder with no install step. Copilot loads referenced files by relative path, which shows the path rewrites work outside Claude Code. |
+| Onboarding | A Python agent taken end to end through Copilot CLI on a live tenant: blueprint, agent identity, eleven delegated permission grants, observability, Work IQ tools, messaging endpoint, published package, and the agent answering in Teams. |
+| Node.js and .NET | Both taken through Copilot CLI on the same tenant. The Node run showed the exporter switch and the per-turn token refresh landing in generated code. The .NET run exercised the validator's exporter and per-turn registration checks on a hosted agent. |
+| Java | The `add-java-agent` output compiles on JDK 21 and runs: the health check returns 200, and anonymous or forged requests return 401. Its OTLP encoder matches the Python SDK's output field by field. |
+| Examples | CI builds all seven offline and runs their tests on every push, Go and Rust included. |
+| Reproducible build | CI rebuilds the kit from the upstream commit it records, and fails if the committed kit, manifest or checksums differ by a single byte, or if the tag and version fields disagree. |
+| Launchers | CI runs the Windows launcher's Copilot wiring, update-source and in-place update under Windows PowerShell 5.1 and PowerShell 7, and fails if either writes a byte-order mark. |
+| Observability grant | `grant-observability.mjs` passes sixteen offline tests against a simulated Microsoft Graph, and a real grant followed by a check has run against a live tenant. |
+| Workspace tool | `prepare-workspace.mjs` copies an example from a clone, verifies every hash, and refuses an existing destination. |
+| Path guard | Blocks writes into the kit and outside the project, and allows writes to agent source. |
 
 Not yet exercised: the `.agents/skills/` path under Cursor, Codex, Gemini CLI, Amp, Cline, OpenCode, Warp and Antigravity, and a Java agent taken all the way to a live tenant.
 
@@ -369,9 +369,9 @@ Before declaring an agent done: confirm the tenant, blueprint and identity ids f
 
 ## Contributors
 
-- **Akram Eleyan** — author and maintainer.
-- **Gerard Salvador López** ([@gerardsl](https://github.com/gerardsl)) — the September 2026 audit: the SDK and playbook corrections in `build/upstream-fixups.json`, the hardened launchers and version check, the environment parser and console-mode checks, the setup runner for the observability access-package hand-off, the seven examples and the workspace tool, and the runtime lessons the skills now point to.
+- **Akram Eleyan**: author and maintainer.
+- **Gerard Salvador López** ([@gerardsl](https://github.com/gerardsl)): the September 2026 audit, covering the SDK and playbook corrections in `build/upstream-fixups.json`, the hardened launchers and version check, the environment parser and console-mode checks, the setup runner for the observability access-package hand-off, the seven examples and the workspace tool, and the runtime lessons the skills now point to.
 
 ## Licence
 
-This packaging is MIT licensed — see [`LICENSE`](LICENSE). The bundled skills are © Microsoft Corporation, also MIT. [`NOTICE.md`](NOTICE.md) carries the attribution and the full list of modifications. Every kit also carries both licences and the notice inside `.a365-kit/`.
+This packaging is MIT licensed; see [`LICENSE`](LICENSE). The bundled skills are © Microsoft Corporation, also MIT. [`NOTICE.md`](NOTICE.md) carries the attribution and the full list of modifications. Every kit also carries both licences and the notice inside `.a365-kit/`.

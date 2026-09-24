@@ -39,7 +39,7 @@ internal static class TeamsAuthentication
                         var reader = new JwtSecurityTokenHandler();
                         try
                         {
-                            // Unverified issuer selects a fixed validation scheme; it never grants access.
+                            // The unverified issuer only selects the validation scheme; it never grants access.
                             if (reader.CanReadToken(encoded) && reader.ReadJwtToken(encoded).Issuer == "https://api.botframework.com")
                                 return "BotConnector";
                         }

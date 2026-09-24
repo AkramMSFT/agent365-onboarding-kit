@@ -375,8 +375,7 @@ using Azure.AI.OpenAI;
 var builder = WebApplication.CreateBuilder(args);
 
 // Microsoft OpenTelemetry distro — configures OTel pipeline + A365 exporter in one call.
-// Register the OBO cache explicitly and connect it to the exporter resolver.
-// Microsoft.OpenTelemetry 1.0.3 does not register this application DI service automatically.
+// The distro does not register the OBO cache, so register it and connect it to the resolver.
 builder.Services.AddSingleton<IExporterTokenCache<AgenticTokenStruct>, AgenticTokenCache>();
 IExporterTokenCache<AgenticTokenStruct>? tokenCache = null;
 builder.UseMicrosoftOpenTelemetry(o =>

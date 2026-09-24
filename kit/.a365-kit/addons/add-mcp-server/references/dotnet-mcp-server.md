@@ -32,7 +32,7 @@ public sealed class ExternalMcpServers : IAsyncDisposable
         try
         {
 
-        // stdio example: filesystem, scoped to one directory
+        // Scope the filesystem server to one directory.
         var fsRoot = Environment.GetEnvironmentVariable("AGENT_FS_ROOT");
         if (!string.IsNullOrEmpty(fsRoot))
         {
@@ -47,7 +47,7 @@ public sealed class ExternalMcpServers : IAsyncDisposable
                 .Select(tool => tool.WithName($"filesystem_{tool.Name}")));
         }
 
-        // streamable-HTTP example: a remote server you trust
+        // Connect only to a remote server you trust.
         var httpUrl = Environment.GetEnvironmentVariable("AGENT_MCP_HTTP_URL");
         if (!string.IsNullOrEmpty(httpUrl))
         {

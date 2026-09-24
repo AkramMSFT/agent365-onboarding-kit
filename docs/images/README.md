@@ -1,8 +1,8 @@
 # Screenshots
 
-`GUIDE.md` references the images below. They are the portal and "it works" moments a reader cannot infer from text — capture them on your own tenant and drop the files here with these exact names. Text steps stand on their own without them; screenshots are a bonus.
+`GUIDE.md` references the images below. They are the portal and "it works" moments a reader cannot infer from text. Capture them on your own tenant and drop the files here with these exact names. Text steps stand on their own without them; screenshots are a bonus.
 
-Capture at 1400–1600 px wide, light theme, and crop to the relevant panel. **Redact tenant IDs, GUIDs, UPNs and email addresses** before committing — these files are public.
+Capture at 1400–1600 px wide, light theme, and crop to the relevant panel. **Redact tenant IDs, GUIDs, UPNs and email addresses** before committing, because these files are public.
 
 | File | Step | Capture |
 |---|---|---|

@@ -75,15 +75,13 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Posts spans to the Agent 365 observability API.
- *
  * The wire format is OTLP/JSON with two Microsoft-specific differences that a
- * standard OTLP encoder will get wrong:
- *   - attributes are a plain JSON object, NOT OTLP's [{key, value:{stringValue}}] array
+ * standard OTLP encoder gets wrong:
+ *   - attributes are a plain JSON object, not OTLP's [{key, value:{stringValue}}] array
  *   - kind and status.code are names ("SERVER", "OK"), not enum integers
  *
- * A span missing any of the three required attributes is dropped by the service
- * side with a success response, so an encoder bug here is silent.
+ * The service drops a span that lacks any of the three required attributes and still
+ * returns success, so an encoder bug here is silent.
  */
 public final class ObservabilityExporter {
 
@@ -126,10 +124,7 @@ public final class ObservabilityExporter {
         return host + path + "/tenants/" + tenantId + "/otlp/agents/" + agentId + "/traces?api-version=1";
     }
 
-    /**
-     * Build one span. operationName must be one of the OPERATION_* constants or the
-     * service drops it; the tenant and agent attributes are equally required.
-     */
+    /** operationName must be one of the OPERATION_* constants, or the service drops the span. */
     public Map<String, Object> span(String name, String operationName, String traceId, String spanId,
                                     long startUnixNano, long endUnixNano, Map<String, Object> extraAttributes) {
         Map<String, Object> attributes = new LinkedHashMap<>();
@@ -200,7 +195,7 @@ public final class ObservabilityExporter {
 
 ```java
 long start = System.currentTimeMillis() * 1_000_000L;
-// ... run the turn ...
+// Run the turn here.
 var batch = ObservabilityExporter.newBatch();
 batch.add(exporter.span("invoke_agent my-agent",
         ObservabilityExporter.OPERATION_INVOKE_AGENT,

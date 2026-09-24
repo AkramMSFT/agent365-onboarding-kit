@@ -94,7 +94,7 @@ setup operations, retaining the same approved arguments:
 
 ```powershell
 node .\.a365-kit\run-a365.mjs setup all --agent-name <your-agent-name> --dry-run
-# Only after reviewing/approving the real CLI preview:
+# Run this only after you review and approve the dry-run preview.
 node .\.a365-kit\run-a365.mjs setup all --agent-name <your-agent-name>
 ```
 

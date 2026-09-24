@@ -109,8 +109,8 @@ internal sealed class Agent365Runtime : IAsyncDisposable
         builder.Services.AddSingleton<IMcpToolServerConfigurationService>(sp => sp.GetRequiredService<SafeMcpServerService>());
         builder.Services.AddSingleton<IMcpToolRegistrationService, McpToolRegistrationService>();
 
-        // A365 Observability - exchange the user's blueprint-scoped assertion for
-        // an agent-identity OBO token; a CLI-client token cannot export for this agent.
+        // The exporter needs an agent-identity OBO token exchanged from the user's blueprint-scoped
+        // assertion. A token issued to the CLI client cannot export for this agent.
         builder.UseMicrosoftOpenTelemetry(options =>
         {
             options.Exporters = ExportTarget.Agent365;
@@ -139,9 +139,9 @@ internal sealed class Agent365Runtime : IAsyncDisposable
     public async Task<IList<AITool>> GetToolsAsync()
     {
         if (expectedServers == 0) return [];
-        // A365 WorkIQ - the SDK supports environment tokens outside an AgentApplication.
-        // This console has no inbound HTTP turn; real hosted OBO requires UserAuthorization.
-        // SDK 1.1.14-preview accepts null here but its public annotations still require hosted inputs.
+        // Outside an AgentApplication the SDK supports environment tokens, which suits a console with
+        // no inbound turn. A hosted agent would use UserAuthorization for OBO.
+        // SDK 1.1.14-preview accepts null here despite its nullable annotations.
 #pragma warning disable CS8625
         var tools = await host.Services.GetRequiredService<IMcpToolRegistrationService>()
             .GetMcpToolsAsync(AgentId, null, null, null, "");

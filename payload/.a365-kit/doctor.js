@@ -1,17 +1,6 @@
 #!/usr/bin/env node
-// Agent 365 Onboarding Kit -- prerequisite doctor.
-//
-// Cross-platform prereq check shared by Start-Agent365-Onboarding.ps1 (Windows)
-// and start-agent365-onboarding.sh (macOS/Linux). Reports what is present, what
-// is missing, and the exact command to install each missing piece.
-//
-// Exit codes:
-//   0 -> all REQUIRED prerequisites present (optional ones may be missing)
-//   1 -> at least one REQUIRED prerequisite missing
-//
-// Flags:
-//   --json   emit a machine-readable report instead of the human table
-//   --quiet  suppress the "all good" rows, print only problems
+// Prerequisite check shared by agent365-kit.ps1 (Windows) and agent365-kit.sh (macOS/Linux).
+// Exits 1 only when a required prerequisite is missing.
 
 'use strict';
 
@@ -35,7 +24,6 @@ function probe(cmd) {
   }
 }
 
-// Extract the first dotted version number from arbitrary CLI output.
 function firstVersion(text) {
   if (!text) return null;
   const m = text.match(/\d+\.\d+(\.\d+)?/);
@@ -47,10 +35,8 @@ function majorOf(version) {
   return parseInt(version.split('.')[0], 10);
 }
 
-// -- The prerequisite matrix -------------------------------------------------
-// required: true  -> onboarding cannot start without it.
-// required: false -> needed only for specific agent stacks or later phases.
-
+// Required checks block onboarding. Optional ones matter only for some agent
+// stacks or later phases.
 const CHECKS = [
   {
     key: 'node',
@@ -68,7 +54,6 @@ const CHECKS = [
     label: 'An AI coding CLI',
     required: true,
     why: 'Reads the skills and drives the onboarding. Any one of these is enough.',
-    // Passes if at least one supported CLI is on PATH; reports which.
     probe: () => {
       const found = [];
       if (probe('claude --version')) found.push('Claude Code');
@@ -165,8 +150,6 @@ const CHECKS = [
   },
 ];
 
-// -- Run the checks ----------------------------------------------------------
-
 const results = CHECKS.map(check => {
   let value = null;
   try { value = check.probe(); } catch { value = null; }
@@ -183,8 +166,6 @@ const results = CHECKS.map(check => {
 
 const missingRequired = results.filter(r => r.required && !r.passed);
 const missingOptional = results.filter(r => !r.required && !r.passed);
-
-// -- Report ------------------------------------------------------------------
 
 if (asJson) {
   process.stdout.write(JSON.stringify({

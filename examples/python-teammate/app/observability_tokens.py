@@ -125,7 +125,7 @@ class TurnTokenStore:
             self._bindings.clear()
         for future in pending:
             future.cancel()
-        # Let already-scheduled thread-safe callbacks create/cancel their tasks.
+        # Yield so callbacks already queued from other threads can create or cancel their tasks.
         await asyncio.sleep(0)
         await asyncio.sleep(0)
         tasks = tuple(self._tasks)
@@ -137,6 +137,6 @@ class TurnTokenStore:
             self._pending.clear()
 
 
-# Both the host producer and exporter consumer import this module, never __main__.
+# Shared by the host and the exporter: import it from this module, never from __main__.
 TOKEN_STORE = TurnTokenStore()
 token_resolver = TOKEN_STORE.resolve

@@ -8,11 +8,11 @@ If the issue is in Microsoft's skills rather than this packaging, report it to M
 
 ## What this kit touches
 
-Onboarding an agent to Agent 365 creates real objects in your tenant and writes real credentials to disk. Worth knowing before you run it:
+Onboarding an agent to Agent 365 creates real objects in your tenant and writes real credentials to disk. Before you run it, be aware of the following:
 
-- **`a365 setup all` creates an Entra app registration, a service principal and a client secret.** The secret is written into your project's configuration. Treat that project directory as credential-bearing: do not commit `.env` or `a365.generated.config.json`, and do not share them in screenshots or logs.
-- **The prerequisite checker masks your tenant id** in its output, because it is frequently run on a screen share.
-- **A messaging endpoint is public once tunnelled.** Any host serving `/api/messages` must validate the inbound bearer token. The generated hosts do; if you write your own, the token validation is not optional, and the kit's validators check for it.
+- `a365 setup all` creates an Entra app registration, a service principal and a client secret. The secret is written into your project's configuration. Treat that project directory as credential-bearing: do not commit `.env` or `a365.generated.config.json`, and do not share them in screenshots or logs.
+- The prerequisite checker masks your tenant id in its output, because it is frequently run on a screen share.
+- A messaging endpoint is public once tunnelled. Any host serving `/api/messages` must validate the inbound bearer token. The generated hosts do; if you write your own, the token validation is not optional, and the kit's validators check for it.
 
 ## Guardrails in the kit
 
@@ -22,8 +22,8 @@ The bundled `path-guard.js` prevents a skill from writing outside your project o
 
 Two add-ons deliberately expand what an agent can reach. Both are opt-in and neither is installed unless you ask for it.
 
-- **`add-lab-tools`** includes a web fetch and page summariser. That is outbound network access and a prompt-injection surface: content the agent fetches is untrusted input.
-- **`add-mcp-server`** connects the agent to external Model Context Protocol servers. These are **not** registered in Agent 365 and **not** gated by Entra, so they sit outside the governance model the rest of the kit works within.
+- `add-lab-tools` includes a web fetch and page summariser. That is outbound network access and a prompt-injection surface: content the agent fetches is untrusted input.
+- `add-mcp-server` connects the agent to external Model Context Protocol servers. These are **not** registered in Agent 365 and **not** gated by Entra, so they sit outside the governance model the rest of the kit works within.
 
 Both are worth pairing with Microsoft's `purview-dlp-integration` skill, which blocks sensitive prompts before the model. It does not inspect tool arguments or tool results, so it narrows the risk rather than closing it. The add-ons say so in their own documentation.
 

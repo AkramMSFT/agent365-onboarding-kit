@@ -1,9 +1,7 @@
 #!/usr/bin/env node
-// Agent 365 Onboarding Kit add-on validator: add-lab-tools.
-//
-// Confirms the lab-tools module exists, is wired into the agent's tool list without
-// replacing the existing tools, and -- when the web group is present -- that fetch_url
-// carries its guards. Static checks only; exit 0 {"ok":true} / 1 {"ok":false}.
+// Static checks that the lab-tools module exists, is appended to the agent's tools
+// rather than replacing them and, when the web group is present, that fetch_url keeps
+// its guards.
 
 'use strict';
 
@@ -19,7 +17,7 @@ const exists = p => { try { fs.accessSync(p); return true; } catch { return fals
 let language = '';
 try {
   language = String(JSON.parse(read(path.join(cwd, '.a365-workspace-detection.local.json'))).programmingLanguage || '').toLowerCase();
-} catch { /* fall through */ }
+} catch { /* no detection cache */ }
 if (!language) {
   if (exists(path.join(cwd, 'pyproject.toml')) || exists(path.join(cwd, 'requirements.txt'))) language = 'python';
   else if (exists(path.join(cwd, 'package.json'))) language = 'nodejs';
@@ -34,13 +32,11 @@ if (!moduleFiles.length) {
   issues.push('no lab-tools module found (expected lab_tools.py / labTools.ts / LabTools.cs) -- add-lab-tools did not create it');
 } else {
   const modText = moduleFiles.map(read).join('\n');
-  // At least one recognised tool must be defined.
   const known = ['fetch_url', 'fetchUrl', 'FetchUrl', 'encode_text', 'encodeText', 'EncodeText',
                  'hash_text', 'hashText', 'HashText', 'transform_text', 'transformText', 'TransformText'];
   if (!known.some(n => modText.includes(n))) {
     issues.push('lab-tools module exists but defines none of the expected tools');
   }
-  // If the web group is present, fetch_url must be capped, not an unbounded GET.
   const hasWeb = /fetch_url|fetchUrl|FetchUrl/.test(modText);
   if (hasWeb) {
     const guarded = /timeout|Timeout|TIMEOUT/.test(modText)
@@ -52,7 +48,6 @@ if (!moduleFiles.length) {
   }
 }
 
-// Wired into the agent, and the existing tools preserved.
 const agentFiles = {
   python: filterByName(all, '.py').filter(f => /tools\s*=\s*\[/.test(read(f))),
   nodejs: all.filter(f => /\.(ts|js|mjs)$/.test(f) && /tools\s*:\s*\[/.test(read(f)) && !f.includes('node_modules')),

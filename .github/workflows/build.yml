@@ -1,8 +1,8 @@
 name: Build
 
-# Every push and pull request: rebuild the kit from the upstream commit it records and
-# require the committed kit/, BUNDLE-MANIFEST.json and SHA256SUMS.txt to match byte for
-# byte. Upstream drift is the nightly refresh's job, not this one's.
+# Rebuilds the kit from the upstream commit it records and requires the committed kit/,
+# BUNDLE-MANIFEST.json and SHA256SUMS.txt to match byte for byte. Upstream drift is left
+# to the nightly refresh.
 
 on:
   push:

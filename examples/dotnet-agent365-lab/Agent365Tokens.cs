@@ -18,8 +18,8 @@ internal sealed class Agent365Tokens
             tenantId, userId, userPrincipalName)
     {
         if (!Guid.TryParse(operatorClientAppId, out _)) throw new InvalidOperationException("Configure a verified OperatorClientAppId before using local cached tokens.");
-        // Compatibility with the CLI's existing encrypted Azure Identity cache:
-        // other dev-tool credentials would select a different client/cache/account.
+        // Reuses the Agent 365 CLI's encrypted Azure Identity cache. Other developer credentials
+        // would pick a different client, cache or account.
 #pragma warning disable CS0618
         renewalCredential = new IdentitySdk.SharedTokenCacheCredential(new IdentitySdk.SharedTokenCacheCredentialOptions
         {

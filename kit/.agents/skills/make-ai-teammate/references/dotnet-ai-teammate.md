@@ -294,7 +294,7 @@ namespace YourNamespace.Agent
         {
             _chatClient = chatClient;
             _configuration = configuration;
-            // Registered by instrument-observability (Phase 3) — used by instrument-observability
+            // Registered by instrument-observability (Phase 3), which uses it
             // for per-turn RegisterObservability(...) calls. Inject up-front so the constructor doesn't
             // need to be reopened when the observability skill runs later.
             _agentTokenCache = agentTokenCache;

@@ -819,7 +819,7 @@ Without this phase the skill ends "instrumented successfully" but the user has n
    **Files modified:** [list files]
 
    **Next steps:**
-   1. Confirm the exporter is still on -- this skill sets it, but a later
+   1. Confirm the exporter is still on. This skill sets it, but a later
       `a365 setup` run can reset it to false:
       - .NET: set EnableAgent365Exporter: true in appsettings.json
       - Node.js / Python: set ENABLE_A365_OBSERVABILITY_EXPORTER=true in .env (or `a365.enableObservabilityExporter: true` in code — both required alongside `a365.enabled: true`)

@@ -1,10 +1,10 @@
 <#
 .SYNOPSIS
-    Agent 365 Onboarding Kit -- prerequisite check and per-CLI activation steps.
+    Agent 365 Onboarding Kit: prerequisite check and per-CLI activation steps.
 
 .DESCRIPTION
     Run this from the root of your agent project after extracting the kit into it.
-    The script does not onboard anything itself -- the skills do that. It:
+    The skills do the onboarding. This script only:
 
       1. Confirms the kit extracted to the right place.
       2. Warns if you are in an elevated shell (a common cause of "command not found").
@@ -25,17 +25,17 @@
 
 .PARAMETER WireCopilot
     Create or append the Agent 365 skill instructions to .github/copilot-instructions.md.
-    Never overwrites an existing file -- appends to it, once.
+    An existing file is appended to once, never overwritten.
 
 .PARAMETER WireClaudeHook
     Add the optional SessionStart upstream-version notice to .claude/settings.json.
     Skipped automatically if that file already exists.
 
 .PARAMETER Launch
-    Which CLI to launch once the checks pass. Currently supports 'claude'.
+    The CLI to launch once the checks pass. Only 'claude' is supported.
 
 .PARAMETER Update
-    Replace the kit in this project with the latest release. Touches ONLY kit paths
+    Replace the kit in this project with the latest release. Touches only kit paths
     (.a365-kit, the kit's own skill folders under .claude/skills and .agents/skills, the
     launchers, and AGENT365-KIT-README.md). Your agent, .env, config and .claude/settings.json
     are never modified.
@@ -92,20 +92,13 @@ Write-Host ''
 Write-Host 'Agent 365 Onboarding Kit' -ForegroundColor White
 Write-Host '========================' -ForegroundColor DarkGray
 
-# -- Update source --------------------------------------------------------------
-# Resolved in this order so an organisation that mirrors the kit internally can pin
-# it once and forget it:
-#   1. -UpdateFrom                (this call)
-#   2. $env:A365_KIT_UPDATE_SOURCE (this shell / CI job)
-#   3. a365-kit.config.json       (this project -- lives OUTSIDE the paths -Update replaces)
-#   4. .a365-kit\KIT-VERSION.json (default baked in at build time)
-#   5. the public GitHub release
-
+# a365-kit.config.json sits outside the paths -Update replaces, so a team that
+# mirrors the kit can set its update source once.
 $KitConfigPath = Join-Path $KitRoot 'a365-kit.config.json'
 $PublicSource  = 'https://github.com/AkramMSFT/agent365-sdk-onboarding-experience/releases/latest/download/agent365-onboarding-kit-latest.zip'
 
-# Works in Windows PowerShell 5.1 and PowerShell 7. 5.1 reads BOM-less files in the ANSI
-# code page, writes a BOM with -Encoding UTF8, and has no ConvertFrom-Json -AsHashtable.
+# Windows PowerShell 5.1 reads BOM-less files in the ANSI code page, writes a BOM with
+# -Encoding UTF8 and has no ConvertFrom-Json -AsHashtable, so these helpers avoid them.
 function Read-KitText([string] $Path) { [IO.File]::ReadAllText($Path) }
 function Write-KitText([string] $Path, [string] $Text, [switch] $Append) {
     $utf8 = [Text.UTF8Encoding]::new($false)
@@ -166,11 +159,8 @@ if ($PSBoundParameters.ContainsKey('SetUpdateSource')) {
     exit 0
 }
 
-# -- 0. Self-update ------------------------------------------------------------
-# Replaces kit paths only. Anything the user owns is left alone, and the set of
-# skill folders to replace is read from the NEW kit's manifest, so a skill that
-# upstream removes is removed here too rather than lingering.
-
+# Skill folders to replace come from both the old and the new manifest, so a skill
+# that upstream dropped is removed rather than left behind.
 if ($Update) {
     Write-Head 'Updating the kit'
     $resolved = Get-UpdateSource
@@ -227,7 +217,8 @@ if ($Update) {
             if (-not (Test-Path -LiteralPath $UpdateFrom -PathType Leaf)) { throw "Not found: $UpdateFrom" }
             Copy-Item -LiteralPath $UpdateFrom -Destination $zip
         }
-        # Check archive paths before extraction, and completeness before moving any installed file.
+        # The archive is untrusted: check entry paths before extracting and completeness
+        # before moving any installed file.
         Add-Type -AssemblyName System.IO.Compression.FileSystem
         $archive = [IO.Compression.ZipFile]::OpenRead($zip)
         try {
@@ -342,8 +333,6 @@ if ($Update) {
     }
 }
 
-# -- 1. Confirm the kit landed in the right place -----------------------------
-
 $Canonical = Join-Path $KitRoot '.a365-kit\skills\a365-setup\SKILL.md'
 if (-not (Test-Path -LiteralPath $Canonical)) {
     Write-Host ''
@@ -373,11 +362,6 @@ if ((Get-Location).Path -ne $KitRoot) {
     Set-Location -LiteralPath $KitRoot
 }
 
-# -- 2. Elevated-shell check --------------------------------------------------
-# Claude Code, gh, and dotnet global tools install per-user. In an elevated shell
-# the per-user PATH entries are usually absent, so these tools look "not installed"
-# when they are simply not on the Administrator PATH.
-
 $isElevated = $false
 if ($PSVersionTable.PSEdition -eq 'Desktop' -or $IsWindows) {
     $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
@@ -402,8 +386,6 @@ if ($isElevated) {
         exit 1
     }
 }
-
-# -- 3. Prerequisites ---------------------------------------------------------
 
 if (-not $SkipDoctor) {
     if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
@@ -433,8 +415,6 @@ if ($DoctorOnly) {
     Write-Host ''
     exit 0
 }
-
-# -- 4. Optional wiring -------------------------------------------------------
 
 if ($WireCopilot) {
     Write-Head 'Wiring GitHub Copilot instructions'
@@ -488,12 +468,8 @@ if ($WireClaudeHook) {
     }
 }
 
-# -- 5. Detect CLIs and print activation steps --------------------------------
-
-# NOTE: the parameter is deliberately NOT called $Args -- that is a PowerShell
-# automatic variable, and using it as a parameter name silently breaks binding,
-# so `& gh @Args` runs gh with no arguments, prints help, and exits 0. That makes
-# every probe report success.
+# Not named $Args: that automatic variable breaks parameter binding, so `& gh @Args`
+# would run gh with no arguments, print help and exit 0, and every probe would pass.
 function Test-Cli { param([string] $Exe, [string[]] $Arguments)
     try {
         & $Exe @Arguments *> $null
@@ -505,16 +481,14 @@ $hasClaude = [bool](Get-Command claude -ErrorAction SilentlyContinue)
 $hasGh     = [bool](Get-Command gh     -ErrorAction SilentlyContinue)
 $hasCode   = [bool](Get-Command code   -ErrorAction SilentlyContinue)
 
-# `gh skill` and `gh copilot` are built into gh 2.98+, not extensions, and neither
-# supports a read-only --version probe: `gh skill --version` errors, while
-# `gh copilot --version` can download the Copilot CLI. Use gh's own --help only.
-$hasGhSkill    = $false   # gh can install agent skills
-$hasGhCopilotL = $false   # gh can launch the Copilot CLI (downloads on first use)
+# `gh skill` and `gh copilot` are built into gh 2.98+ and have no safe --version probe:
+# `gh skill --version` errors and `gh copilot --version` can download the Copilot CLI.
+$hasGhSkill    = $false
+$hasGhCopilotL = $false   # gh can launch the Copilot CLI, downloading it on first use
 if ($hasGh) {
     $hasGhSkill    = Test-Cli 'gh' @('skill', '--help')
     $hasGhCopilotL = Test-Cli 'gh' @('copilot', '--help')
 }
-# A standalone CLI is detectable without launching or downloading anything.
 $hasCopilotCli = [bool](Get-Command copilot -ErrorAction SilentlyContinue)
 
 Write-Head 'Detected CLIs'
@@ -581,7 +555,7 @@ Write-Cmd '"Add Purview DLP to my agent."'
 Write-Note '        Purview blocks sensitive prompts before the model; replies can be audited'
 Write-Host ''
 
-# Enumerated, not hardcoded: a new add-on appears here without touching the launcher.
+# Add-ons are listed from disk, so one without an entry here still shows up.
 $AddonPhrases = @{
   'add-messaging-endpoint' = @('"Make this agent chattable in Teams."', 'HTTP host, dev tunnel, endpoint registration')
   'test-local-channel'     = @('"Let me test this agent locally."', 'loopback-only dev channel: no tunnel, no tenant, no Teams')
@@ -613,8 +587,6 @@ Write-Note 'the observability consent hand-off, prefix the same command with the
 Write-Cmd 'node .\.a365-kit\run-a365.mjs setup <subcommand> [options]'
 Write-Note 'If setup says maven-prod OtelWrite needs admin consent, ask: "Grant observability access to this agent."'
 Write-Host ''
-
-# -- 6. Optional launch -------------------------------------------------------
 
 if ($Launch -eq 'claude') {
     if (-not $hasClaude) {

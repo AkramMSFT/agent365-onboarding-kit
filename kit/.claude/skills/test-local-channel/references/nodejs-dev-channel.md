@@ -13,10 +13,10 @@ Write this as `src/devChannel.ts` (or `.js`, dropping the types) beside the host
 ```typescript
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 
-// devtunnel host runs on the developer's own machine and forwards to a local port, so a
-// request from the public internet still arrives with a remote address of 127.0.0.1. A
-// loopback check alone would pass tunnelled traffic. Header rejection is defense in depth:
-// a proxy can omit the headers, so never expose this port through a tunnel.
+// The devtunnel host process runs on the developer's own machine and forwards to a local
+// port, so a request from the public internet still arrives with a remote address of
+// 127.0.0.1. A loopback check alone would pass tunnelled traffic. Header rejection is
+// defense in depth: a proxy can omit the headers, so never expose this port through a tunnel.
 const FORWARDING_HEADERS = [
   'x-forwarded-for',
   'x-forwarded-host',
@@ -115,7 +115,7 @@ export function startDevChannel(
     });
   });
 
-  // 127.0.0.1, never 0.0.0.0: nothing off this machine can reach it directly.
+  // Bind to 127.0.0.1, never 0.0.0.0, so nothing off this machine can reach it directly.
   server.listen(listenPort, '127.0.0.1', () => {
     console.warn(
       `DEV CHANNEL ENABLED on http://127.0.0.1:${listenPort}/dev/chat -- authentication is ` +
@@ -136,7 +136,7 @@ Call it once from the host's startup, after the production listener is bound:
 import { startDevChannel } from './devChannel';
 
 const devChannel = startDevChannel((text) => agent.ask(text));
-// In the host's existing shutdown path, before disposing the model/tools:
+// Run this in the host's existing shutdown path, before disposing the model and tools.
 if (devChannel) {
   await new Promise<void>((resolve, reject) =>
     devChannel.close(error => error ? reject(error) : resolve()));

@@ -111,7 +111,7 @@ async def start_dev_channel(
     port = int(os.getenv("A365_DEV_CHANNEL_PORT", DEFAULT_DEV_PORT)) if port is None else port
     runner = web.AppRunner(build_dev_channel_app(answer))
     await runner.setup()
-    # 127.0.0.1, never 0.0.0.0: nothing off this machine can reach it directly.
+    # Bind to 127.0.0.1, never 0.0.0.0, so nothing off this machine can reach it directly.
     try:
         await web.TCPSite(runner, "127.0.0.1", port).start()
     except BaseException:
@@ -137,7 +137,7 @@ It returns `None` immediately when the flag is absent.
 from dev_channel import start_dev_channel
 
 async def start_server(self) -> None:
-    # ... existing setup, production site started ...
+    # Keep the existing setup that starts the production site.
     dev_runner = None
     try:
         dev_runner = await start_dev_channel(self._agent.process_local_message)
@@ -145,7 +145,7 @@ async def start_server(self) -> None:
     finally:
         if dev_runner is not None:
             await dev_runner.cleanup()
-        # ... existing agent and production-runner cleanup ...
+        # Keep the existing agent and production-runner cleanup.
 ```
 
 `HostedAgent.process_local_message` in the messaging reference invokes the same model runner

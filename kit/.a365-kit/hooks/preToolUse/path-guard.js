@@ -47,10 +47,9 @@ function isInside(root, target) {
 const projectRoot = safeRealpath(path.resolve(
   process.env.CLAUDE_PROJECT_DIR || process.cwd()
 ));
-// Agent 365 Onboarding Kit: in a drop-in install there is no plugin, so
-// CLAUDE_PLUGIN_ROOT is unset and the "don't write into your own instructions"
-// guard would silently disable itself. Fall back to the kit folder inside the
-// project, which is the drop-in equivalent of the plugin root.
+// Without a plugin install CLAUDE_PLUGIN_ROOT is unset, which would switch this guard
+// off. Fall back to the kit folder inside the project. Added by the Agent 365
+// Onboarding Kit; see its NOTICE.md, section 3.
 const pluginRoot = process.env.CLAUDE_PLUGIN_ROOT
   ? safeRealpath(path.resolve(process.env.CLAUDE_PLUGIN_ROOT))
   : safeRealpath(path.join(projectRoot, '.a365-kit'));

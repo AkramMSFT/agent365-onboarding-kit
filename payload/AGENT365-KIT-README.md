@@ -26,7 +26,7 @@ Use `node .\.a365-kit\run-a365.mjs setup ...` for consent-aware setup in PowerSh
 It preserves CLI failures and returns 2 for this pending handoff even if the CLI
 returns zero. It does not create assignments or change permissions automatically.
 
-Drop-in skills that walk your coding CLI through onboarding an agent to **Microsoft Agent 365** — registering it, giving it an Entra identity, instrumenting observability, and wiring WorkIQ tools.
+Drop-in skills that walk your coding CLI through onboarding an agent to **Microsoft Agent 365**: registering it, giving it an Entra identity, instrumenting observability, and wiring WorkIQ tools.
 
 No plugin install. No marketplace. Extract, then point your CLI at it.
 
@@ -53,7 +53,7 @@ For current details, read [CLI setup](https://learn.microsoft.com/en-us/microsof
 
 ## 1. Put it in your agent project
 
-Extract this kit into the **root of your agent project** — the folder containing your agent's source:
+Extract this kit into the **root of your agent project**, the folder containing your agent's source:
 
 ```
 your-agent-project/
@@ -65,7 +65,7 @@ your-agent-project/
   src/ package.json ... <- your agent
 ```
 
-Starting from nothing? Extract into an empty folder — the skills can scaffold a starter agent from Microsoft's samples.
+Starting from nothing? Extract into an empty folder, and the skills can scaffold a starter agent from Microsoft's samples.
 
 ## 2. Check your prerequisites
 
@@ -102,7 +102,7 @@ Three stages, each started by one phrase typed to your CLI. Stop at whichever fi
 
 | Stage | You say | Then you, in your own terminal |
 |---|---|---|
-| **1. Register** — blueprint, identity, permissions, telemetry | *Onboard this agent to Agent 365.* | `a365 setup all …` when it asks (copy from the prompt); then install packages |
+| **1. Register** (blueprint, identity, permissions, telemetry) | *Onboard this agent to Agent 365.* | `a365 setup all …` when it asks (copy from the prompt); then install packages |
 | **2. Chat** in Teams & Copilot | *Make this agent chattable in Teams.* (blueprint path) or *Make this agent an AI Teammate.* | review bot grants with the administrator, confirm a supported publishing experience, then package/upload/approve |
 | **3. Govern** with Purview DLP | *Add Purview DLP to my agent.* | authorized API consent, billing/entitlements and an app-scoped blocking policy via the documented Purview PowerShell workflow |
 
@@ -112,7 +112,7 @@ The Stage 1 phrase is the same everywhere:
 
 > **Onboard this agent to Agent 365.**
 
-Which CLIs work is determined by where they look for skills — the kit ships into both standard locations:
+Which CLIs work is determined by where they look for skills, and the kit ships into both standard locations:
 
 | Directory | CLIs that read it |
 |---|---|
@@ -121,7 +121,7 @@ Which CLIs work is determined by where they look for skills — the kit ships in
 
 ### Claude Code
 
-Skills in `.claude/skills/` load automatically — no `/plugin`, no `--plugin-dir`. From your project root:
+Skills in `.claude/skills/` load automatically: no `/plugin`, no `--plugin-dir`. From your project root:
 
 ```bash
 claude
@@ -129,11 +129,11 @@ claude
 
 Then type the trigger phrase, or `claude "Onboard this agent to Agent 365."` in one go.
 
-Claude Code is the only CLI that runs the bundled **validator hooks**: after a skill finishes, a check confirms the wiring actually landed and refuses to end the session if something is missing. Elsewhere the skills still work — you just lose that final check.
+Claude Code is the only CLI that runs the bundled **validator hooks**: after a skill finishes, a check confirms the wiring actually landed and refuses to end the session if something is missing. Elsewhere the skills still work; you just lose that final check.
 
 ### GitHub Copilot CLI
 
-Reads `.agents/skills/`, which is already populated. Install the CLI if you don't have it — `gh copilot` won't fetch it for you:
+Reads `.agents/skills/`, which is already populated. Install the CLI if you don't have it, because `gh copilot` won't fetch it for you:
 
 ```bash
 npm install -g @github/copilot
@@ -153,7 +153,7 @@ To see what it would do without touching your tenant:
 copilot -p "Onboard this agent to Agent 365. DRY RUN - do not run commands or modify files. Report which skill you selected, what you detected, and the steps you would perform." --allow-all-tools --deny-tool shell
 ```
 
-Needs **gh 2.98+** if you launch via `gh copilot` — older versions shipped an extension that only suggested shell commands and cannot edit files.
+Needs **gh 2.98+** if you launch via `gh copilot`. Older versions shipped an extension that only suggested shell commands and cannot edit files.
 
 Optionally add the instructions file for extra grounding (not required):
 
@@ -162,15 +162,15 @@ Optionally add the instructions file for extra grounding (not required):
 ./agent365-kit.sh --wire-copilot      # macOS / Linux
 ```
 
-It **creates `.github/copilot-instructions.md`, or appends to yours** — it never overwrites project-owned instructions.
+It **creates `.github/copilot-instructions.md`, or appends to yours**, and never overwrites project-owned instructions.
 
-### VS Code — Copilot agent mode
+### VS Code: Copilot agent mode
 
 Open this folder in VS Code, open Copilot Chat, switch the mode selector to **Agent**, confirm with `/skills list`, then ask using the trigger phrase.
 
 ### Cursor, Codex, Gemini CLI, Amp, Cline, OpenCode, Warp, Antigravity
 
-These share `.agents/skills/` at project scope, so the skills are already where they look. Open the folder and use the trigger phrase — there is nothing to install.
+These share `.agents/skills/` at project scope, so the skills are already where they look. Open the folder and use the trigger phrase; there is nothing to install.
 
 ### Any other agentic CLI
 
@@ -196,15 +196,15 @@ When your CLI reaches that command: **copy it exactly from the approval prompt, 
 
 ## After a first run
 
-Two things the skills leave for you — check both before calling it done:
+The skills leave two things for you. Check both before calling it done:
 
 1. **Install the packages.** The skill edits `requirements.txt` but doesn't always run the install. `pip install -r requirements.txt`, then confirm your agent module still imports.
    - **Python + WorkIQ:** if the import then fails with `No module named 'microsoft_agents_a365.runtime'`, add `microsoft-agents-a365-runtime>=1.0.0` to `requirements.txt` and install again. The `microsoft-agents-a365-tooling` wheel (1.0.0) imports it but doesn't declare it, so pip never pulls it in.
-2. **Check observability is complete.** `node .a365-kit/hooks/stop/validate-instrument-observability.js` — if it reports no `InvokeAgentScope`, ask your CLI to *"Add observability to this agent"* and re-run the validator. The skill is idempotent; it adds only what's missing.
+2. **Check observability is complete.** Run `node .a365-kit/hooks/stop/validate-instrument-observability.js`. If it reports no `InvokeAgentScope`, ask your CLI to *"Add observability to this agent"* and re-run the validator. The skill is idempotent; it adds only what's missing.
 
 ---
 
-## After onboarding — making it chat in Teams and Copilot
+## After onboarding: making it chat in Teams and Copilot
 
 Registration and reachability are separate. To answer in Teams/Microsoft 365 Copilot, the agent additionally needs hosting, a supported package, approval, audience policies and appropriate entitlements:
 
@@ -218,13 +218,13 @@ Registration and reachability are separate. To answer in Teams/Microsoft 365 Cop
 | 6. Upload, activate, create instance | Microsoft 365 admin-center approval and audience configuration; instance/user creation and service licences are separate and experience-dependent. | AI Administrator/GA and allowed requester, as applicable |
 | 7. Test | `agentsplayground` (`npm i -g @microsoft/m365agentsplayground`) against your host; Teams chat; Copilot agent picker | you |
 
-Like `a365 setup all`, run `a365 publish` and `a365 setup permissions bot` in your own terminal — the first block-buffers under chat tools, the second needs the Windows broker for its grant step.
+Like `a365 setup all`, run `a365 publish` and `a365 setup permissions bot` in your own terminal: the first block-buffers under chat tools, and the second needs the Windows broker for its grant step.
 
 > **If your generated Python host crashes on startup** with `AttributeError: ... 'MsalConnectionManager' has no attribute 'from_environment'`, the reference it was built from predates `microsoft-agents` 1.6. `docs/LIFECYCLE.md` C1 has the working 1.6 pattern.
 
-The full walkthrough with every choice explained — agent kinds, identity, dev tunnel vs cloud, Purview DLP, teardown — is **`docs/LIFECYCLE.md`** in the kit repository.
+The full walkthrough with every choice explained (agent kinds, identity, dev tunnel vs cloud, Purview DLP, teardown) is **`docs/LIFECYCLE.md`** in the kit repository.
 
-## Keeping the kit current — from your CLI
+## Keeping the kit current: from your CLI
 
 Say *"update the Agent 365 kit"* (or run `.\agent365-kit.ps1 -Update` / `./agent365-kit.sh --update`). Only kit-owned files should be replaced. To use a mirror, set `-SetUpdateSource <zip-or-url>` or `A365_KIT_UPDATE_SOURCE`. Share a project configuration only if the URL/path is credential-free and approved for source control; this repository ignores `a365-kit.config.json` by default. *"Check the kit prerequisites"* and *"which kit version is installed"* work the same way.
 
@@ -247,7 +247,7 @@ test-local            standalone -- run the agent locally against AgentsPlaygrou
 a365-code-validator   standalone -- diagnose telemetry that isn't reaching MAC Activity
 ```
 
-Setup writes `.a365-workspace-detection.local.json`, which caches what it detected about your agent so later skills don't redo the work. It is machine-specific — keep it out of source control. Deleting it is safe; the next run rebuilds it.
+Setup writes `.a365-workspace-detection.local.json`, which caches what it detected about your agent so later skills don't redo the work. It is machine-specific, so keep it out of source control. Deleting it is safe; the next run rebuilds it.
 
 The skills are **additive, idempotent, and state-aware**. Re-running them is safe.
 
@@ -274,7 +274,7 @@ Skip the entry point and ask directly:
 | `a365 setup all` returns 403 or "tenant not ready" | The one-time tenant prerequisite has not been run. Ask an admin for `a365 setup requirements`. |
 | `dotnet tool install` fails | You have the .NET **runtime**, not the **SDK**. Install the SDK 8+. |
 | The CLI doesn't recognise the trigger phrase | The kit is not at your project root, or you started the CLI from a different folder. Re-run `agent365-kit` to confirm the layout. |
-| A skill stops asking for the detection cache | Run `a365-setup` to completion first — it writes `.a365-workspace-detection.local.json`. |
+| A skill stops asking for the detection cache | Run `a365-setup` to completion first; it writes `.a365-workspace-detection.local.json`. |
 | A Claude Code session won't end, citing a validator | That is intentional. The validator found the wiring incomplete; read its reason and fix it. |
 
 ---
@@ -283,10 +283,10 @@ Skip the entry point and ask directly:
 
 | Path | Commit? |
 |---|---|
-| `.a365-kit/`, `.claude/skills/`, `.agents/skills/` | Yes — sharing them means teammates skip the download. |
+| `.a365-kit/`, `.claude/skills/`, `.agents/skills/` | Yes. Sharing them means teammates skip the download. |
 | `.github/copilot-instructions.md` | Yes. |
-| `.a365-workspace-detection.local.json` | **No** — machine-specific state. |
-| `a365.generated.config.json` | **No** — contains generated tenant identifiers. |
+| `.a365-workspace-detection.local.json` | **No** (machine-specific state). |
+| `a365.generated.config.json` | **No** (contains generated tenant identifiers). |
 | `.env` | **No.** |
 
 ---

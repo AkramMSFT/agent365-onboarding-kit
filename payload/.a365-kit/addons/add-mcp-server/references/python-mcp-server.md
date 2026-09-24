@@ -28,7 +28,7 @@ def build_external_mcp_servers() -> list:
     """Return the external MCP servers to attach this run. Add only what you need."""
     servers: list = []
 
-    # --- stdio example: filesystem, scoped to ONE directory (never the drive root) ---
+    # Scope the filesystem server to one directory, never the drive root.
     workdir = os.getenv("AGENT_FS_ROOT")
     if workdir:
         servers.append(MCPServerStdio(
@@ -38,7 +38,7 @@ def build_external_mcp_servers() -> list:
             cache_tools_list=True,
         ))
 
-    # --- stdio example: web fetch (uvx). Egress + injection surface, like lab fetch_url ---
+    # The fetch server is an egress and prompt-injection surface, like the lab fetch_url tool.
     if os.getenv("AGENT_ENABLE_FETCH_MCP", "").lower() == "true":
         servers.append(MCPServerStdio(
             name="fetch",
@@ -47,7 +47,6 @@ def build_external_mcp_servers() -> list:
             cache_tools_list=True,
         ))
 
-    # --- stdio example: GitHub (needs a token in the env it inherits) ---
     if os.getenv("GITHUB_PERSONAL_ACCESS_TOKEN"):
         servers.append(MCPServerStdio(
             name="github",
@@ -60,7 +59,7 @@ def build_external_mcp_servers() -> list:
             cache_tools_list=True,
         ))
 
-    # --- streamable-HTTP example: a remote MCP server you trust ---
+    # Connect only to a remote MCP server you trust.
     http_url = os.getenv("AGENT_MCP_HTTP_URL")
     if http_url:
         servers.append(MCPServerStreamableHttp(
@@ -98,10 +97,10 @@ except ImportError:
 expenses_agent = Agent(
     name="...",
     instructions=(
-        # name the new tools so the model uses them, e.g.:
+        # Name the new tools so the model uses them.
         "You also have external MCP tools: <describe what you attached, e.g. read files "
         "under the work directory, fetch web pages, query GitHub>. Use them when relevant. "
-        # ... rest of the existing instructions ...
+        # Keep the rest of the existing instructions.
     ),
     tools=[*existing_tools],
     mcp_servers=[*existing_mcp_servers, *EXTERNAL_MCP_SERVERS],

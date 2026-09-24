@@ -8,7 +8,7 @@
 
     What it produces in -OutDir:
 
-        .a365-kit/                  canonical content -- skills, shared docs, hook validators
+        .a365-kit/                  canonical content: skills, shared docs, hook validators
         .claude/skills/             discovery copy for Claude Code
         .agents/skills/             discovery copy for VS Code agent mode / gh skill
         agent365-kit.ps1|.sh        prereq check + per-CLI activation steps
@@ -17,27 +17,30 @@
     The upstream skills reference sibling files through ${CLAUDE_PLUGIN_ROOT}, which only
     resolves when the skills are loaded as a plugin. Because .a365-kit/ mirrors the upstream
     layout exactly (skills/, shared/, hooks/), rewriting that token to the relative path
-    ".a365-kit" fixes every in-body reference in one substitution. Hook *commands* are a
-    separate case -- those are executed by Claude Code, so they get ${CLAUDE_PROJECT_DIR},
-    which is expanded reliably and is quoted here to survive spaces in the path.
+    ".a365-kit" fixes every in-body reference in one substitution. Hook commands are the
+    exception. Claude Code executes them, so they use ${CLAUDE_PROJECT_DIR}, which it
+    expands reliably, quoted to survive spaces in the path.
 
 .PARAMETER UpstreamPath
-    Path to an existing clone of microsoft/agent365-skills. If omitted, the script performs
-    a shallow clone into a temp folder and removes it afterwards.
+    Path to an existing git clone of microsoft/agent365-skills. If omitted, the script
+    clones upstream into a temp folder and removes it afterwards.
 
 .PARAMETER UpstreamRef
     Branch, tag or commit to build when -UpstreamPath is not supplied. Default: main.
-    A commit (7 to 40 hex characters) is checked out from a full clone.
+    A branch or tag is shallow-cloned; a commit (7 to 40 hex characters) is checked out
+    from a full clone.
 
 .PARAMETER OutDir
-    Output directory. Default: <repo>/kit
+    Output directory. Default: <repo>/kit. BUNDLE-MANIFEST.json and SHA256SUMS.txt are
+    written at the repo root only when the output is <repo>/kit.
 
 .PARAMETER Zip
-    Also produce agent365-onboarding-kit-<version>.zip (kit only) and
-    agent365-onboarding-bundle-<version>.zip (kit + examples + tools + docs) at the repo root.
+    Also produce agent365-onboarding-kit-v<version>.zip (kit only) at the repo root and,
+    when the output is <repo>/kit, agent365-onboarding-bundle-v<version>.zip (kit,
+    examples, tools and docs).
 
 .PARAMETER KitVersion
-    Version stamp for this kit. Default: read from build/kit.version.
+    Version stamp for this kit, as MAJOR.MINOR.PATCH. Default: read from build/kit.version.
 
 .PARAMETER BuiltUtc
     Timestamp written to KIT-VERSION.json. Default: now. CI passes the committed value so a
@@ -45,7 +48,7 @@
 
 .PARAMETER UpdateSource
     Where the launchers' -Update / --update fetch the kit from, baked into KIT-VERSION.json as
-    the build default. Override it when you host the kit yourself -- an internal GitHub, an
+    the build default. Override it when you host the kit yourself: an internal GitHub, an
     artifact server, or a file share (a path works as well as a URL). Users can still override
     per project with `agent365-kit.ps1 -SetUpdateSource`, per shell with A365_KIT_UPDATE_SOURCE,
     or per call with -UpdateFrom.
@@ -75,7 +78,7 @@ $RepoRoot    = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Pa
 $PayloadDir  = Join-Path $RepoRoot 'payload'
 if (-not $OutDir) { $OutDir = Join-Path $RepoRoot 'kit' }
 
-$KIT_DIR = '.a365-kit'   # canonical folder name inside the user's project
+$KIT_DIR = '.a365-kit'   # Canonical folder name inside the user's project.
 
 function Step { param([string] $T) Write-Host ''; Write-Host "==> $T" -ForegroundColor Cyan }
 function Ok   { param([string] $T) Write-Host "    [ok]   $T" -ForegroundColor Green }
@@ -95,10 +98,6 @@ Write-Host ''
 Write-Host 'Agent 365 Onboarding Kit -- build' -ForegroundColor White
 Write-Host '=================================' -ForegroundColor DarkGray
 
-# ---------------------------------------------------------------------------
-# 1. Resolve upstream
-# ---------------------------------------------------------------------------
-
 Step 'Resolving upstream (microsoft/agent365-skills)'
 
 $TempClone = $null
@@ -110,8 +109,8 @@ if ($UpstreamPath) {
     Ok "Using existing clone: $Upstream"
 } else {
     $TempClone = Join-Path ([IO.Path]::GetTempPath()) ("a365-upstream-" + [Guid]::NewGuid().ToString('N').Substring(0, 8))
-    # core.longpaths: the upstream repo is fine today, but this costs nothing and
-    # has bitten other Agent 365 clones on Windows (MAX_PATH).
+    # core.longpaths guards against the Windows MAX_PATH limit, which other Agent 365
+    # repositories have hit.
     if ($UpstreamRef -match '^[0-9a-f]{7,40}$') {
         Info "Cloning upstream and checking out commit $UpstreamRef into $TempClone"
         & git -c core.longpaths=true clone --quiet https://github.com/microsoft/agent365-skills.git $TempClone 2>&1 | Out-Null
@@ -146,10 +145,6 @@ Ok "building kit v$KitVersion"
 
 try {
 
-# ---------------------------------------------------------------------------
-# 2. Stage canonical content
-# ---------------------------------------------------------------------------
-
 Step "Staging canonical content into $KIT_DIR/"
 
 if (Test-Path -LiteralPath $OutDir) { Remove-Item -LiteralPath $OutDir -Recurse -Force }
@@ -164,8 +159,8 @@ foreach ($dir in @('skills', 'shared', 'hooks')) {
 }
 
 # Upstream commits some files with CRLF, and a Windows checkout of payload/ may too.
-# Every text file under the kit is normalised to LF so the build's output -- and
-# therefore the manifest hashes -- do not depend on the platform that produced it.
+# Normalising to LF keeps the output, and so the manifest hashes, independent of the
+# platform that built it.
 function Convert-ToLf {
     param([string]$Root, [string]$What)
     $count = 0
@@ -182,10 +177,6 @@ function Convert-ToLf {
 
 Convert-ToLf -Root $KitPath -What 'staged'
 
-# ---------------------------------------------------------------------------
-# 3. Rewrite plugin-root references
-# ---------------------------------------------------------------------------
-
 Step 'Rewriting ${CLAUDE_PLUGIN_ROOT} references'
 
 $skillFiles = Get-ChildItem -Path (Join-Path $KitPath 'skills') -Filter 'SKILL.md' -Recurse
@@ -195,8 +186,8 @@ foreach ($file in $skillFiles) {
     $text = Get-Content -LiteralPath $file.FullName -Raw
     $before = $text
 
-    # (a) Hook COMMANDS are executed by the host, so they need an absolute path.
-    #     ${CLAUDE_PROJECT_DIR} is expanded by Claude Code; quote it for spaces.
+    # Hook commands are run by the host and need an absolute path. Claude Code expands
+    # ${CLAUDE_PROJECT_DIR}; the quotes survive spaces in the path.
     $text = [regex]::Replace(
         $text,
         'command:\s*node\s+\$\{CLAUDE_PLUGIN_ROOT\}/(?<rest>[^\r\n]+?)(?=\s*$)',
@@ -204,8 +195,8 @@ foreach ($file in $skillFiles) {
         [Text.RegularExpressions.RegexOptions]::Multiline
     )
 
-    # (b) Everything else is prose the model reads and resolves with Read/Grep.
-    #     A project-relative path works regardless of variable expansion.
+    # Everything else is prose resolved with Read/Grep, where a project-relative path
+    # works without variable expansion.
     $text = $text.Replace('${CLAUDE_PLUGIN_ROOT}', $KIT_DIR)
 
     if ($text -ne $before) {
@@ -215,12 +206,9 @@ foreach ($file in $skillFiles) {
 }
 Ok "rewrote $rewritten of $($skillFiles.Count) SKILL.md files"
 
-# --- Plugin command namespace ----------------------------------------------
-# Upstream tells the user (and the model) to re-run skills as `/agent365:<name>`.
-# That namespace only exists once the plugin is installed. Project skills are
-# invoked as `/<name>`, and CLIs other than Claude Code use trigger phrases and
-# ignore it entirely. Applies to reference docs and validator messages too, not
-# just SKILL.md -- the validators print these strings back to the user.
+# Plugin command namespace. Upstream refers to skills as /agent365:<name>, which exists
+# only when the plugin is installed; project skills are invoked as /<name>. Reference
+# docs and validator messages are rewritten too, because the validators print them.
 
 $nsFiles = Get-ChildItem -Path $KitPath -Recurse -File -Include '*.md', '*.js'
 $nsRewritten = 0
@@ -235,34 +223,26 @@ foreach ($file in $nsFiles) {
 }
 Ok "rewrote $nsCount /agent365: command references across $nsRewritten files"
 
-# --- Targeted fix-ups -------------------------------------------------------
-# Wording that only makes sense for a plugin install. Each fix-up MUST match, so
-# an upstream rewording fails the build loudly instead of shipping nonsense.
+# Packaging fix-ups. Each Find must match upstream exactly, so an upstream rewording
+# fails the build instead of shipping a half-patched file.
 
 $fixups = @(
     @{
-        # BUG FIX, not a path rewrite -- disclosed in NOTICE.md section 8.
-        # Upstream detects Python only via pyproject.toml. The skills' own stack detection
-        # and every sibling validator also accept requirements.txt, so a requirements.txt-
-        # only Python project falls through to the Node.js default and fails eight
-        # TypeScript checks that do not apply. As a Claude Code stop hook that blocks the
-        # session from ending, which is a bad outcome for a false negative.
+        # Python is detected by pyproject.toml only, so a requirements.txt project fails the
+        # Node.js checks. NOTICE.md section 8.
         File = 'hooks\stop\validate-make-ai-teammate.js'
         Find = @'
 const hasPyproject  = fs.existsSync(path.join(cwd, 'pyproject.toml'));
 '@
         Replace = @'
-// Agent 365 Onboarding Kit fix-up: upstream keys Python detection on pyproject.toml
-// only, but the skills' stack detection and every sibling validator also accept
-// requirements.txt. See NOTICE.md in the kit repository.
+// Accept requirements.txt as well as pyproject.toml, as the other validators do.
+// Changed by the Agent 365 Onboarding Kit; see its NOTICE.md, section 8.
 const hasPyproject  = fs.existsSync(path.join(cwd, 'pyproject.toml'))
                    || fs.existsSync(path.join(cwd, 'requirements.txt'));
 '@
     }
     @{
-        # BUG FIX -- NOTICE.md section 8. Upstream only looks for agent.py at the project
-        # root; existing Python projects commonly keep it under src/. The skill itself
-        # adapts to that layout, the validator did not.
+        # agent.py is accepted only at the project root, not under src/. NOTICE.md section 8.
         File = 'hooks\stop\validate-make-ai-teammate.js'
         Find = @'
   // Check 2: agent.py — agent interface implementation
@@ -271,8 +251,8 @@ const hasPyproject  = fs.existsSync(path.join(cwd, 'pyproject.toml'))
 '@
         Replace = @'
   // Check 2: agent.py — agent interface implementation
-  // Kit fix-up: accept agent.py anywhere in the scanned tree (e.g. src/agent.py),
-  // not only at the project root. See NOTICE.md in the kit repository.
+  // Accept agent.py anywhere in the scanned tree, such as src/agent.py.
+  // Changed by the Agent 365 Onboarding Kit; see its NOTICE.md, section 8.
   const agentFileAtRoot = path.join(cwd, 'agent.py');
   const agentFile = fs.existsSync(agentFileAtRoot)
     ? agentFileAtRoot
@@ -281,11 +261,8 @@ const hasPyproject  = fs.existsSync(path.join(cwd, 'pyproject.toml'))
 '@
     }
     @{
-        # BUG FIX -- NOTICE.md section 8. Upstream reads dependencies from pyproject.toml
-        # only, with underscore-only package names. requirements.txt projects were never
-        # checked at all, and after the language fix-up above they would be checked
-        # against a file that does not exist. pip treats hyphen and underscore forms as
-        # the same package, so the comparison normalises both sides.
+        # Dependencies are read from pyproject.toml only and compared by underscore name,
+        # although pip treats hyphen and underscore as equal. NOTICE.md section 8.
         File = 'hooks\stop\validate-make-ai-teammate.js'
         Find = @'
   // Check 4: Required packages in pyproject.toml — tooling/observability added by separate skills
@@ -304,9 +281,9 @@ const hasPyproject  = fs.existsSync(path.join(cwd, 'pyproject.toml'))
 '@
         Replace = @'
   // Check 4: Required packages — tooling/observability added by separate skills
-  // Kit fix-up: read pyproject.toml or requirements.txt, whichever exists, and accept
-  // hyphen/underscore package-name forms (pip treats them as equivalent).
-  // See NOTICE.md in the kit repository.
+  // Read pyproject.toml or requirements.txt, and compare package names the way pip
+  // does, with hyphens and underscores equal. Changed by the Agent 365 Onboarding Kit;
+  // see its NOTICE.md, section 8.
   const depFile = ['pyproject.toml', 'requirements.txt']
     .map(f => path.join(cwd, f))
     .find(f => fs.existsSync(f));
@@ -326,11 +303,8 @@ const hasPyproject  = fs.existsSync(path.join(cwd, 'pyproject.toml'))
 '@
     }
     @{
-        # BEHAVIOUR FIX -- NOTICE.md section 10. Invariant 1 tells the skill to preserve
-        # an existing ENABLE_A365_OBSERVABILITY_EXPORTER. The a365 CLI writes it as
-        # false, so "add observability to my agent" reliably lands an agent that traces
-        # every turn and exports none of it. Invariant 3 already has the skill correct
-        # the equivalent .NET value; this makes Node.js and Python consistent with it.
+        # Invariant 1 preserves the exporter switch that a365 setup writes as false, so the
+        # agent exports nothing. NOTICE.md section 10.
         File = 'skills\instrument-observability\SKILL.md'
         Find = @'
 1. **Preserve existing values.** If `Agent365Observability` (.NET) or
@@ -352,9 +326,7 @@ const hasPyproject  = fs.existsSync(path.join(cwd, 'pyproject.toml'))
 '@
     }
     @{
-        # BEHAVIOUR FIX -- NOTICE.md section 10. The other half of the pair: rule 6 had
-        # the skill report the disabled exporter instead of fixing it, and one line in a
-        # long completion summary is easy to miss.
+        # Rule 6 reports the disabled exporter instead of fixing it. NOTICE.md section 10.
         File = 'skills\instrument-observability\SKILL.md'
         Find = @'
 "instrumented but
@@ -367,24 +339,20 @@ const hasPyproject  = fs.existsSync(path.join(cwd, 'pyproject.toml'))
 '@
     }
     @{
-        # BEHAVIOUR FIX -- NOTICE.md section 10. Phase 9 told the user to go and enable
-        # the exporter, which now contradicts the skill having already done it.
+        # Phase 9 tells the user to enable an exporter the skill has already enabled.
+        # NOTICE.md section 10.
         File = 'skills\instrument-observability\SKILL.md'
         Find = @'
    1. Enable exporting when ready for production:
 '@
         Replace = @'
-   1. Confirm the exporter is still on -- this skill sets it, but a later
+   1. Confirm the exporter is still on. This skill sets it, but a later
       `a365 setup` run can reset it to false:
 '@
     }
     @{
-        # BUG FIX -- NOTICE.md section 11. The OBO sample passes AgenticTokenCache's
-        # async getter as a365_token_resolver, but the exporter calls the resolver
-        # synchronously from its batch-export thread. It gets back an un-awaited
-        # coroutine, which is truthy, so the "no token" guard passes and it sends
-        # "Bearer <coroutine object ...>". Upstream's own kwarg table documents this
-        # parameter as a SYNC callable, and its S2S sample passes one correctly.
+        # The OBO sample passes an async getter as the synchronous a365_token_resolver, so
+        # every export sends a coroutine as the bearer token. NOTICE.md section 11.
         File = 'skills\instrument-observability\references\python-observability.md'
         Find = @'
 _token_cache = AgenticTokenCache()
@@ -400,14 +368,10 @@ import asyncio
 
 _token_cache = AgenticTokenCache()
 
-# a365_token_resolver must be a SYNC callable. AgenticTokenCache exposes only an
-# async getter, so bridge onto the host loop rather than passing it directly:
-# the exporter calls the resolver from its own export thread, so passing the
-# coroutine function hands it an un-awaited coroutine. That object is truthy, so
-# the exporter's "no token" guard does not catch it and it sends
-# "Bearer <coroutine object ...>", which the service rejects with
-# {"code":"EndpointInvalid","message":"Tenant id  is invalid."} -- note the blank
-# tenant: the value is unreadable, not missing from your config.
+# The exporter calls a365_token_resolver synchronously from its own thread, and
+# AgenticTokenCache only has an async getter, so run it on the host loop. Passing the
+# coroutine function directly sends "Bearer <coroutine object ...>", which the service
+# rejects as "Tenant id  is invalid." even though the tenant is configured correctly.
 HOST_LOOP: asyncio.AbstractEventLoop | None = None
 
 
@@ -455,9 +419,8 @@ Leaving `HOST_LOOP` unset does not fail silently: the exporter logs
 '@
     }
     @{
-        # BUG FIX -- NOTICE.md section 11. SKILL.md is read before any reference doc, so
-        # fixing only python-observability.md leaves the model with a contradiction and
-        # the broken wiring stated first. Same defect, same fix, stated where it is read.
+        # SKILL.md states the same async resolver wiring and is read before the reference
+        # doc. NOTICE.md section 11.
         File = 'skills\instrument-observability\SKILL.md'
         Find = @'
 Wire `a365_token_resolver` to `AgenticTokenCache().get_observability_token` from `microsoft.opentelemetry.a365.hosting.token_cache_helpers` (or a custom resolver reading from `token_cache.py`).
@@ -467,8 +430,8 @@ Wire `a365_token_resolver` to a **synchronous** callable. Do NOT pass `AgenticTo
 '@
     }
     @{
-        # BUG FIX -- NOTICE.md section 11. Catches the async resolver in code that is
-        # already written, including agents onboarded before the reference was fixed.
+        # The validator does not catch the async resolver in code already written.
+        # NOTICE.md section 11.
         File = 'hooks\stop\validate-instrument-observability.js'
         Find = @'
     const hasS2SEndpoint = anyFileContains(pyFiles, 'use_s2s_endpoint') ||
@@ -486,10 +449,9 @@ Wire `a365_token_resolver` to a **synchronous** callable. Do NOT pass `AgenticTo
     }
   }
 
-  // Kit fix-up: a365_token_resolver must be a SYNC callable. Wiring it straight to
-  // AgenticTokenCache.get_observability_token (async def) hands the exporter an
-  // un-awaited coroutine; a coroutine is truthy, so the exporter's own "no token"
-  // guard misses it and it sends "Bearer <coroutine object ...>".
+  // a365_token_resolver is called synchronously. Wiring it to the async
+  // get_observability_token sends "Bearer <coroutine object ...>", which the exporter's
+  // empty-token check misses because a coroutine is truthy. See NOTICE.md, section 11.
   const asyncResolverFiles = pyFiles.filter(f => {
     try {
       return /a365_token_resolver\s*=\s*[\w.]*\bget_observability_token\b/
@@ -508,11 +470,8 @@ Wire `a365_token_resolver` to a **synchronous** callable. Do NOT pass `AgenticTo
 '@
     }
     @{
-        # BUG FIX -- NOTICE.md section 12. SKILL.md calls the Node per-turn refresh
-        # RefreshObservabilityToken; the shipped API is refreshObservabilityToken
-        # (camelCase since GA 1.0, which upstream's own reference doc notes). The
-        # PascalCase name is undefined, so the first turn dies with a TypeError.
-        # Both occurrences are replaced.
+        # SKILL.md spells the Node.js API RefreshObservabilityToken, which is undefined;
+        # both occurrences become refreshObservabilityToken. NOTICE.md section 12.
         File = 'skills\instrument-observability\SKILL.md'
         Find = @'
 RefreshObservabilityToken
@@ -522,9 +481,8 @@ refreshObservabilityToken
 '@
     }
     @{
-        # BUG FIX -- NOTICE.md section 12. Node OBO wires the resolver to a cache that
-        # only refreshObservabilityToken fills. Without the per-turn call the resolver
-        # returns '' forever and nothing is ever exported.
+        # The validator does not check for the per-turn refreshObservabilityToken call that
+        # the Node.js OBO token cache depends on. NOTICE.md section 12.
         File = 'hooks\stop\validate-instrument-observability.js'
         Find = @'
     const hasS2SEndpoint = anyFileContains(tsFiles, 'useS2SEndpoint') ||
@@ -542,10 +500,9 @@ refreshObservabilityToken
     }
   }
 
-  // Kit fix-up: on the OBO path the resolver reads a cache that only
-  // refreshObservabilityToken fills. Without the per-turn call it returns '' forever
-  // and nothing is exported. Also catch the PascalCase name, which is undefined on
-  // the shipped API and throws a TypeError on the first turn.
+  // On the OBO path the resolver reads a cache that only refreshObservabilityToken fills,
+  // so without the per-turn call nothing is exported. The PascalCase name is undefined
+  // and throws on the first turn. See NOTICE.md, section 12.
   if (authMode !== 's2s') {
     const wiresCacheResolver = anyFileContains(tsFiles, 'getObservabilityToken');
     const refreshesPerTurn = anyFileContains(tsFiles, 'refreshObservabilityToken');
@@ -571,13 +528,8 @@ refreshObservabilityToken
 '@
     }
     @{
-        # BUG FIX -- NOTICE.md section 13. The .NET branch of the same defect as
-        # section 9: presence of EnableAgent365Exporter is checked, never its value, so
-        # an agent with the exporter switched off passes as fully instrumented.
-        # appsettings.Development.json is deliberately false and is NOT in this list --
-        # filterByName matches the exact basename -- so requiring true here is correct.
-        # Also adds the OBO per-turn RegisterObservability check, the .NET counterpart
-        # of the Node refresh check in section 12.
+        # The .NET validator checks that EnableAgent365Exporter exists, not that it is true,
+        # and never checks for RegisterObservability. NOTICE.md section 13.
         File = 'hooks\stop\validate-instrument-observability.js'
         Find = @'
   const hasAppSettingsConfig = anyFileContains(appSettingsFiles,
@@ -593,8 +545,8 @@ refreshObservabilityToken
     issues.push('appsettings.json does not contain A365 observability config (EnableAgent365Exporter)');
   }
 
-  // Kit fix-up: the value must be true or nothing is ever exported. Only the root
-  // appsettings.json is checked; appsettings.Development.json is meant to be false.
+  // Nothing is exported unless the root appsettings.json enables the exporter.
+  // appsettings.Development.json is meant to be false. See NOTICE.md, section 13.
   const hasExporterKey = anyFileContains(appSettingsFiles, 'EnableAgent365Exporter');
   const exporterIsOn = appSettingsFiles.some(f => {
     try {
@@ -607,8 +559,8 @@ refreshObservabilityToken
     issues.push('EnableAgent365Exporter is present in appsettings.json but not "true" -- the agent is instrumented but exports nothing; set it to true and restart');
   }
 
-  // Kit fix-up: on the OBO path the exporter's token comes from a cache that only the
-  // per-turn RegisterObservability() call fills. Without it every export is unauthenticated.
+  // On the OBO path the exporter token comes from a cache that only the per-turn
+  // RegisterObservability() call fills. See NOTICE.md, section 13.
   if (authMode !== 's2s' && hasDistroWired && !anyFileContains(csFiles, 'RegisterObservability')) {
     issues.push('OBO: no call to RegisterObservability() found in any .cs file -- the exporter token cache ' +
       'is never filled, so no spans are exported. Call it once per turn in the agent handler');
@@ -616,6 +568,8 @@ refreshObservabilityToken
 '@
     }
     @{
+        # The run instructions stop making sense once the plugin path is rewritten.
+        # NOTICE.md section 7.
         File = 'skills\a365-code-validator\SKILL.md'
         Find = @'
 When running from the plugin source (Claude Code / marketplace plugin), use:
@@ -660,9 +614,6 @@ foreach ($fix in $fixups) {
     Ok "fix-up applied: $($fix.File)"
 }
 
-# ---------------------------------------------------------------------------
-# 4. Patch path-guard.js
-# ---------------------------------------------------------------------------
 # Upstream refuses writes inside CLAUDE_PLUGIN_ROOT. That variable is unset in a
 # drop-in install, which silently disables the guard. Repoint it at the kit folder
 # so the skills still cannot modify their own instructions.
@@ -678,10 +629,9 @@ const pluginRoot = process.env.CLAUDE_PLUGIN_ROOT
   : null;
 '@
 $guardNew = @'
-// Agent 365 Onboarding Kit: in a drop-in install there is no plugin, so
-// CLAUDE_PLUGIN_ROOT is unset and the "don't write into your own instructions"
-// guard would silently disable itself. Fall back to the kit folder inside the
-// project, which is the drop-in equivalent of the plugin root.
+// Without a plugin install CLAUDE_PLUGIN_ROOT is unset, which would switch this guard
+// off. Fall back to the kit folder inside the project. Added by the Agent 365
+// Onboarding Kit; see its NOTICE.md, section 3.
 const pluginRoot = process.env.CLAUDE_PLUGIN_ROOT
   ? safeRealpath(path.resolve(process.env.CLAUDE_PLUGIN_ROOT))
   : safeRealpath(path.join(projectRoot, '__KIT_DIR__'));
@@ -696,20 +646,16 @@ $guardTextN = $guardTextN.Replace($guardOldN, ($guardNew -replace "`r`n", "`n").
 Set-Content -LiteralPath $guard -Value $guardTextN -NoNewline -Encoding UTF8
 Ok 'path-guard.js now guards the kit folder'
 
-# Also fix the message, which names an env var the user never set.
+# The refusal message names an environment variable the user never set.
 $guardTextN = Get-Content -LiteralPath $guard -Raw
 $guardTextN = $guardTextN.Replace(
     '`Path guard: refusing to write inside CLAUDE_PLUGIN_ROOT (${pluginRoot}). ` +',
     '`Path guard: refusing to write inside the Agent 365 kit folder (${pluginRoot}). ` +')
 Set-Content -LiteralPath $guard -Value $guardTextN -NoNewline -Encoding UTF8
 
-# ---------------------------------------------------------------------------
-# 5. Copilot instructions
-# ---------------------------------------------------------------------------
 # Staged under the kit folder rather than shipped at .github/copilot-instructions.md,
-# because that file is commonly project-owned and must never be clobbered by an
-# unzip. agent365-kit.ps1 -WireCopilot creates or appends it. Links are written
-# relative to .github/, which is where the file ends up.
+# because that file is often project-owned and an unzip must not overwrite it.
+# agent365-kit.ps1 -WireCopilot creates or appends it, so links are relative to .github/.
 
 Step 'Staging GitHub Copilot instructions'
 
@@ -727,12 +673,9 @@ if (Test-Path -LiteralPath $copilotSrc) {
     Warn 'upstream .github/copilot-instructions.md not found -- Copilot path will be unavailable'
 }
 
-# ---------------------------------------------------------------------------
-# 5b. Upstream correctness fix-ups (build/upstream-fixups.json)
-# ---------------------------------------------------------------------------
-# SDK and playbook corrections to Microsoft's files, kept as data rather than code so
-# each one carries an id and an exact expected-count assertion. Applied after the
-# path-guard patch and the Copilot staging because some entries target those outputs.
+# SDK and playbook corrections, kept as data so each one carries an id and an expected
+# match count. Applied after the path-guard patch and the Copilot staging because some
+# entries target those outputs.
 
 Step 'Applying upstream correctness fix-ups'
 
@@ -759,10 +702,6 @@ if (Test-Path -LiteralPath $fixupFile) {
     Warn 'build/upstream-fixups.json not found -- no upstream correctness fix-ups applied'
 }
 
-# ---------------------------------------------------------------------------
-# 6. Kit payload
-# ---------------------------------------------------------------------------
-
 Step 'Adding kit payload'
 
 Copy-Item -Path (Join-Path $PayloadDir '.a365-kit\*') -Destination $KitPath -Recurse -Force
@@ -776,9 +715,9 @@ if (Test-Path -LiteralPath $readmeSrc) {
 }
 Ok 'doctor.js, kit-version.js, settings-fragment.json, launchers'
 
-# The kit redistributes Microsoft's MIT-licensed skills, so both licences and the
-# notice travel inside .a365-kit/ (never the project root, where they would collide
-# with the user's own LICENSE). The launchers replace .a365-kit/ whole on update.
+# The kit redistributes Microsoft's MIT-licensed skills, so both licences and the notice
+# ship inside .a365-kit/, not the project root where they would collide with the user's
+# own LICENSE. The launchers replace .a365-kit/ whole on update.
 function Write-Lf([string] $Path, [string] $Text) {
     [IO.File]::WriteAllText($Path, $Text.Replace("`r`n", "`n"), [Text.UTF8Encoding]::new($false))
 }
@@ -842,9 +781,6 @@ $manifest | ConvertTo-Json -Depth 5 |
     Set-Content -LiteralPath (Join-Path $KitPath 'KIT-VERSION.json') -Encoding UTF8
 Ok 'KIT-VERSION.json'
 
-# ---------------------------------------------------------------------------
-# 7. Discovery copies
-# ---------------------------------------------------------------------------
 # Each CLI family looks in a different place. The skill files are byte-identical
 # in all three locations because every internal reference points at .a365-kit/.
 
@@ -859,8 +795,8 @@ foreach ($target in $discoveryTargets) {
     $dest = Join-Path $OutDir $target.Path
     New-Item -ItemType Directory -Force -Path $dest | Out-Null
     Copy-Item -Path (Join-Path $KitPath 'skills\*') -Destination $dest -Recurse -Force
-    # Kit-authored add-ons live in .a365-kit/addons/ (from payload/), separate from the
-    # seven upstream skills so provenance stays clear, but they are discovered the same way.
+    # Add-ons live in .a365-kit/addons/, apart from the upstream skills so provenance
+    # stays clear, but are discovered the same way.
     $addonsPath = Join-Path $KitPath 'addons'
     if (Test-Path -LiteralPath $addonsPath) {
         Copy-Item -Path (Join-Path $addonsPath '*') -Destination $dest -Recurse -Force
@@ -873,21 +809,15 @@ if (Test-Path -LiteralPath (Join-Path $KitPath 'addons')) {
     Ok "add-ons included: $($addonNames -join ', ')"
 }
 
-# ---------------------------------------------------------------------------
-# 8. Verify
-# ---------------------------------------------------------------------------
-
 Convert-ToLf -Root $OutDir -What 'payload'
 
 Step 'Verifying build'
 
 $problems = @()
 
-# (a) No leftover ${CLAUDE_PLUGIN_ROOT} PATH TOKENS anywhere in the output.
-#     A bare `process.env.CLAUDE_PLUGIN_ROOT` read is fine and deliberate -- path-guard.js
-#     still honours the variable when someone does load the skills as a plugin. It is the
-#     ${...} interpolation form that silently resolves to nothing in a drop-in install.
-# NOTICE.md quotes both forms on purpose, to document the rewrite.
+# Only the ${CLAUDE_PLUGIN_ROOT} token is an error, because it resolves to nothing in a
+# drop-in install. path-guard.js reads process.env.CLAUDE_PLUGIN_ROOT deliberately, and
+# NOTICE.md quotes both forms to document the rewrite.
 $noticeCopy = Join-Path $KitPath 'NOTICE.md'
 $leftovers = Get-ChildItem -Path $OutDir -Recurse -File -Include '*.md', '*.js', '*.json' |
     Where-Object { $_.FullName -ne $noticeCopy } |
@@ -900,7 +830,6 @@ if ($leftovers) {
     Ok 'no ${CLAUDE_PLUGIN_ROOT} path tokens remain'
 }
 
-# (a2) No plugin command namespace remains.
 $nsLeft = Get-ChildItem -Path $OutDir -Recurse -File -Include '*.md', '*.js' |
     Where-Object { $_.FullName -ne $noticeCopy } |
     Select-String -Pattern '/agent365:' -SimpleMatch
@@ -910,7 +839,6 @@ if ($nsLeft) {
     Ok 'no /agent365: plugin command references remain'
 }
 
-# (b) Every .a365-kit/... path referenced by a skill actually exists.
 $refPattern = [regex]::Escape($KIT_DIR) + '/[A-Za-z0-9_./-]+'
 $checked = 0
 $badRefs = @()
@@ -920,7 +848,7 @@ foreach ($file in ($skillMdRoots | ForEach-Object { Get-ChildItem -Path $_ -Filt
     $text = Get-Content -LiteralPath $file.FullName -Raw
     foreach ($m in [regex]::Matches($text, $refPattern)) {
         $rel = $m.Value.TrimEnd('.', ',', ')', '`')
-        # Only verify concrete file references, not directory prose.
+        # Directory mentions in prose are not checked.
         if ($rel -notmatch '\.(md|js|mjs|json)$') { continue }
         $checked++
         $abs = Join-Path $OutDir ($rel -replace '/', '\')
@@ -936,7 +864,6 @@ if ($badRefs) {
     Ok "all $checked skill file references resolve"
 }
 
-# (c) Every JS file parses.
 $jsFiles = @(Get-ChildItem -Path $KitPath -Recurse -File -Include '*.js', '*.mjs')
 foreach ($js in $jsFiles) {
     & node --check $js.FullName 2>&1 | Out-Null
@@ -944,7 +871,6 @@ foreach ($js in $jsFiles) {
 }
 Ok "$($jsFiles.Count) JS/MJS files parse cleanly"
 
-# (d) Discovery copies match the canonical set: the upstream skills plus kit add-ons.
 $canonicalNames = @((Get-ChildItem -Path (Join-Path $KitPath 'skills') -Directory).Name)
 if (Test-Path -LiteralPath (Join-Path $KitPath 'addons')) {
     $canonicalNames += @((Get-ChildItem -Path (Join-Path $KitPath 'addons') -Directory).Name)
@@ -958,7 +884,6 @@ foreach ($target in $discoveryTargets) {
 }
 Ok "discovery copies match canonical skills + add-ons ($($canonicalNames.Count) total)"
 
-# (e) Hook commands are absolute and quoted.
 $hookCmds = Select-String -Path (Join-Path $KitPath 'skills\*\SKILL.md') -Pattern 'command:\s*node'
 foreach ($hit in $hookCmds) {
     if ($hit.Line -notmatch '\$\{CLAUDE_PROJECT_DIR\}') {
@@ -967,7 +892,7 @@ foreach ($hit in $hookCmds) {
 }
 Ok "$($hookCmds.Count) hook commands repointed to `${CLAUDE_PROJECT_DIR}"
 
-# (f) Claims the fix-ups retracted must not survive anywhere in the shipped guidance.
+# Claims the fix-ups removed must not reappear elsewhere in the shipped guidance.
 $retracted = @(
     @{ Pattern = 'auto-registers `IExporterTokenCache'; Why = '.NET token cache is registered explicitly, not by the distro' },
     @{ Pattern = 'Auto-registered by the Microsoft.OpenTelemetry distro'; Why = '.NET token cache is registered explicitly, not by the distro' },
@@ -981,7 +906,6 @@ foreach ($r in $retracted) {
 }
 Ok 'no retracted claims remain in shipped guidance'
 
-# (g) Licences, notice, and the Copilot add-on list.
 foreach ($f in @('LICENSE', 'LICENSE-agent365-skills', 'NOTICE.md')) {
     if (-not (Test-Path -LiteralPath (Join-Path $KitPath $f))) { $problems += "missing $KIT_DIR/$f" }
 }
@@ -1000,10 +924,6 @@ if ($problems.Count -gt 0) {
     throw 'Build verification failed.'
 }
 
-# ---------------------------------------------------------------------------
-# 9. Package
-# ---------------------------------------------------------------------------
-
 if ($Zip) {
     Step 'Packaging'
     $zipName = "agent365-onboarding-kit-v$KitVersion.zip"
@@ -1015,9 +935,6 @@ if ($Zip) {
     Ok "$zipName ($sizeKb KB)"
 }
 
-# ---------------------------------------------------------------------------
-# 10. Bundle manifest and checksums (repo root)
-# ---------------------------------------------------------------------------
 # tools/prepare-workspace.mjs copies kit/** and examples/<id>/** as listed in
 # BUNDLE-MANIFEST.json, verifying each file's SHA-256. Emitted only when the kit was
 # built into the repository, because the manifest describes the repository layout.
@@ -1027,8 +944,8 @@ if ((Resolve-Path -LiteralPath $OutDir).Path.TrimEnd('\') -eq (Join-Path $RepoRo
     $manifestFiles = @()
     $sumLines = @()
     $roots = @('kit', 'examples', 'tools', 'docs', 'README.md', 'GUIDE.md', 'NOTICE.md', 'CONTRIBUTING.md', 'SECURITY.md', 'LICENSE', '.gitattributes')
-    # Only files git would publish: tracked or new, never ignored. A maintainer's .env,
-    # a365 config or build output inside examples/ therefore never reaches a release.
+    # Only files git would publish, tracked or new but never ignored, so a maintainer's
+    # .env, a365 config or build output inside examples/ never reaches a release.
     foreach ($root in $roots) {
         $listed = (& git -C $RepoRoot -c core.quotepath=off ls-files --cached --others --exclude-standard -z -- $root) -split "`0"
         if ($LASTEXITCODE -ne 0) { throw "git ls-files failed for $root" }
