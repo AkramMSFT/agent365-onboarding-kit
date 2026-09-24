@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "bundleVersion": "0.2.8",
-  "kitVersion": "0.2.8",
+  "bundleVersion": "0.2.9",
+  "kitVersion": "0.2.9",
   "upstreamRepo": "microsoft/agent365-skills",
   "upstreamVersion": "1.0.2",
   "upstreamCommit": "07a0304",
@@ -280,7 +280,7 @@
     {
       "path": "kit/.a365-kit/KIT-VERSION.json",
       "bytes": 723,
-      "sha256": "d0b40c91ef275993c4f230d6e0f924e27642ba71765ec545f591fe50ca52faf9"
+      "sha256": "2c9f76d70989fd7886e8d4a8cff0d9f440697040b70d59e1b5c0068d487a8b33"
     },
     {
       "path": "kit/.a365-kit/lib/observability-consent.mjs",
@@ -1559,8 +1559,8 @@
     },
     {
       "path": "tools/bulk-onboard.mjs",
-      "bytes": 11568,
-      "sha256": "eb7d394829f7b27bd32a831b67ff37e8067129377c022b23de7c2f1e2a0612a2"
+      "bytes": 12405,
+      "sha256": "aae1126521f9d0c57d0fd659e104a2d35deb60976a0cb637925cdadf41f999c8"
     },
     {
       "path": "tools/prepare-workspace.mjs",
@@ -1574,8 +1574,8 @@
     },
     {
       "path": "docs/BULK-ONBOARDING.md",
-      "bytes": 4551,
-      "sha256": "5a074a3d4a7505821fdf1459728727c23a052659a5fa127d8688de994b09ea92"
+      "bytes": 5978,
+      "sha256": "f9690a8e07adad0dd25b9a4f3403aa07a09ba5b134928683eb2cd1c0a7d1da42"
     },
     {
       "path": "docs/images/README.md",
@@ -1599,8 +1599,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 26102,
-      "sha256": "63c31573c0d0ce986d2d06f8fcd34bb0f905737172da4d22cc44bdf616c1db4a"
+      "bytes": 26232,
+      "sha256": "12153c5c5dbc7c69f44dc7312bf76418e7881175594917360a9bffe8e0269e5f"
     },
     {
       "path": "GUIDE.md",

@@ -356,7 +356,7 @@ Built against upstream `agent365-skills` v1.0.2 and verified on Windows 11.
 | Launchers | CI runs the Windows launcher's Copilot wiring, update-source and in-place update under Windows PowerShell 5.1 and PowerShell 7, and fails if either writes a byte-order mark. |
 | Observability grant | `grant-observability.mjs` passes sixteen offline tests against a simulated Microsoft Graph, and a real grant followed by a check has run against a live tenant. |
 | Workspace tool | `prepare-workspace.mjs` copies an example from a clone, verifies every hash, and refuses an existing destination. |
-| Bulk onboarding | `bulk-onboard.mjs` passes offline tests against a stand-in for the herdr command line. It has not yet run against a live herdr session. |
+| Bulk onboarding | `bulk-onboard.mjs` passes offline tests against a stand-in for herdr, and on Windows 11 with herdr 0.9.1 it started two Copilot CLI sessions in parallel that each received their request and listed the kit's skills. A full onboarding through it has not been run yet. |
 | Path guard | Blocks writes into the kit and outside the project, and allows writes to agent source. |
 
 Not yet exercised: the `.agents/skills/` path under Cursor, Codex, Gemini CLI, Amp, Cline, OpenCode, Warp and Antigravity, and a Java agent taken all the way to a live tenant.

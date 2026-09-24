@@ -107,6 +107,19 @@ function herdrError(result) {
   return { code: body?.error?.code ?? `exit_${result.code}`, message: body?.error?.message ?? (result.stderr || result.stdout).trim() };
 }
 
+// herdr can report a CLI as ready while it is still updating itself, and text typed then is
+// lost. With --wait, herdr fails with agent_prompt_stalled when the agent shows no activity
+// within five seconds, and times out only after activity was seen.
+export function sendPrompt(herdr, name, prompt) {
+  const r = herdr(['agent', 'prompt', name, prompt, '--wait', '--timeout', '30000']);
+  if (r.code === 0) return { sent: true };
+  const e = herdrError(r);
+  if (e.code === 'timeout') return { sent: true };
+  if (e.code === 'agent_prompt_stalled') return { sent: false, note: 'request not confirmed; check the session, then --send-prompt' };
+  if (e.code === 'agent_blocked') return { sent: false, note: 'waiting for you; answer it in herdr, then --send-prompt' };
+  return { sent: false, note: `prompt failed: ${e.message}` };
+}
+
 function kitInstalled(dir) {
   return fs.existsSync(path.join(dir, '.a365-kit', 'KIT-VERSION.json'));
 }
@@ -170,10 +183,10 @@ export async function main(argv, deps = {}) {
         const got = herdr(['agent', 'get', a.name]);
         const status = got.code === 0 ? json(got.stdout)?.result?.agent?.agent_status ?? 'unknown' : 'not running';
         if (o.mode === 'send-prompt' && !s.prompted && (status === 'idle' || status === 'done')) {
-          const sent = herdr(['agent', 'prompt', a.name, o.prompt]);
-          if (sent.code === 0) { s.prompted = true; rows.push([a.name, s.pane, 'prompted']); continue; }
+          const sent = sendPrompt(herdr, a.name, o.prompt);
+          if (sent.sent) { s.prompted = true; rows.push([a.name, s.pane, 'prompted']); continue; }
           failed++;
-          rows.push([a.name, s.pane, `prompt failed: ${herdrError(sent).code}`]);
+          rows.push([a.name, s.pane, sent.note]);
           continue;
         }
         const note = !s.prompted && status === 'blocked' ? ' (answer it in herdr, then --send-prompt)' : '';
@@ -229,10 +242,10 @@ export async function main(argv, deps = {}) {
           if (e.code !== 'agent_not_ready') failed++;
           continue;
         }
-        const sent = herdr(['agent', 'prompt', a.name, o.prompt]);
-        if (sent.code !== 0) {
-          failed++;
-          rows.push([a.name, record.pane, `prompt failed: ${herdrError(sent).message}`]);
+        const sent = sendPrompt(herdr, a.name, o.prompt);
+        if (!sent.sent) {
+          if (!sent.note.startsWith('prompt failed')) rows.push([a.name, record.pane, sent.note]);
+          else { failed++; rows.push([a.name, record.pane, sent.note]); }
           continue;
         }
         record.prompted = true;

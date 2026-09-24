@@ -30,6 +30,8 @@ herdr marks a session **blocked** when its CLI is showing a question or an appro
   ```
 
   herdr is a third-party tool under the Apache 2.0 licence. Check your organisation's policy before installing it on a managed machine.
+
+  On a managed Windows PC the installer can fail with *Program 'herdr.exe' failed to run: Access is denied*. Microsoft Defender's attack surface reduction rule *Use advanced protection against ransomware* (`c1db55ab-c21a-4637-bb3f-a12568109d35`) blocks the new, unsigned executable, and Defender's operational log records it as event 1121. Ask your IT administrator for a per-rule exclusion for `%USERPROFILE%\.herdr\` and `%LOCALAPPDATA%\Programs\Herdr\` (see [Configure ASR rules and exclusions](https://learn.microsoft.com/en-us/defender-endpoint/attack-surface-reduction-rules-configure)), then run the installer again from a normal, non-administrator PowerShell window.
 - A clone of this repository or the bundle zip, because the tool lives in `tools/`.
 - The agent projects. Each needs the kit in its root, or the tool can copy it in with `--install-kit`.
 
@@ -40,6 +42,8 @@ herdr marks a session **blocked** when its CLI is showing a question or an appro
    ```bash
    herdr
    ```
+
+   `herdr server` starts it without the interface instead. Attach later with `herdr`.
 
 2. **List the agents** in a text file, one project folder per line. A short name can follow a comma; otherwise the folder name is used. Relative paths are relative to the file.
 
@@ -76,13 +80,13 @@ herdr marks a session **blocked** when its CLI is showing a question or an appro
    node tools/bulk-onboard.mjs agents.txt --status
    ```
 
-   If a CLI stopped at a question before it received the request, such as a prompt to trust the folder, answer it in herdr and then send the request:
+   GitHub Copilot CLI asks whether to trust each folder the first time it starts there, so expect every session to stop at that question once. Choose *Yes, and remember this folder* to skip it next time. After answering, send the request:
 
    ```bash
    node tools/bulk-onboard.mjs agents.txt --send-prompt
    ```
 
-   The request is never sent twice to the same agent.
+   The tool counts a request as sent only when herdr sees the CLI react to it within a few seconds. That matters when a CLI updates itself on first start: text typed during the update is lost, so the tool leaves the request unsent and `--send-prompt` delivers it later. A request is never sent twice to the same agent.
 
 7. **Continue per agent.** Later steps work the same way as for a single agent. Type the next phrase in that agent's session, or send it from any terminal:
 
@@ -100,4 +104,6 @@ herdr marks a session **blocked** when its CLI is showing a question or an appro
 
 ## Verification
 
-The tool has offline tests (`build/test-bulk-onboard.mjs`) that run against a stand-in for the herdr command line, built from the commands and API schema documented for herdr 0.9.1. It has not yet been run end to end against a live herdr session and tenant.
+The tool has offline tests (`build/test-bulk-onboard.mjs`) against a stand-in for the herdr command line, built from the commands and API schema documented for herdr 0.9.1, and CI runs them on every push.
+
+It has also run on Windows 11 with herdr 0.9.1 and GitHub Copilot CLI 1.0.89. Two agents started in parallel, each stopped at Copilot's folder trust question, and after that was answered each received its request and listed the kit's fifteen skills. A full onboarding through the tool, which is interactive and creates objects in a tenant, has not been run yet.

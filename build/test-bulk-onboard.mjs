@@ -10,7 +10,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const repo = path.join(here, '..');
 const { main, agentName, EXIT, STATE_FILE } = await import(pathToFileURL(path.join(repo, 'tools', 'bulk-onboard.mjs')).href);
 
-function fakeHerdr({ running = true, installed = true, notReady = new Set(), statuses = {} } = {}) {
+function fakeHerdr({ running = true, installed = true, notReady = new Set(), statuses = {}, promptResult = {} } = {}) {
   const calls = [];
   let ws = 0;
   const ok = result => ({ code: 0, stdout: JSON.stringify({ id: 'x', result }), stderr: '' });
@@ -26,7 +26,13 @@ function fakeHerdr({ running = true, installed = true, notReady = new Set(), sta
       return ok({ workspace: { workspace_id: `w${ws}` }, tab: { tab_id: `w${ws}:t1` }, root_pane: { pane_id: `w${ws}:p1` } });
     }
     if (a === 'agent' && b === 'start') return notReady.has(c) ? fail('agent_not_ready', 'blocked during startup') : ok({ agent: { name: c, agent_status: 'idle' } });
-    if (a === 'agent' && b === 'prompt') return ok({ agent: { name: c } });
+    if (a === 'agent' && b === 'prompt') {
+      const outcome = promptResult[c];
+      if (outcome === 'stalled') return fail('agent_prompt_stalled', 'no activity after the prompt');
+      if (outcome === 'blocked') return fail('agent_blocked', 'agent is blocked');
+      if (outcome === 'timeout') return fail('timeout', 'timed out while working');
+      return ok({ agent: { name: c, agent_status: 'done' } });
+    }
     if (a === 'agent' && b === 'get') return ok({ agent: { name: c, agent_status: statuses[c] ?? 'working' } });
     return fail('unknown', `unexpected ${args.join(' ')}`);
   };
@@ -75,7 +81,7 @@ test('starts one workspace per agent, starts the CLI, and prompts it', async () 
   ]);
   assert.deepEqual(h.calls[1], ['workspace', 'create', '--cwd', path.join(root, 'hr-agent'), '--label', 'hr-agent', '--no-focus']);
   assert.deepEqual(h.calls[2], ['agent', 'start', 'hr-agent', '--kind', 'claude', '--pane', 'w1:p1', '--timeout', '120000']);
-  assert.deepEqual(h.calls[3], ['agent', 'prompt', 'hr-agent', 'Onboard this agent to Agent 365.']);
+  assert.deepEqual(h.calls[3], ['agent', 'prompt', 'hr-agent', 'Onboard this agent to Agent 365.', '--wait', '--timeout', '30000']);
   const state = JSON.parse(fs.readFileSync(path.join(root, STATE_FILE), 'utf8'));
   assert.equal(state.agents['expenses-agent'].pane, 'w2:p1');
   assert.equal(state.agents['expenses-agent'].prompted, true);
@@ -115,6 +121,19 @@ test('a CLI that stops at a question is left for the user, then prompted once wi
 
   await run([list, '--send-prompt'], h);
   assert.equal(h.calls.filter(c => c[1] === 'prompt').length, 1, 'the prompt is never sent twice');
+});
+
+test('a prompt is recorded as sent only when herdr sees the agent react to it', async () => {
+  const { list, root } = workspace(['lost', 'busy', 'asking']);
+  const h = fakeHerdr({ promptResult: { lost: 'stalled', busy: 'timeout', asking: 'blocked' }, statuses: { lost: 'idle' } });
+  const r = await run([list], h);
+  assert.equal(r.code, EXIT.ok, r.err);
+  const state = JSON.parse(fs.readFileSync(path.join(root, STATE_FILE), 'utf8')).agents;
+  assert.equal(state.lost.prompted, false, 'a stalled prompt was never seen by the agent');
+  assert.equal(state.busy.prompted, true, 'a timeout means the agent started working');
+  assert.equal(state.asking.prompted, false);
+  assert.match(r.out, /lost\s+w1:p1\s+request not confirmed/);
+  assert.match(r.out, /asking\s+w3:p1\s+waiting for you/);
 });
 
 test('--status shows each agent state and flags blocked sessions', async () => {
