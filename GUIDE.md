@@ -552,5 +552,4 @@ Everything else is done by the CLI or a portal. These four need your own termina
 - [`docs/STEP-BY-STEP.md`](docs/STEP-BY-STEP.md): the phrases for each stage, condensed.
 - [`docs/LIFECYCLE.md`](docs/LIFECYCLE.md): the reasoning behind each step.
 - [`docs/USING-WITH-YOUR-CLI.md`](docs/USING-WITH-YOUR-CLI.md): per-CLI setup and differences.
-- [`docs/HOW-IT-WORKS.md`](docs/HOW-IT-WORKS.md): how the kit is built and refreshed.
 - [`NOTICE.md`](NOTICE.md): what is Microsoft's and what the kit adds.
