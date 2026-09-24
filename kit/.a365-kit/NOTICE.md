@@ -301,7 +301,7 @@ The September 2026 audit also re-verified the add-ons offline: every Python, Nod
 
 ## Examples and the workspace tool
 
-`examples/` holds seven starter agents in six languages and `tools/prepare-workspace.mjs` copies the kit and one example into a new directory, verifying every file against `BUNDLE-MANIFEST.json`. Both are kit-authored, MIT, contributed by Gerard Salvador López, and contain no tenant, user, tunnel or credential values; the model keys they read are supplied by the person running them. The SDKs they declare are restored from their registries, not redistributed.
+`examples/` holds seven starter agents in six languages and `tools/prepare-workspace.mjs` copies the kit and one example into a new directory, verifying every file against `BUNDLE-MANIFEST.json`. `tools/bulk-onboard.mjs` starts the onboarding for several agents in parallel sessions of [herdr](https://herdr.dev), a separate Apache 2.0 project that the kit does not bundle. Both are kit-authored, MIT, contributed by Gerard Salvador López, and contain no tenant, user, tunnel or credential values; the model keys they read are supplied by the person running them. The SDKs they declare are restored from their registries, not redistributed.
 
 ---
 

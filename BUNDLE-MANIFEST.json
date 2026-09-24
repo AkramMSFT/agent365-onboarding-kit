@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "bundleVersion": "0.2.7",
-  "kitVersion": "0.2.7",
+  "bundleVersion": "0.2.8",
+  "kitVersion": "0.2.8",
   "upstreamRepo": "microsoft/agent365-skills",
   "upstreamVersion": "1.0.2",
   "upstreamCommit": "07a0304",
@@ -280,7 +280,7 @@
     {
       "path": "kit/.a365-kit/KIT-VERSION.json",
       "bytes": 723,
-      "sha256": "08fa56879d2848102619e042625a7e80f3be488a557447ff52c6f3ce30f6296f"
+      "sha256": "d0b40c91ef275993c4f230d6e0f924e27642ba71765ec545f591fe50ca52faf9"
     },
     {
       "path": "kit/.a365-kit/lib/observability-consent.mjs",
@@ -289,8 +289,8 @@
     },
     {
       "path": "kit/.a365-kit/LICENSE",
-      "bytes": 1220,
-      "sha256": "dc9a97eba2bf982f4adf1614a1560169a2b3fca5035c7fc6e7835e671c164982"
+      "bytes": 1081,
+      "sha256": "74a4569a078fedc9dae5169c26dfaaccef8d703cd1f3c5cd7f4232ffcd54afd0"
     },
     {
       "path": "kit/.a365-kit/LICENSE-agent365-skills",
@@ -299,8 +299,8 @@
     },
     {
       "path": "kit/.a365-kit/NOTICE.md",
-      "bytes": 33237,
-      "sha256": "a74ebb401644400a01ffbab1a6d683a57443d1e1ec306f2c24d89e17fc5fd69d"
+      "bytes": 33415,
+      "sha256": "eb66d79596f2e625754da2e86d3a4e24136270386469a56fce44e378a7cb503d"
     },
     {
       "path": "kit/.a365-kit/run-a365.mjs",
@@ -1558,6 +1558,11 @@
       "sha256": "c546c87b7dbff33d7e82c29164c4f777dbf1f53ac31a5e9f033b0c3498fc29c5"
     },
     {
+      "path": "tools/bulk-onboard.mjs",
+      "bytes": 11568,
+      "sha256": "eb7d394829f7b27bd32a831b67ff37e8067129377c022b23de7c2f1e2a0612a2"
+    },
+    {
       "path": "tools/prepare-workspace.mjs",
       "bytes": 6979,
       "sha256": "99c16734618a29f28743326397514625e118b3e0e2a8c93f533a92af81ed7ff1"
@@ -1566,6 +1571,11 @@
       "path": "docs/AGENT-EXAMPLES.md",
       "bytes": 2979,
       "sha256": "6ec412d57b58aaf17c52b3d82a7606af66cbbc4ba3631fedabc253e3abfa6d4c"
+    },
+    {
+      "path": "docs/BULK-ONBOARDING.md",
+      "bytes": 4551,
+      "sha256": "5a074a3d4a7505821fdf1459728727c23a052659a5fa127d8688de994b09ea92"
     },
     {
       "path": "docs/images/README.md",
@@ -1589,8 +1599,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 25303,
-      "sha256": "5ccfaa577a486c8cee341219ed83694613f3c5accf6fb3e3e454bd4d5b949363"
+      "bytes": 26102,
+      "sha256": "63c31573c0d0ce986d2d06f8fcd34bb0f905737172da4d22cc44bdf616c1db4a"
     },
     {
       "path": "GUIDE.md",
@@ -1599,8 +1609,8 @@
     },
     {
       "path": "NOTICE.md",
-      "bytes": 33237,
-      "sha256": "a74ebb401644400a01ffbab1a6d683a57443d1e1ec306f2c24d89e17fc5fd69d"
+      "bytes": 33415,
+      "sha256": "eb66d79596f2e625754da2e86d3a4e24136270386469a56fce44e378a7cb503d"
     },
     {
       "path": "CONTRIBUTING.md",
@@ -1614,8 +1624,8 @@
     },
     {
       "path": "LICENSE",
-      "bytes": 1220,
-      "sha256": "dc9a97eba2bf982f4adf1614a1560169a2b3fca5035c7fc6e7835e671c164982"
+      "bytes": 1081,
+      "sha256": "74a4569a078fedc9dae5169c26dfaaccef8d703cd1f3c5cd7f4232ffcd54afd0"
     },
     {
       "path": ".gitattributes",

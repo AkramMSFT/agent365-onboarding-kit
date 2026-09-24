@@ -101,6 +101,9 @@ jobs:
       - name: Observability grant tool tests
         run: node --test build/test-grant-observability.mjs
 
+      - name: Bulk onboarding tool tests
+        run: node --test build/test-bulk-onboard.mjs
+
       - name: Workspace tool copies the kit and an example
         shell: pwsh
         run: |
