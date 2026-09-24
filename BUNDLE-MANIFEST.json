@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "bundleVersion": "0.2.6",
-  "kitVersion": "0.2.6",
+  "bundleVersion": "0.2.7",
+  "kitVersion": "0.2.7",
   "upstreamRepo": "microsoft/agent365-skills",
   "upstreamVersion": "1.0.2",
   "upstreamCommit": "07a0304",
@@ -280,7 +280,7 @@
     {
       "path": "kit/.a365-kit/KIT-VERSION.json",
       "bytes": 723,
-      "sha256": "feb19761663f7faa6b8c30433cad14bc00b8b4caf17d79f81717e28edbede1b4"
+      "sha256": "08fa56879d2848102619e042625a7e80f3be488a557447ff52c6f3ce30f6296f"
     },
     {
       "path": "kit/.a365-kit/lib/observability-consent.mjs",
@@ -289,8 +289,8 @@
     },
     {
       "path": "kit/.a365-kit/LICENSE",
-      "bytes": 1208,
-      "sha256": "19b884426b05295cdb310602947945ac9e72fa896c7bab43195d0278eb6bee8d"
+      "bytes": 1220,
+      "sha256": "dc9a97eba2bf982f4adf1614a1560169a2b3fca5035c7fc6e7835e671c164982"
     },
     {
       "path": "kit/.a365-kit/LICENSE-agent365-skills",
@@ -1069,8 +1069,8 @@
     },
     {
       "path": "kit/AGENT365-KIT-README.md",
-      "bytes": 18193,
-      "sha256": "9d01eed67a260447ff9bfd88965c7fff56078001d69c9dba9f74611b503bdb80"
+      "bytes": 18271,
+      "sha256": "146bf47a90e72c3ba2ebd61f73da2d5f3a9728f0505ebc9e15871e0eba49e25d"
     },
     {
       "path": "kit/agent365-kit.ps1",
@@ -1589,8 +1589,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 25154,
-      "sha256": "7e19cd86c0f13cf7702f13010c1991946a287ed558af30a46fd4b36b900c57c5"
+      "bytes": 25303,
+      "sha256": "5ccfaa577a486c8cee341219ed83694613f3c5accf6fb3e3e454bd4d5b949363"
     },
     {
       "path": "GUIDE.md",
@@ -1614,8 +1614,8 @@
     },
     {
       "path": "LICENSE",
-      "bytes": 1208,
-      "sha256": "19b884426b05295cdb310602947945ac9e72fa896c7bab43195d0278eb6bee8d"
+      "bytes": 1220,
+      "sha256": "dc9a97eba2bf982f4adf1614a1560169a2b3fca5035c7fc6e7835e671c164982"
     },
     {
       "path": ".gitattributes",

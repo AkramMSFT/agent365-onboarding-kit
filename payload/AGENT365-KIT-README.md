@@ -293,6 +293,7 @@ Skip the entry point and ask directly:
 
 ## Licence and provenance
 
+This kit is © 2026 Akram Eleyan (AkramMSFT), released under the MIT licence.
 The bundled skills are © Microsoft Corporation, MIT licensed, from
 [microsoft/agent365-skills](https://github.com/microsoft/agent365-skills). This kit repackages them
 with path rewrites so they load without a plugin install, plus itemised defect corrections.

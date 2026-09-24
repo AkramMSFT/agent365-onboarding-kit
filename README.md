@@ -369,9 +369,11 @@ Before declaring an agent done: confirm the tenant, blueprint and identity ids f
 
 ## Contributors
 
-- **Akram Eleyan**: author and maintainer.
+- **Akram Eleyan** ([@AkramMSFT](https://github.com/AkramMSFT)): author and maintainer.
 - **Gerard Salvador López** ([@gerardsl](https://github.com/gerardsl)): the September 2026 audit, covering the SDK and playbook corrections in `build/upstream-fixups.json`, the hardened launchers and version check, the environment parser and console-mode checks, the setup runner for the observability access-package hand-off, the seven examples and the workspace tool, and the runtime lessons the skills now point to.
 
 ## Licence
 
-This packaging is MIT licensed; see [`LICENSE`](LICENSE). The bundled skills are © Microsoft Corporation, also MIT. [`NOTICE.md`](NOTICE.md) carries the attribution and the full list of modifications. Every kit also carries both licences and the notice inside `.a365-kit/`.
+Copyright © 2026 Akram Eleyan ([@AkramMSFT](https://github.com/AkramMSFT)). The kit is released under the MIT licence; see [`LICENSE`](LICENSE).
+
+The bundled skills are © Microsoft Corporation, also under the MIT licence. [`NOTICE.md`](NOTICE.md) carries their attribution and the full list of modifications. Every kit carries both licences and the notice inside `.a365-kit/`.
